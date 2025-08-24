@@ -143,6 +143,16 @@ test-all: ## Run comprehensive test suite
 	@pytest $(TEST_DIR) -v --cov=$(SRC_DIR)/$(PACKAGE_NAME) --cov-report=term-missing
 	@echo "$(GREEN)✅ Comprehensive tests completed$(NC)"
 
+test-tox: ## Run tests across multiple Python versions with tox
+	@echo "$(BLUE)Running tests with tox...$(NC)"
+	@tox
+	@echo "$(GREEN)✅ Tox tests completed$(NC)"
+
+test-tox-py: ## Run tests for current Python version only
+	@echo "$(BLUE)Running tox for current Python version...$(NC)"
+	@tox -e py$$(python -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
+	@echo "$(GREEN)✅ Tox Python-specific tests completed$(NC)"
+
 all: clean install-dev check test-cov ## Run complete development pipeline
 	@echo "$(GREEN)🎉 Complete development pipeline finished successfully!$(NC)"
 
