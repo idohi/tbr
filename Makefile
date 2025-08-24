@@ -58,13 +58,10 @@ install: ## Install package in development mode
 
 install-dev: ## Install development dependencies
 	@echo "$(BLUE)Installing development dependencies...$(NC)"
-	@$(PIP) install -r requirements-dev.txt
+	@$(PIP) install -e ".[dev,docs,examples]"
 	@echo "$(GREEN)✅ Development dependencies installed$(NC)"
 
-update-requirements: ## Update requirements files from .in files
-	@echo "$(BLUE)Updating requirements files...$(NC)"
-	@./scripts/update-requirements.sh
-	@echo "$(GREEN)✅ Requirements updated$(NC)"
+
 
 test: ## Run tests
 	@echo "$(BLUE)Running tests...$(NC)"
@@ -157,7 +154,7 @@ all: clean install-dev check test-cov ## Run complete development pipeline
 	@echo "$(GREEN)🎉 Complete development pipeline finished successfully!$(NC)"
 
 # Development workflow targets
-dev-setup: setup install-dev install-pre-commit ## Complete development setup
+dev-setup: setup install-pre-commit ## Complete development setup
 	@echo "$(GREEN)🚀 Development environment ready!$(NC)"
 
 quick-check: format lint test ## Quick development check

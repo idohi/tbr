@@ -104,21 +104,9 @@ install_dependencies() {
     print_status "Installing build tools..."
     pip install build wheel setuptools
 
-    # Install runtime dependencies
-    if [[ -f "requirements.txt" ]]; then
-        print_status "Installing runtime dependencies..."
-        pip install -r requirements.txt
-    fi
-
-    # Install development dependencies
-    if [[ -f "requirements-dev.txt" ]]; then
-        print_status "Installing development dependencies..."
-        pip install -r requirements-dev.txt
-    fi
-
-    # Install package in development mode
-    print_status "Installing TBR package in development mode..."
-    pip install -e .
+    # Install package with all optional dependencies in development mode
+    print_status "Installing TBR package with all dependencies..."
+    pip install -e ".[dev,docs,examples]"
 
     print_success "All dependencies installed"
 }

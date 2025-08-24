@@ -20,7 +20,20 @@ A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) 
 
 ### Quick Install (PyPI)
 ```bash
+# Basic installation (runtime dependencies only)
 pip install tbr
+
+# With development tools
+pip install tbr[dev]
+
+# With documentation tools
+pip install tbr[docs]
+
+# With example/tutorial dependencies
+pip install tbr[examples]
+
+# With everything
+pip install tbr[dev,docs,examples]
 ```
 
 ### Development Installation
@@ -41,8 +54,7 @@ deactivate  # (optional, but recommended)
 **What the setup script does:**
 - ✅ Checks and installs Python 3.11.9 (via pyenv)
 - ✅ Creates/resets virtual environment (removes existing if found)
-- ✅ Installs all dependencies (runtime + development)
-- ✅ Installs package in development mode
+- ✅ Installs package with all optional dependencies (`pip install -e ".[dev,docs,examples]"`)
 - ✅ Sets up pre-commit hooks
 - ✅ Verifies everything works correctly
 
@@ -79,13 +91,9 @@ pyenv local 3.11.9
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Upgrade pip and install dependencies
+# Upgrade pip and install package with all dependencies
 pip install --upgrade pip
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# Install package in development mode
-pip install -e .
+pip install -e ".[dev,docs,examples]"
 ```
 
 ## 🛠️ Development Workflow
@@ -108,7 +116,7 @@ make all           # Run complete pipeline
 - **Code Quality**: `black`, `isort`, `ruff`, `mypy`
 - **Pre-commit**: Automated code quality checks
 - **Documentation**: `sphinx` with RTD theme
-- **Build**: Modern `build` system for PyPI
+- **Build**: `build` system for PyPI distribution
 
 ### Environment Management
 - **Python Version**: 3.11.9 (managed with `pyenv`)
