@@ -1,11 +1,35 @@
 # TBR - Time-Based Regression Analysis Package
 
+> ⚠️ **ALPHA RELEASE v0.1.0a1** ⚠️
+> **This package is under active development. The API may change in future versions.**
+> **For production use, please wait for the stable 1.0.0 release.**
+> **Current release is primarily for name reservation and early community feedback.**
+
 [![PyPI version](https://badge.fury.io/py/tbr.svg)](https://badge.fury.io/py/tbr)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Development Status](https://img.shields.io/badge/status-alpha-red.svg)](https://pypi.org/project/tbr/)
 
 A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis. Perform rigorous statistical analysis of treatment/control group time series data across any industry - marketing, medical research, economics, and more.
+
+## 🚧 Alpha Release Status
+
+**What's Available Now (v0.1.0a1):**
+- ✅ Core TBR functionality with 22 professional functions
+- ✅ Domain-agnostic API for any treatment/control experiment
+- ✅ Complete mathematical implementation with statistical rigor
+- ✅ Professional code quality (type hints, documentation, testing)
+- ✅ PyPI installation and basic usage examples
+
+**What's Coming in Future Releases:**
+- 🚧 High-level API classes (TBRAnalysis wrapper)
+- 🚧 Comprehensive visualization tools
+- 🚧 Extended documentation and tutorials
+- 🚧 Performance optimizations
+- 🚧 Additional statistical diagnostics
+
+**Roadmap to v1.0.0:** See our [Project Plan](https://github.com/idohi/tbr/blob/main/ai_helper_notes/PROJECT_PLAN.md)
 
 ## 🚀 Features
 
@@ -145,35 +169,55 @@ rm -rf .venv           # Remove virtual environment
 - **Python version issues**: The script will install Python 3.11.9 automatically
 - **Dependency conflicts**: The setup script creates a clean environment each time
 
-## 📚 Quick Start
+## 📚 Quick Start (Alpha API)
+
+> **Note**: The high-level `TBRAnalysis` class is coming in future releases. Currently available: functional API.
 
 ```python
 import pandas as pd
-from tbr import TBRAnalysis
+import numpy as np
+from tbr.functional import perform_tbr_analysis
 
-# Load your time series data
-data = pd.read_csv('your_data.csv')
+# Example: Create time series data (date, control, test columns)
+np.random.seed(42)
+dates = pd.date_range('2023-01-01', periods=100, freq='D')
+data = pd.DataFrame({
+    'date': dates,
+    'control': np.random.normal(100, 10, 100),  # Control group metric
+    'test': np.random.normal(105, 10, 100)      # Treatment group metric
+})
 
-# Initialize TBR analysis
-tbr = TBRAnalysis(
+# Run TBR analysis
+tbr_results, summary_results = perform_tbr_analysis(
     data=data,
-    date_column='date',
-    metric_column='value',
-    treatment_column='is_treatment'
+    date_col='date',
+    control_col='control',
+    test_col='test',
+    pretest_start='2023-01-01',  # Start of baseline period
+    test_start='2023-02-15',     # Start of treatment period
+    test_end='2023-04-10',       # End of analysis period
+    level=0.80,                  # Confidence level for intervals
+    threshold=0.0                # Threshold for significance testing
 )
 
-# Run analysis
-results = tbr.analyze(
-    pre_period=('2023-01-01', '2023-06-30'),
-    post_period=('2023-07-01', '2023-12-31')
-)
+# View results
+print("TBR Analysis Results:")
+print(summary_results)
 
-# Get summary
-print(results.summary())
-
-# Plot results
-results.plot()
+# The results contain:
+# - Incremental lift estimates with credible intervals
+# - Cumulative effects over time
+# - Statistical significance tests
+# - Posterior probability assessments
 ```
+
+### What the Analysis Provides
+
+- **Counterfactual Predictions**: What would have happened without treatment
+- **Lift Calculations**: Treatment effect with statistical uncertainty
+- **Credible Intervals**: Bayesian confidence bounds using t-distribution
+- **Significance Testing**: Posterior probability of positive/negative effects
+- **Time Series Output**: Daily and cumulative analysis over treatment period
 
 ## 📖 Documentation
 
