@@ -43,8 +43,8 @@
 - 💻 [R Implementation of `DoTBRAnalysis()` on GitHub](https://github.com/google/GeoexperimentsResearch/blob/master/R/dotbranalysis.R)
 - 💻 [R Implementation of `DoTBRAnalysis_TBR1()` on GitHub](https://github.com/google/GeoexperimentsResearch/blob/master/R/dotbranalysis_tbr1.R)
 - 📁 Local R file in this project:
-  - `tbr_function.R`  
-    - Calls: [dotbranalysis.R](https://github.com/google/GeoexperimentsResearch/blob/master/R/dotbranalysis.R)  
+  - `tbr_function.R`
+    - Calls: [dotbranalysis.R](https://github.com/google/GeoexperimentsResearch/blob/master/R/dotbranalysis.R)
       - Calls: [dotbranalysis_tbr1.R](https://github.com/google/GeoexperimentsResearch/blob/master/R/dotbranalysis_tbr1.R)
 
 - 🐍 Python–R interface:
@@ -120,7 +120,7 @@ Taking the derivative of the error function with respect to $\beta_0$ and $\beta
 
 And because  $\sum_{i=1}^n (x_i - \bar{x})=0$ , we get:
 
-$$\hat{\beta}_1 = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{S_{xx}}=\frac{\sum_{i=1}^n (x_i - \bar{x})y_i}{S_{xx}}$$ 
+$$\hat{\beta}_1 = \frac{\sum_{i=1}^n (x_i - \bar{x})(y_i - \bar{y})}{S_{xx}}=\frac{\sum_{i=1}^n (x_i - \bar{x})y_i}{S_{xx}}$$
 
 $$\hat{\beta}_0 = \bar{y} - \hat{\beta}_1 \bar{x}$$
 
@@ -146,7 +146,7 @@ Variance of $\hat{y}_*$
 
 $$
 \mathbb{V}[\hat{y}_*] = s^2 \left( \frac{1}{n} + \frac{(x_* - \bar{x})^2}{\sum_{i=1}^n (x_i - \bar{x})^2} \right)
-$$ 
+$$
 For more details on the derivation of this formula, see the section [Derive the variance of $\hat{y}_*$](#derive-the-variance-of-haty_-mathbbvhaty_) below.
 
 <br></br>
@@ -412,7 +412,7 @@ $$
 Finally, combine all terms:
 
 $$
-\mathbb{V}[\hat{\beta}_0] 
+\mathbb{V}[\hat{\beta}_0]
 = \frac{\sigma^2}{n} + \bar{x}^2 \cdot \frac{\sigma^2}{\sum_{i=1}^n (x_i - \bar{x})^2}
 = \sigma^2 \left( \frac{1}{n} + \frac{\bar{x}^2}{\sum_{i=1}^n (x_i - \bar{x})^2} \right)
 $$
@@ -593,7 +593,7 @@ Putting this together:
 
 $$
 \boxed{
-\mathbb{V}[\Delta r(T)] = T \cdot \sigma^2 + T^2 \cdot v  
+\mathbb{V}[\Delta r(T)] = T \cdot \sigma^2 + T^2 \cdot v
 }
 $$
 
@@ -614,7 +614,7 @@ While this expression is **only exact** if the $y_t$ values are independent and 
 - Constant variance across all $y_t$
 - No autocorrelation between time steps
 
-This simplification enables efficient computation of credible intervals. The authors of the **TBR paper**  
+This simplification enables efficient computation of credible intervals. The authors of the **TBR paper**
 (*Estimating Ad Effectiveness using Geo Experiments in a Time-Based Regression Framework*) justify its use empirically — in their simulations, the credible intervals still had accurate coverage, **even under correlated or noisy conditions**.
 
 > ✅ So, while mathematically this is an approximation, the R package **treats it as an equality** for practical purposes.
@@ -682,7 +682,7 @@ The standard deviation of the fitted value (used in the R package as `y.hat.sd`)
 
 This expression captures the variability in the model’s estimated response at the point $x_t$, arising only from uncertainty in the estimated regression coefficients.
 
-## 📘 Distinguishing Between Variance of $\hat{y}$ and Variance of $y$ 
+## 📘 Distinguishing Between Variance of $\hat{y}$ and Variance of $y$
 
 When predicting the response at a new point $x_t$, it's important to distinguish between two types of variance:
 
@@ -785,8 +785,8 @@ This section explains the meaning of each field returned in the TBR summary outp
 
 These parameters summarize the posterior distribution of the estimated cumulative causal effect and reflect both model-based uncertainty and underlying assumptions of the TBR framework.
 
-👉 **Implementation Source:** The R function `summary.TBRAnalysisFitTbr1()` is the **definitive implementation** of how these summary statistics are computed. This implementation is the actual source used to generate values like `estimate`, `precision`, `se`, and credible intervals.  
-You can view it here:  
+👉 **Implementation Source:** The R function `summary.TBRAnalysisFitTbr1()` is the **definitive implementation** of how these summary statistics are computed. This implementation is the actual source used to generate values like `estimate`, `precision`, `se`, and credible intervals.
+You can view it here:
 [summary_tbranalysisfit_tbr1.R on GitHub](https://github.com/google/GeoexperimentsResearch/blob/master/R/summary_tbranalysisfit_tbr1.R)
 
 ### 🔹 `estimate`
@@ -987,300 +987,31 @@ Where:
 - $n_{\text{pre}}$ is the number of observations in the pre-test period
 - $k$ is the number of model parameters (typically 2: intercept and slope)
 
-**Example:**  
+**Example:**
 If $n_{\text{pre}} = 90$ and $k = 2$, then $\nu = 88$.
----
 
-## 📘 Posterior Variance and Credible Interval for a Subinterval of the Test Period
 
-In many practical applications of the Time-Based Regression (TBR) method, it is useful to estimate the causal effect **over a subinterval** of the test period, rather than from the beginning. For instance, one may wish to exclude the initial days of the test period due to latency or stabilization effects. This section derives the posterior distribution of the cumulative causal effect from **day $i$ to day $j$**, where $1 \le i \le j \le T$, and $T$ is the number of days in the test period.
+## 📘 Analyzing a Subperiod of the Test Period
 
----
+To analyze a **subperiod** of the test period, redefine only the test period boundaries while keeping the original pre-test period unchanged.
 
-### 🔹 Definition of the Subinterval Effect
+**Example:** To analyze the effect from original days 4-10, relabel day 4 as the new Day 1, day 10 as the new Day 7, maintain the same pre-test data, and run the standard TBR analysis. This approach is correct because the underlying regression relationship remains the same.
 
-Let the cumulative causal effect over the subinterval $[i, j]$ be defined as:
 
-$$
-\hat{\Delta}_{[i \rightarrow j]} := \sum_{t=i}^{j} (y_t - \hat{y}_t^*)
-$$
-
-where:
-- $y_t$ is the observed outcome in the treatment group at time $t$,
-- $\hat{y}_t^*$ is the counterfactual prediction of what $y_t$ would have been in the absence of treatment,
-- $y_t - \hat{y}_t^*$ is the pointwise causal effect at time $t$.
-
----
-
-### 🔹 Posterior Distribution of $\Delta_{[i \rightarrow j]}$
-
-The posterior distribution of $\Delta_{[i \rightarrow j]}$ is modeled as a Student's $t$-distribution:
-
-$$
-\Delta_{[i \rightarrow j]} \mid \text{data} \sim t_\nu \left( \hat{\Delta}_{[i \rightarrow j]},\ \sqrt{ \mathbb{V}[\Delta_{[i \rightarrow j]}]} \right)
-$$
-
-where:
-- $\hat{\Delta}_{[i \rightarrow j]}$ is the posterior mean (point estimate),
-- $\nu$ is the degrees of freedom estimated from the pretest period,
-- $\mathbb{V}[\Delta_{[i \rightarrow j]}]$ is the posterior variance.
-
----
-
-### 🔹 Posterior Variance
-
-Assuming independence of daily residuals and model errors across time, the posterior variance is the sum of the pointwise variances:
-
-$$
-\mathbb{V}[\Delta_{[i \rightarrow j]}] = \sum_{t=i}^{j} \mathbb{V}[y_t - \hat{y}_t^*] = \sum_{t=i}^{j} \left( \mathbb{V}[\hat{y}_t^*] + \sigma^2 \right)
-$$
-
-Here:
-- $\mathbb{V}[\hat{y}_t^*]$ is the posterior variance of the model prediction at time $t$,
-- $\sigma^2$ is the residual variance estimated from the pretest period and assumed to be constant.
-
-Thus:
-
-$$
-\mathbb{V}[\Delta_{[i \rightarrow j]}] = \sum_{t=i}^{j} \mathbb{V}[\hat{y}_t^*] + (j - i + 1) \cdot \sigma^2
-$$
-
----
-
-### 🔹 Posterior Standard Deviation and Precision
-
-Let $n := j - i + 1$ be the number of days in the subinterval. Then:
-
-- The posterior standard deviation (or standard error) is:
-
-$$
-\text{SE}_{[i \rightarrow j]} := \sqrt{ \mathbb{V}[\Delta_{[i \rightarrow j]}] } = \sqrt{ \sum_{t=i}^{j} \mathbb{V}[\hat{y}_t^*] + n \cdot \sigma^2 }
-$$
-
-- The precision, defined as the half-width of the posterior credible interval, is:
-
-$$
-\text{Precision}_{[i \rightarrow j]} := t_{\alpha/2, \nu} \cdot \text{SE}_{[i \rightarrow j]}
-$$
-
-Where $t_{\alpha/2, \nu}$ is the $(1 - \alpha/2)$ quantile of the Student’s $t$-distribution with $\nu$ degrees of freedom.
-
----
-
-### 🔹 Credible Interval Bounds
-
-The $100 \cdot (1 - \alpha)\%$ posterior credible interval for the subinterval causal effect is:
-
-$$
-\left[
-\hat{\Delta}_{[i \rightarrow j]} - t_{\alpha/2, \nu} \cdot \text{SE}_{[i \rightarrow j]},\quad
-\hat{\Delta}_{[i \rightarrow j]} + t_{\alpha/2, \nu} \cdot \text{SE}_{[i \rightarrow j]}
-\right]
-$$
-
-Equivalently, using the outputs of the TBR analysis:
-
-- Let the estimated causal effect be computed as:
-
-$$
-\hat{\Delta}_{[i \rightarrow j]} = \sum_{t=i}^{j} (y_t - \text{pred}_t)
-$$
-
-- Let `precision` denote the posterior half-width:
-
-$$
-\texttt{precision}_{[i \rightarrow j]} := t_{\alpha/2, \nu} \cdot \text{SE}_{[i \rightarrow j]}
-$$
-
-Then the credible interval becomes:
-
-$$
-\left[
-\sum_{t=i}^{j} (y_t - \text{pred}_t) - \texttt{precision}_{[i \rightarrow j]},\quad
-\sum_{t=i}^{j} (y_t - \text{pred}_t) + \texttt{precision}_{[i \rightarrow j]}
-\right]
-$$
-
-This expression corresponds directly to the credible interval bounds as computed using the model output, and avoids recomputing the $t$-distribution multiplier or standard error explicitly.
-
----
-
-### 🔍 Computing Subinterval Measures from TBR Output
-
-
-### 🔹 Deriving $\text{SE}_{[i \rightarrow j]}$ from the TBR Output
-
-To compute the posterior standard deviation $\text{SE}_{[i \rightarrow j]}$ from the TBR model outputs, we rely on two components provided by the TBR results:
-
-#### 1. Pointwise Posterior Variance of the Model Prediction
-
-For each day $t$ in the test period, the posterior variance of the model prediction $\mathbb{V}[\hat{y}_t^*]$ is reported as:
-
-$$
-\mathbb{V}[\hat{y}_t^*] = \texttt{estsd}_t^2
-$$
-
-Where:
-- $\texttt{estsd}_t$ is the standard deviation of $\hat{y}_t^*$ due to model uncertainty alone,
-- This value is provided in the TBR output table under the column labeled `estsd`, one value per test period day.
-
-To obtain the total model-based variance over the interval $[i, j]$, sum these values squared:
-
-$$
-\sum_{t=i}^{j} \mathbb{V}[\hat{y}_t^*] = \sum_{t=i}^{j} \texttt{estsd}_t^2
-$$
-
-#### 2. Residual Variance
-
-The residual variance $\sigma^2$ is constant across time and estimated from the pretest period. It accounts for the natural, irreducible noise in the observed data. This value is obtained from the scalar `sigma` in the TBR summary output.
-
-To accumulate the residual variance across $n = j - i + 1$ days:
-
-$$
-\sum_{t=i}^{j} \sigma^2 = n \cdot \sigma^2
-$$
-
-#### 3. Combine to Obtain Posterior Variance and Standard Error
-
-With both components available from TBR output, the posterior variance over the interval is:
-
-$$
-\mathbb{V}[\Delta_{[i \rightarrow j]}] = \sum_{t=i}^{j} \texttt{estsd}_t^2 + n \cdot \sigma^2
-$$
-
-Then the posterior standard deviation is:
-
-$$
-\text{SE}_{[i \rightarrow j]} = \sqrt{ \sum_{t=i}^{j} \texttt{estsd}_t^2 + n \cdot \sigma^2 }
-$$
-
-This value is then used to compute the credible interval as previously described.
-
-### 🔹 Additive Decomposition of Subinterval Standard Error and Precision
-
-When working with adjacent or nested subintervals of the test period, it is often useful to compute the posterior standard deviation or precision for a subinterval $[i, j]$ in terms of quantities already computed over longer intervals. This is valid under the assumption of independence across time and constant residual variance.
-
-#### Posterior Standard Error (Squared)
-
-Let $\text{SE}_{[a \rightarrow b]}$ denote the posterior standard deviation of the cumulative effect over the interval $[a, b]$. By definition:
-
-$$
-\text{SE}_{[a \rightarrow b]}^2 = \sum_{t=a}^{b} \mathbb{V}[\hat{y}_t^*] + (b - a + 1) \cdot \sigma^2
-$$
-
-Now consider the cumulative posterior standard error up to day $j$ and up to day $i-1$:
-
-$$
-\begin{aligned}
-\text{SE}_{[1 \rightarrow j]}^2 &= \sum_{t=1}^{j} \mathbb{V}[\hat{y}_t^*] + j \cdot \sigma^2 \\\\
-\text{SE}_{[1 \rightarrow (i - 1)]}^2 &= \sum_{t=1}^{i-1} \mathbb{V}[\hat{y}_t^*] + (i - 1) \cdot \sigma^2
-\end{aligned}
-$$
-
-Subtracting these gives:
-
-$$
-\begin{aligned}
-\text{SE}_{[i \rightarrow j]}^2 = \text{SE}_{[1 \rightarrow j]}^2 - \text{SE}_{[1 \rightarrow (i - 1)]}^2 \\\\
-\text{SE}_{[i \rightarrow j]} = \sqrt{ \text{SE}_{[1 \rightarrow j]}^2 - \text{SE}_{[1 \rightarrow (i - 1)]}^2 }
-\end{aligned}
-$$
-
-This identity follows from the linearity of variance over non-overlapping time periods and holds exactly under the TBR assumptions.
-
----
-
-#### Posterior Precision (Squared)
-
-Let $\text{Precision}_{[a \rightarrow b]}$ denote the half-width of the credible interval over the interval $[a, b]$:
-
-$$
-\text{Precision}_{[a \rightarrow b]} = t_{\alpha/2, \nu} \cdot \text{SE}_{[a \rightarrow b]}
-$$
-
-Assuming the $t$-quantile $t_{\alpha/2, \nu}$ is constant (i.e., $\nu$ is fixed across comparisons), we square both sides:
-
-$$
-\text{Precision}_{[a \rightarrow b]}^2 = t_{\alpha/2, \nu}^2 \cdot \text{SE}_{[a \rightarrow b]}^2
-$$
-
-Applying this to the identity derived above:
-
-$$
-\begin{aligned}
-\text{Precision}_{[i \rightarrow j]}^2
-&= t_{\alpha/2, \nu}^2 \cdot \text{SE}_{[i \rightarrow j]}^2 \\
-&= t_{\alpha/2, \nu}^2 \cdot \left( \text{SE}_{[1 \rightarrow j]}^2 - \text{SE}_{[1 \rightarrow (i - 1)]}^2 \right) \\
-&= \text{Precision}_{[1 \rightarrow j]}^2 - \text{Precision}_{[1 \rightarrow (i - 1)]}^2
-\end{aligned}
-$$
-
-$$
-\text{Precision}_{[i \rightarrow j]} = \sqrt{ \text{Precision}_{[1 \rightarrow j]}^2 - \text{Precision}_{[1 \rightarrow (i - 1)]}^2 }
-$$
-
-This decomposition enables precise and efficient computation of interval-specific uncertainties using already-accumulated posterior quantities.
-
-### 🧾 Summary of Required Formulas
-
-Let:
-- $\hat{\Delta}_{[i \rightarrow j]} := \sum_{t=i}^{j} (y_t - \hat{y}_t^*)$
-- $n := j - i + 1$
-- $\mathbb{V}[\hat{y}_t^*]$ is the model variance at time $t$
-- $\sigma^2$ is the residual variance from the pretest fit
-- $\nu$ is the degrees of freedom from the regression
-- $t_{\alpha/2, \nu}$ is the t-distribution quantile
-
-Then:
-
-1. **Point Estimate**:
-   $$
-   \hat{\Delta}_{[i \rightarrow j]} = \sum_{t=i}^{j} (y_t - \hat{y}_t^*)
-   $$
-
-2. **Posterior Variance**:
-   $$
-   \mathbb{V}[\Delta_{[i \rightarrow j]}] = \sum_{t=i}^{j} \mathbb{V}[\hat{y}_t^*] + n \cdot \sigma^2
-   $$
-
-3. **Posterior Standard Deviation**:
-   $$
-   \begin{aligned}
-   \text{SE}_{[i \rightarrow j]} &= \sqrt{ \sum_{t=i}^{j} \mathbb{V}[\hat{y}_t^*] + n \cdot \sigma^2 } \\ \\
-   \text{SE}_{[i \rightarrow j]} &= \sqrt{ \text{SE}_{[1 \rightarrow j]}^2 - \text{SE}_{[1 \rightarrow (i - 1)]}^2 }
-   \end{aligned}
-   $$
-
-4. **Precision**:
-   $$
-   \begin{aligned}
-   \text{Precision}_{[i \rightarrow j]} &= t_{\alpha/2, \nu} \cdot \text{SE}_{[i \rightarrow j]} \\ \\
-   \text{Precision}_{[i \rightarrow j]} &= \sqrt{ \text{Precision}_{[1 \rightarrow j]}^2 - \text{Precision}_{[1 \rightarrow (i - 1)]}^2 }
-   \end{aligned}
-   $$
-5. **Credible Interval**:
-   $$
-   \left[
-   \hat{\Delta}_{[i \rightarrow j]} - \text{Precision}_{[i \rightarrow j]},\quad
-   \hat{\Delta}_{[i \rightarrow j]} + \text{Precision}_{[i \rightarrow j]}
-   \right]
-   $$
-
----
 ## 📎 Appendix
 
 ### 🔹 Standard Assumptions Used in the TBR Estimation Framework
 
 The derivations and justifications throughout this document rely on the following standard assumptions, which align with the classical linear regression model applied to the pre-test period:
 
-1. **Linearity of the model**  
-   The untreated outcome follows a linear relationship with the covariate:  
+1. **Linearity of the model**
+   The untreated outcome follows a linear relationship with the covariate:
    $$
    y_t^* = \beta_0 + \beta_1 x_t + \varepsilon_t
    $$
 
-2. **Exogeneity (zero-mean residuals)**  
-   The error term has zero mean conditional on the covariates:  
+2. **Exogeneity (zero-mean residuals)**
+   The error term has zero mean conditional on the covariates:
    $$
    \mathbb{E}[\varepsilon_t \mid x_t] = 0
    $$
@@ -1289,19 +1020,19 @@ The derivations and justifications throughout this document rely on the followin
    \mathbb{E}[\hat{\beta}_0] = \beta_0, \quad \mathbb{E}[\hat{\beta}_1] = \beta_1
    $$
 
-3. **Homoscedasticity**  
+3. **Homoscedasticity**
    The variance of the residuals is constant across time:
    $$
    \mathbb{V}[\varepsilon_t \mid x_t] = \sigma^2
    $$
 
 
-4. **Independence of residuals**  
-   The residuals are assumed to be uncorrelated across time (i.e., no autocorrelation):  
+4. **Independence of residuals**
+   The residuals are assumed to be uncorrelated across time (i.e., no autocorrelation):
    $$
    \text{Cov}(\varepsilon_t, \varepsilon_s) = 0 \quad \text{for all } t \ne s
    $$
 
 
-5. **Model is trained only on pre-treatment data**  
+5. **Model is trained only on pre-treatment data**
    The regression model is fit exclusively on data from the pre-test period, ensuring that treatment effects do not bias parameter estimates.
