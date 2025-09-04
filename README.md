@@ -190,7 +190,7 @@ data = pd.DataFrame({
 # Run TBR analysis
 tbr_results, summary_results = perform_tbr_analysis(
     data=data,
-    date_col='date',
+    time_col='date',
     control_col='control',
     test_col='test',
     pretest_start='2023-01-01',  # Start of baseline period

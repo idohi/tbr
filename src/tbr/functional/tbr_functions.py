@@ -37,7 +37,7 @@ Basic TBR analysis workflow:
 >>> # Run TBR analysis
 >>> tbr_results, daily_summaries = perform_tbr_analysis(
 ...     data=data,
-...     date_col='date',
+...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
 ...     pretest_start='2023-01-01',
@@ -70,7 +70,7 @@ __all__ = [
     "safe_int_conversion",
     "validate_no_nulls",
     "parse_date_string",
-    "validate_date_periods",
+    "validate_time_periods",
     "split_by_periods",
     "fit_tbr_regression_model",
     "calculate_model_variance",
@@ -225,10 +225,10 @@ def parse_date_string(
 
     Examples
     --------
-    >>> parse_date_string('2023-01-01', 'start_date')
+    >>> parse_date_string('2023-01-01', 'start_time')
     Timestamp('2023-01-01 00:00:00+0000', tz='UTC')
 
-    >>> parse_date_string('2023-01-01', 'end_date', make_exclusive=True)
+    >>> parse_date_string('2023-01-01', 'end_time', make_exclusive=True)
     Timestamp('2023-01-02 00:00:00+0000', tz='UTC')
     """
     if isinstance(date_str, pd.Timestamp):
@@ -254,61 +254,61 @@ def parse_date_string(
     return parsed_date
 
 
-def validate_date_periods(
+def validate_time_periods(
     pretest_start: Union[str, datetime.date],
     test_start: Union[str, datetime.date],
     test_end: Union[str, datetime.date],
 ) -> Tuple[datetime.date, datetime.date, datetime.date]:
     """
-    Validate and parse date parameters for TBR analysis.
+    Validate and parse time period parameters for TBR analysis.
 
     Parameters
     ----------
     pretest_start : Union[str, datetime.date]
-        Start date of pretest period
+        Start time of pretest period
     test_start : Union[str, datetime.date]
-        Start date of test period
+        Start time of test period
     test_end : Union[str, datetime.date]
-        End date of test period
+        End time of test period
 
     Returns
     -------
     Tuple[datetime.date, datetime.date, datetime.date]
-        Parsed and validated dates (pretest_start, test_start, test_end)
+        Parsed and validated time boundaries (pretest_start, test_start, test_end)
 
     Raises
     ------
     ValueError
-        If dates are invalid or in wrong order
+        If time periods are invalid or in wrong order
 
     Examples
     --------
-    >>> validate_date_periods('2023-01-01', '2023-02-01', '2023-02-15')
+    >>> validate_time_periods('2023-01-01', '2023-02-01', '2023-02-15')
     (Timestamp('2023-01-01 00:00:00+0000', tz='UTC'),
      Timestamp('2023-02-01 00:00:00+0000', tz='UTC'),
      Timestamp('2023-02-16 00:00:00+0000', tz='UTC'))
     """
-    # Parse dates
-    pretest_start_date = parse_date_string(
+    # Parse time boundaries
+    pretest_start_time = parse_date_string(
         pretest_start, "pretest_start", make_exclusive=False
     )
-    test_start_date = parse_date_string(test_start, "test_start", make_exclusive=False)
-    test_end_date = parse_date_string(test_end, "test_end", make_exclusive=True)
+    test_start_time = parse_date_string(test_start, "test_start", make_exclusive=False)
+    test_end_time = parse_date_string(test_end, "test_end", make_exclusive=True)
 
-    # Validate date order
-    if not (pretest_start_date < test_start_date < test_end_date):
+    # Validate time order
+    if not (pretest_start_time < test_start_time < test_end_time):
         raise ValueError(
-            f"Dates must be in order: pretest_start < test_start < test_end, "
-            f"got: {pretest_start_date} < {test_start_date} < {test_end_date} "
+            f"Time periods must be in order: pretest_start < test_start < test_end, "
+            f"got: {pretest_start_time} < {test_start_time} < {test_end_time} "
             f"(Note: test_end shown as next day due to exclusive boundary handling)"
         )
 
-    return pretest_start_date, test_start_date, test_end_date
+    return pretest_start_time, test_start_time, test_end_time
 
 
 def split_by_periods(
     aggregated_data: pd.DataFrame,
-    date_col: str,
+    time_col: str,
     control_col: str,
     test_col: str,
     pretest_start: Union[str, datetime.date],
@@ -321,19 +321,19 @@ def split_by_periods(
     Parameters
     ----------
     aggregated_data : pd.DataFrame
-        Time series data with columns for date, control, and test metrics
-    date_col : str
-        Name of the date column
+        Time series data with columns for time, control, and test metrics
+    time_col : str
+        Name of the time column
     control_col : str
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
     pretest_start : Union[str, datetime.date]
-        Start date of pretest period
+        Start time of pretest period
     test_start : Union[str, datetime.date]
-        Start date of test period
+        Start time of test period
     test_end : Union[str, datetime.date]
-        End date of test period
+        End time of test period
 
     Returns
     -------
@@ -343,7 +343,7 @@ def split_by_periods(
     Raises
     ------
     ValueError
-        If date validation fails or no data found in periods
+        If time period validation fails or no data found in periods
 
     Examples
     --------
@@ -358,32 +358,38 @@ def split_by_periods(
     ...     '2023-01-15', '2023-02-15', '2023-03-01'
     ... )
     """
-    # Validate dates
-    pretest_start_date, test_start_date, test_end_date = validate_date_periods(
+    # Validate time periods
+    pretest_start_time, test_start_time, test_end_time = validate_time_periods(
         pretest_start, test_start, test_end
     )
 
     # Validate input data
     validate_required_columns(
-        aggregated_data, [date_col, control_col, test_col], "aggregated_data"
+        aggregated_data, [time_col, control_col, test_col], "aggregated_data"
     )
 
-    # Convert date column to datetime if it's string
+    # Convert time column to datetime if it's string
     data_copy = aggregated_data.copy()
-    if data_copy[date_col].dtype == "object":
-        data_copy[date_col] = pd.to_datetime(data_copy[date_col]).dt.tz_localize("UTC")
+    if data_copy[time_col].dtype == "object":
+        data_copy[time_col] = pd.to_datetime(data_copy[time_col]).dt.tz_localize("UTC")
+    elif (
+        pd.api.types.is_datetime64_any_dtype(data_copy[time_col])
+        and data_copy[time_col].dt.tz is None
+    ):
+        # Handle timezone-naive datetime columns
+        data_copy[time_col] = data_copy[time_col].dt.tz_localize("UTC")
 
-    # Split into periods - pandas handles datetime vs date comparison well
-    baseline_mask = data_copy[date_col] < pd.to_datetime(pretest_start_date)
-    pretest_mask = (data_copy[date_col] >= pd.to_datetime(pretest_start_date)) & (
-        data_copy[date_col] < pd.to_datetime(test_start_date)
+    # Split into periods - pandas handles datetime vs time comparison well
+    baseline_mask = data_copy[time_col] < pd.to_datetime(pretest_start_time)
+    pretest_mask = (data_copy[time_col] >= pd.to_datetime(pretest_start_time)) & (
+        data_copy[time_col] < pd.to_datetime(test_start_time)
     )
-    test_mask = (data_copy[date_col] >= pd.to_datetime(test_start_date)) & (
-        data_copy[date_col] < pd.to_datetime(test_end_date)
-    )  # Exclusive end date
-    cooldown_mask = data_copy[date_col] >= pd.to_datetime(
-        test_end_date
-    )  # Exclusive end date
+    test_mask = (data_copy[time_col] >= pd.to_datetime(test_start_time)) & (
+        data_copy[time_col] < pd.to_datetime(test_end_time)
+    )  # Exclusive end time
+    cooldown_mask = data_copy[time_col] >= pd.to_datetime(
+        test_end_time
+    )  # Exclusive end time
 
     baseline_data = data_copy[baseline_mask].copy()
     pretest_data = data_copy[pretest_mask].copy()
@@ -395,7 +401,7 @@ def split_by_periods(
 
 def fit_tbr_regression_model(
     time_series_data: pd.DataFrame,
-    date_col: str,
+    time_col: str,
     control_col: str,
     test_col: str,
     pretest_start: Union[str, datetime.date],
@@ -413,17 +419,17 @@ def fit_tbr_regression_model(
     Parameters
     ----------
     time_series_data : pd.DataFrame
-        Time series data with date, control, and test columns
-    date_col : str
-        Name of the date column
+        Time series data with time, control, and test columns
+    time_col : str
+        Name of the time column
     control_col : str
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
     pretest_start : Union[str, datetime.date]
-        Start date for pretest period
+        Start time for pretest period
     test_start : Union[str, datetime.date]
-        Start date for test period (end of pretest)
+        Start time for test period (end of pretest)
 
     Returns
     -------
@@ -462,20 +468,26 @@ def fit_tbr_regression_model(
     if time_series_data.empty:
         raise ValueError("Input DataFrame is empty")
 
-    required_cols = [date_col, control_col, test_col]
+    required_cols = [time_col, control_col, test_col]
     validate_required_columns(time_series_data, required_cols, "time_series_data")
 
-    # Convert dates to datetime if they aren't already
+    # Convert time values to datetime if they aren't already
     df = time_series_data.copy()
-    if not pd.api.types.is_datetime64_any_dtype(df[date_col]):
-        df[date_col] = pd.to_datetime(df[date_col]).dt.tz_localize("UTC")
+    if not pd.api.types.is_datetime64_any_dtype(df[time_col]):
+        df[time_col] = pd.to_datetime(df[time_col]).dt.tz_localize("UTC")
+    elif (
+        pd.api.types.is_datetime64_any_dtype(df[time_col])
+        and df[time_col].dt.tz is None
+    ):
+        # Handle timezone-naive datetime columns
+        df[time_col] = df[time_col].dt.tz_localize("UTC")
 
     start_pretest = pd.to_datetime(pretest_start).tz_localize("UTC")
     start_test = pd.to_datetime(test_start).tz_localize("UTC")
 
     # Filter to pretest period only
     pretest_df = df[
-        (df[date_col] >= start_pretest) & (df[date_col] < start_test)
+        (df[time_col] >= start_pretest) & (df[time_col] < start_test)
     ].copy()
 
     if len(pretest_df) < 3:
@@ -716,6 +728,7 @@ def generate_counterfactual_predictions(
     var_beta: float,
     test_period_data: pd.DataFrame,
     control_col: str,
+    time_col: Optional[str] = None,
 ) -> pd.DataFrame:
     """
     Generate counterfactual predictions and their standard deviations for test period.
@@ -738,11 +751,14 @@ def generate_counterfactual_predictions(
         Data for test period with control values
     control_col : str
         Name of control column
+    time_col : str, optional
+        Name of time column. If None, uses the first column of test_period_data.
+        Default is None for backward compatibility.
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with columns: date, control, pred, predsd
+        DataFrame with columns: time column, control, pred, predsd
         - pred: counterfactual predictions (ŷ*)
         - predsd: prediction standard deviations (V[ŷ*]^0.5)
 
@@ -784,7 +800,7 @@ def generate_counterfactual_predictions(
     prediction_std_devs = np.sqrt(prediction_variances)
 
     # Create result DataFrame
-    result_df = test_period_data[["date", control_col]].copy()
+    result_df = test_period_data[[time_col, control_col]].copy()
     result_df["pred"] = predictions
     result_df["predsd"] = prediction_std_devs
 
@@ -1225,7 +1241,7 @@ def create_incremental_tbr_summaries(
 
 def perform_tbr_analysis(
     data: pd.DataFrame,
-    date_col: str,
+    time_col: str,
     control_col: str,
     test_col: str,
     pretest_start: Union[str, pd.Timestamp],
@@ -1244,20 +1260,21 @@ def perform_tbr_analysis(
     Parameters
     ----------
     data : pd.DataFrame
-        Time series data with date, control, and test columns.
+        Time series data with time, control, and test columns.
         Should contain pre-aggregated metrics for control and test groups.
-    date_col : str
-        Name of the date column
+        Time column can contain dates, timestamps, integers, hours, or any time representation.
+    time_col : str
+        Name of the time column (supports dates, timestamps, integers, hours, etc.)
     control_col : str
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
     pretest_start : Union[str, pd.Timestamp]
-        Start date of pretest period
+        Start time of pretest period
     test_start : Union[str, pd.Timestamp]
-        Start date of test period
+        Start time of test period
     test_end : Union[str, pd.Timestamp]
-        End date of test period
+        End time of test period
     level : float, default 0.80
         Credibility level for confidence intervals (0.80 = 80%)
     threshold : float, default 0.0
@@ -1292,7 +1309,7 @@ def perform_tbr_analysis(
     >>> # Run TBR analysis
     >>> tbr_results, daily_summaries = perform_tbr_analysis(
     ...     data=data,
-    ...     date_col='date',
+    ...     time_col='date',
     ...     control_col='control',
     ...     test_col='test',
     ...     pretest_start='2023-01-01',
@@ -1321,7 +1338,7 @@ def perform_tbr_analysis(
     >>>
     >>> tbr_results, summaries = perform_tbr_analysis(
     ...     data=medical_data,
-    ...     date_col='date',
+    ...     time_col='date',
     ...     control_col='control_recovery_rate',
     ...     test_col='treatment_recovery_rate',
     ...     pretest_start='2023-01-01',
@@ -1335,7 +1352,7 @@ def perform_tbr_analysis(
     if data.empty:
         raise ValueError("Input data cannot be empty")
 
-    required_cols = [date_col, control_col, test_col]
+    required_cols = [time_col, control_col, test_col]
     validate_required_columns(data, required_cols, "data")
     validate_no_nulls(data, required_cols, "data")
 
@@ -1349,7 +1366,7 @@ def perform_tbr_analysis(
     # Step 1: Split data by periods
     baseline_data, pretest_data, test_data, cooldown_data = split_by_periods(
         aggregated_data=data,
-        date_col=date_col,
+        time_col=time_col,
         control_col=control_col,
         test_col=test_col,
         pretest_start=pretest_start,
@@ -1366,7 +1383,7 @@ def perform_tbr_analysis(
     # Step 2: Fit the TBR regression model on pretest data
     model_params = fit_tbr_regression_model(
         time_series_data=data,
-        date_col=date_col,
+        time_col=time_col,
         control_col=control_col,
         test_col=test_col,
         pretest_start=pretest_start,
@@ -1387,7 +1404,7 @@ def perform_tbr_analysis(
             pd.concat(
                 [test_data_with_period, cooldown_data_with_period], ignore_index=True
             )
-            .sort_values(date_col)
+            .sort_values(time_col)
             .reset_index(drop=True)
         )
     else:
@@ -1398,7 +1415,7 @@ def perform_tbr_analysis(
         baseline_data=baseline_data,
         pretest_data=pretest_data,
         test_data=test_data_extended,
-        date_col=date_col,
+        time_col=time_col,
         control_col=control_col,
         test_col=test_col,
         model_params=model_params,
@@ -1428,7 +1445,7 @@ def _create_tbr_dataframe(
     baseline_data: pd.DataFrame,
     pretest_data: pd.DataFrame,
     test_data: pd.DataFrame,
-    date_col: str,
+    time_col: str,
     control_col: str,
     test_col: str,
     model_params: Dict[str, float],
@@ -1494,6 +1511,7 @@ def _create_tbr_dataframe(
         var_beta=model_params["var_beta"],
         test_period_data=test_df,
         control_col=control_col,
+        time_col=time_col,
     )
 
     test_df["pred"] = test_predictions["pred"]
@@ -1522,7 +1540,7 @@ def _create_tbr_dataframe(
 
     # Order columns consistently
     output_cols = [
-        date_col,
+        time_col,
         "period",
         "y",
         "x",

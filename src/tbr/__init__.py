@@ -32,7 +32,7 @@ Quick Start
 >>> # Perform TBR analysis
 >>> tbr_df, summary_df = perform_tbr_analysis(
 ...     data=data,
-...     date_col='date',
+...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
 ...     pretest_start='2023-01-01',
