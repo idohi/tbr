@@ -53,7 +53,6 @@ Basic TBR analysis workflow:
 >>> print(f"Treatment Effect: {effect}")
 """
 
-import datetime
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -67,10 +66,14 @@ from tbr.utils.constants import DEFAULT_TBR_MODEL
 __all__ = [
     "perform_tbr_analysis",
     "validate_required_columns",
+    "validate_time_column_type",
     "safe_int_conversion",
     "validate_no_nulls",
-    "parse_date_string",
+    "validate_time_boundaries_type",
     "validate_time_periods",
+    "validate_metric_columns",
+    "validate_period_data",
+    "validate_learning_set",
     "split_by_periods",
     "fit_tbr_regression_model",
     "calculate_model_variance",
@@ -81,6 +84,119 @@ __all__ = [
     "create_tbr_summary",
     "create_incremental_tbr_summaries",
 ]
+
+
+def validate_time_column_type(
+    data: pd.DataFrame, time_col: str, df_name: str = "data"
+) -> None:
+    """
+    Validate that time column contains only supported data types for professional TBR analysis.
+
+    This function implements industry-standard type validation following the fail-fast principle.
+    Only specific time data types are supported to ensure reliable and predictable analysis.
+
+    Supported Time Types (Pandas Native Only)
+    ------------------------------------------
+    - datetime64[ns]: Pandas native datetime type (pd.to_datetime(), pd.date_range())
+    - datetime64[ns, UTC]: Timezone-aware variants (any timezone)
+    - int64: Epochs, hours, days since start, etc.
+    - float64: Fractional time units, decimal hours, etc.
+
+    Note: Object dtypes are NOT supported (including Python date/datetime objects).
+    Convert all date/time data to pandas native types using pd.to_datetime() first.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        DataFrame containing the time column to validate
+    time_col : str
+        Name of the time column to validate
+    df_name : str, default "data"
+        Name of the DataFrame for error messages
+
+    Raises
+    ------
+    ValueError
+        If time column contains unsupported data types
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>>
+    >>> # Valid: datetime64[ns] column
+    >>> df_datetime = pd.DataFrame({
+    ...     'timestamp': pd.date_range('2023-01-01', periods=10),
+    ...     'values': range(10)
+    ... })
+    >>> validate_time_column_type(df_datetime, 'timestamp')  # No error
+    >>>
+    >>> # Valid: timezone-aware datetime64[ns]
+    >>> df_tz = pd.DataFrame({
+    ...     'timestamp': pd.date_range('2023-01-01', periods=5, tz='UTC'),
+    ...     'values': range(5)
+    ... })
+    >>> validate_time_column_type(df_tz, 'timestamp')  # No error
+    >>>
+    >>> # Valid: int64 column
+    >>> df_int = pd.DataFrame({
+    ...     'hour': range(24),
+    ...     'values': range(24)
+    ... })
+    >>> validate_time_column_type(df_int, 'hour')  # No error
+    >>>
+    >>> # Invalid: Python date objects (object dtype - rejected)
+    >>> import datetime
+    >>> df_date = pd.DataFrame({
+    ...     'date': [datetime.date(2023, 1, 1), datetime.date(2023, 1, 2)],
+    ...     'values': [1, 2]
+    ... })
+    >>> validate_time_column_type(df_date, 'date')  # Raises ValueError
+    >>>
+    >>> # Professional approach: Convert to pandas native first
+    >>> df_converted = df_date.copy()
+    >>> df_converted['date'] = pd.to_datetime(df_converted['date'])
+    >>> validate_time_column_type(df_converted, 'date')  # Now works
+    """
+    if time_col not in data.columns:
+        raise ValueError(f"Time column '{time_col}' not found in {df_name}")
+
+    time_series = data[time_col]
+
+    # Check for empty column
+    if time_series.empty:
+        raise ValueError(f"Time column '{time_col}' in {df_name} is empty")
+
+    # Check for all null values
+    if time_series.isnull().all():
+        raise ValueError(
+            f"Time column '{time_col}' in {df_name} contains only null values"
+        )
+
+    # Get the actual data type (excluding nulls for type checking)
+    non_null_series = time_series.dropna()
+    if non_null_series.empty:
+        raise ValueError(
+            f"Time column '{time_col}' in {df_name} has no valid (non-null) values"
+        )
+
+    dtype = time_series.dtype
+    dtype_str = str(dtype)
+
+    # Check supported dtypes: datetime64 variants, int64, float64
+    if (
+        dtype_str.startswith("datetime64")
+        or dtype.name == "int64"
+        or dtype.name == "float64"
+    ):
+        return
+
+    # Raise error for unsupported dtypes
+    raise ValueError(
+        f"Unsupported dtype '{dtype}' for time column '{time_col}'. "
+        f"Supported dtypes: datetime64[ns], int64, float64. "
+        f"Use pd.to_datetime() for datetime columns or .astype() for numeric columns."
+    )
 
 
 def validate_required_columns(
@@ -145,7 +261,7 @@ def safe_int_conversion(value: float, param_name: str) -> int:
     43
     >>> safe_int_conversion(43.999999999999, "degrees_freedom")
     44
-    >>> safe_int_conversion(43.5, "degrees_freedom")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> safe_int_conversion(43.5, "degrees_freedom")
     Traceback (most recent call last):
     ValueError: degrees_freedom should be an integer...
     """
@@ -196,85 +312,230 @@ def validate_no_nulls(df: pd.DataFrame, cols: List[str], df_name: str) -> None:
         raise ValueError(f"Null values found in {df_name}: {null_cols}")
 
 
-def parse_date_string(
-    date_str: Union[str, pd.Timestamp], param_name: str, make_exclusive: bool = False
-) -> pd.Timestamp:
+def validate_time_boundaries_type(
+    pretest_start: Union[pd.Timestamp, int, float],
+    test_start: Union[pd.Timestamp, int, float],
+    test_end: Union[pd.Timestamp, int, float],
+    time_column_dtype: np.dtype,
+) -> None:
     """
-    Parse date string or timezone-aware datetime to a UTC datetime object.
+    Validate that time boundary types are consistent and match time column dtype.
 
     Parameters
     ----------
-    date_str : Union[str, pd.Timestamp]
-        Date as string (YYYY-MM-DD format) or timezone-aware datetime object
-    param_name : str
-        Parameter name for error messages
-    make_exclusive : bool, default False
-        If True, adds 1 day to make the date exclusive (useful for end dates).
-        If False, keeps the date as-is (useful for start dates).
-
-    Returns
-    -------
-    pd.Timestamp
-        Parsed date object with UTC timezone. If make_exclusive=True,
-        the date is shifted to the next day at 00:00:00 UTC.
+    pretest_start : Union[pd.Timestamp, int, float]
+        Start time of pretest period
+    test_start : Union[pd.Timestamp, int, float]
+        Start time of test period
+    test_end : Union[pd.Timestamp, int, float]
+        End time of test period
+    time_column_dtype : np.dtype
+        The dtype of the time column from the DataFrame
 
     Raises
     ------
     ValueError
-        If date format is invalid or timezone is not specified
+        If boundary types are inconsistent or don't match time column dtype
 
     Examples
     --------
-    >>> parse_date_string('2023-01-01', 'start_time')
-    Timestamp('2023-01-01 00:00:00+0000', tz='UTC')
-
-    >>> parse_date_string('2023-01-01', 'end_time', make_exclusive=True)
-    Timestamp('2023-01-02 00:00:00+0000', tz='UTC')
+    >>> # Valid: all Timestamps with datetime64[ns] column
+    >>> validate_time_boundaries_type(
+    ...     pd.Timestamp('2023-01-01'),
+    ...     pd.Timestamp('2023-02-01'),
+    ...     pd.Timestamp('2023-02-15'),
+    ...     np.dtype('datetime64[ns]')
+    ... )
+    # No error - validation passes
     """
-    if isinstance(date_str, pd.Timestamp):
-        if date_str.tzinfo is None:
-            raise ValueError(f"{param_name} must be timezone-aware, got naive datetime")
-        parsed_date = date_str.tz_convert("UTC")
-    elif isinstance(date_str, str):
-        try:
-            parsed_date = pd.to_datetime(date_str).tz_localize("UTC")
-        except ValueError as e:
-            raise ValueError(
-                f"{param_name} must be in YYYY-MM-DD format, got: {date_str}"
-            ) from e
-    else:
+    # Check that all boundaries have the same type
+    pretest_type = type(pretest_start)
+    test_start_type = type(test_start)
+    test_end_type = type(test_end)
+
+    if not (pretest_type == test_start_type == test_end_type):
         raise ValueError(
-            f"{param_name} must be string or timezone-aware datetime, got: {type(date_str)}"
+            f"All time boundaries must have the same type. Got: "
+            f"pretest_start: {pretest_type.__name__}, "
+            f"test_start: {test_start_type.__name__}, "
+            f"test_end: {test_end_type.__name__}"
         )
 
-    # Add 1 day for exclusive end dates
-    if make_exclusive:
-        parsed_date = parsed_date + pd.Timedelta(days=1)
+    # Check that boundary type matches time column dtype
+    boundary_type = pretest_type
+    dtype_str = str(time_column_dtype)
 
-    return parsed_date
+    if dtype_str.startswith("datetime64"):
+        if boundary_type != pd.Timestamp:
+            raise ValueError(
+                f"Time column has dtype '{time_column_dtype}' but boundaries are {boundary_type.__name__}. "
+                f"Use pd.Timestamp for datetime columns."
+            )
+    elif time_column_dtype.name == "int64":
+        if boundary_type not in (int, np.int64):
+            raise ValueError(
+                f"Time column has dtype '{time_column_dtype}' but boundaries are {boundary_type.__name__}. "
+                f"Use int for integer time columns."
+            )
+    elif time_column_dtype.name == "float64":
+        if boundary_type not in (float, np.float64):
+            raise ValueError(
+                f"Time column has dtype '{time_column_dtype}' but boundaries are {boundary_type.__name__}. "
+                f"Use float for float time columns."
+            )
+    else:
+        raise ValueError(
+            f"Boundary type {boundary_type.__name__} does not match time column dtype '{time_column_dtype}'. "
+            f"Supported combinations: pd.Timestamp for datetime64, int for int64, float for float64."
+        )
 
 
-def validate_time_periods(
-    pretest_start: Union[str, datetime.date],
-    test_start: Union[str, datetime.date],
-    test_end: Union[str, datetime.date],
-) -> Tuple[datetime.date, datetime.date, datetime.date]:
+def validate_metric_columns(
+    data: pd.DataFrame,
+    control_col: str,
+    test_col: str,
+    dataset_name: str = "data",
+) -> None:
     """
-    Validate and parse time period parameters for TBR analysis.
+    Validate that metric columns are numeric for TBR analysis.
 
     Parameters
     ----------
-    pretest_start : Union[str, datetime.date]
+    data : pd.DataFrame
+        Dataset containing the metric columns
+    control_col : str
+        Name of the control group metric column
+    test_col : str
+        Name of the test group metric column
+    dataset_name : str, default "data"
+        Name of the dataset for error messages
+
+    Raises
+    ------
+    ValueError
+        If control or test columns are not numeric
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> data = pd.DataFrame({
+    ...     'control': np.random.normal(1000, 50, 100),
+    ...     'test': np.random.normal(1020, 55, 100)
+    ... })
+    >>> validate_metric_columns(data, 'control', 'test')
+    """
+    if not pd.api.types.is_numeric_dtype(data[control_col]):
+        raise ValueError(f"Control column '{control_col}' must be numeric")
+    if not pd.api.types.is_numeric_dtype(data[test_col]):
+        raise ValueError(f"Test column '{test_col}' must be numeric")
+
+
+def validate_period_data(
+    pretest_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+) -> None:
+    """
+    Validate that period data contains observations after splitting.
+
+    Parameters
+    ----------
+    pretest_data : pd.DataFrame
+        Pretest period data
+    test_data : pd.DataFrame
+        Test period data
+
+    Raises
+    ------
+    ValueError
+        If pretest or test data is empty after period splitting
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> pretest_data = pd.DataFrame({'control': [1, 2], 'test': [3, 4]})
+    >>> test_data = pd.DataFrame({'control': [5, 6], 'test': [7, 8]})
+    >>> validate_period_data(pretest_data, test_data)
+    """
+    if pretest_data.empty:
+        raise ValueError("No pretest data found - check pretest period dates")
+
+    if test_data.empty:
+        raise ValueError("No test data found - check test period dates")
+
+
+def validate_learning_set(
+    pretest_df: pd.DataFrame,
+    control_col: str,
+    test_col: str,
+) -> None:
+    """
+    Validate learning set (pretest data) for TBR regression model training.
+
+    Parameters
+    ----------
+    pretest_df : pd.DataFrame
+        Pretest period data used for training the regression model
+    control_col : str
+        Name of the control group metric column
+    test_col : str
+        Name of the test group metric column
+
+    Raises
+    ------
+    ValueError
+        If learning set has insufficient data, null values, or invalid values
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> pretest_data = pd.DataFrame({
+    ...     'control': np.random.normal(1000, 50, 30),
+    ...     'test': np.random.normal(1020, 55, 30)
+    ... })
+    >>> validate_learning_set(pretest_data, 'control', 'test')
+    # No error - validation passes
+    """
+    # Check minimum data requirements for regression
+    if len(pretest_df) < 3:
+        raise ValueError(
+            f"Insufficient pretest data: {len(pretest_df)} observations. Need at least 3."
+        )
+
+    # Check for missing values
+    if pretest_df[[control_col, test_col]].isnull().any().any():
+        raise ValueError("Pretest data contains null values")
+
+    # Check for invalid values (infinite or NaN)
+    if not np.isfinite(pretest_df[[control_col, test_col]]).all().all():
+        raise ValueError("Pretest data contains infinite or NaN values")
+
+
+def validate_time_periods(
+    pretest_start: Union[pd.Timestamp, int, float],
+    test_start: Union[pd.Timestamp, int, float],
+    test_end: Union[pd.Timestamp, int, float],
+    test_end_inclusive: bool = False,
+) -> None:
+    """
+    Validate time period parameters for TBR analysis.
+
+    Parameters
+    ----------
+    pretest_start : Union[pd.Timestamp, int, float]
         Start time of pretest period
-    test_start : Union[str, datetime.date]
+    test_start : Union[pd.Timestamp, int, float]
         Start time of test period
-    test_end : Union[str, datetime.date]
+    test_end : Union[pd.Timestamp, int, float]
         End time of test period
+    test_end_inclusive : bool, default False
+        Whether to include the test_end boundary in the test period
 
     Returns
     -------
-    Tuple[datetime.date, datetime.date, datetime.date]
-        Parsed and validated time boundaries (pretest_start, test_start, test_end)
+    None
+        Function performs validation only and returns nothing
 
     Raises
     ------
@@ -283,27 +544,30 @@ def validate_time_periods(
 
     Examples
     --------
-    >>> validate_time_periods('2023-01-01', '2023-02-01', '2023-02-15')
-    (Timestamp('2023-01-01 00:00:00+0000', tz='UTC'),
-     Timestamp('2023-02-01 00:00:00+0000', tz='UTC'),
-     Timestamp('2023-02-16 00:00:00+0000', tz='UTC'))
+    >>> validate_time_periods(
+    ...     pd.Timestamp('2023-01-01'),
+    ...     pd.Timestamp('2023-02-01'),
+    ...     pd.Timestamp('2023-02-15')
+    ... )
+    # No error - validation passes
     """
-    # Parse time boundaries
-    pretest_start_time = parse_date_string(
-        pretest_start, "pretest_start", make_exclusive=False
-    )
-    test_start_time = parse_date_string(test_start, "test_start", make_exclusive=False)
-    test_end_time = parse_date_string(test_end, "test_end", make_exclusive=True)
-
-    # Validate time order
-    if not (pretest_start_time < test_start_time < test_end_time):
+    # Boundary validation
+    if not (pretest_start < test_start):
         raise ValueError(
-            f"Time periods must be in order: pretest_start < test_start < test_end, "
-            f"got: {pretest_start_time} < {test_start_time} < {test_end_time} "
-            f"(Note: test_end shown as next day due to exclusive boundary handling)"
+            f"pretest_start must be before test_start: {pretest_start} >= {test_start}"
         )
 
-    return pretest_start_time, test_start_time, test_end_time
+    # Validate test period boundaries based on inclusive/exclusive setting
+    if test_end_inclusive:
+        if not (test_start <= test_end):
+            raise ValueError(
+                f"test_start must be <= test_end when test_end_inclusive=True: {test_start} > {test_end}"
+            )
+    else:
+        if not (test_start < test_end):
+            raise ValueError(
+                f"test_start must be < test_end when test_end_inclusive=False: {test_start} >= {test_end}"
+            )
 
 
 def split_by_periods(
@@ -311,9 +575,10 @@ def split_by_periods(
     time_col: str,
     control_col: str,
     test_col: str,
-    pretest_start: Union[str, datetime.date],
-    test_start: Union[str, datetime.date],
-    test_end: Union[str, datetime.date],
+    pretest_start: Union[pd.Timestamp, int, float],
+    test_start: Union[pd.Timestamp, int, float],
+    test_end: Union[pd.Timestamp, int, float],
+    test_end_inclusive: bool = False,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split aggregated time series data into pretest, test and cooldown periods.
@@ -328,12 +593,14 @@ def split_by_periods(
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
-    pretest_start : Union[str, datetime.date]
-        Start time of pretest period
-    test_start : Union[str, datetime.date]
-        Start time of test period
-    test_end : Union[str, datetime.date]
+    pretest_start : Union[pd.Timestamp, int, float]
+        Start time of pretest period (always inclusive)
+    test_start : Union[pd.Timestamp, int, float]
+        Start time of test period (always inclusive)
+    test_end : Union[pd.Timestamp, int, float]
         End time of test period
+    test_end_inclusive : bool, default False
+        Whether to include the test_end boundary in the test period
 
     Returns
     -------
@@ -348,48 +615,39 @@ def split_by_periods(
     Examples
     --------
     >>> import pandas as pd
+    >>> import numpy as np
+    >>> # Example with datetime time column and realistic metrics
     >>> data = pd.DataFrame({
-    ...     'date': pd.date_range('2023-01-01', periods=90),
-    ...     'control': range(90),
-    ...     'test': range(100, 190)
+    ...     'date': pd.date_range('2023-01-01', periods=90),  # Time dimension: 90 days
+    ...     'control': np.random.normal(1000.0, 50.0, 90),   # Control group daily installs
+    ...     'test': np.random.normal(1020.0, 55.0, 90)       # Test group daily installs
     ... })
     >>> baseline, pretest, test, cooldown = split_by_periods(
     ...     data, 'date', 'control', 'test',
-    ...     '2023-01-15', '2023-02-15', '2023-03-01'
+    ...     pretest_start=pd.Timestamp('2023-01-15'),  # Start pretest on Jan 15
+    ...     test_start=pd.Timestamp('2023-02-14'),     # Start test period on Feb 14
+    ...     test_end=pd.Timestamp('2023-03-16'),       # End test period on Mar 16
+    ...     test_end_inclusive=False
     ... )
     """
-    # Validate time periods
-    pretest_start_time, test_start_time, test_end_time = validate_time_periods(
-        pretest_start, test_start, test_end
-    )
 
-    # Validate input data
-    validate_required_columns(
-        aggregated_data, [time_col, control_col, test_col], "aggregated_data"
-    )
-
-    # Convert time column to datetime if it's string
     data_copy = aggregated_data.copy()
-    if data_copy[time_col].dtype == "object":
-        data_copy[time_col] = pd.to_datetime(data_copy[time_col]).dt.tz_localize("UTC")
-    elif (
-        pd.api.types.is_datetime64_any_dtype(data_copy[time_col])
-        and data_copy[time_col].dt.tz is None
-    ):
-        # Handle timezone-naive datetime columns
-        data_copy[time_col] = data_copy[time_col].dt.tz_localize("UTC")
 
-    # Split into periods - pandas handles datetime vs time comparison well
-    baseline_mask = data_copy[time_col] < pd.to_datetime(pretest_start_time)
-    pretest_mask = (data_copy[time_col] >= pd.to_datetime(pretest_start_time)) & (
-        data_copy[time_col] < pd.to_datetime(test_start_time)
-    )
-    test_mask = (data_copy[time_col] >= pd.to_datetime(test_start_time)) & (
-        data_copy[time_col] < pd.to_datetime(test_end_time)
-    )  # Exclusive end time
-    cooldown_mask = data_copy[time_col] >= pd.to_datetime(
-        test_end_time
-    )  # Exclusive end time
+    # Use boundary values directly (validation done at entry point)
+
+    time_series = data_copy[time_col]
+
+    # Create period masks using boundary values directly
+    baseline_mask = time_series < pretest_start
+    pretest_mask = (time_series >= pretest_start) & (time_series < test_start)
+
+    # Inclusive/exclusive boundary handling
+    if test_end_inclusive:
+        test_mask = (time_series >= test_start) & (time_series <= test_end)
+        cooldown_mask = time_series > test_end
+    else:
+        test_mask = (time_series >= test_start) & (time_series < test_end)
+        cooldown_mask = time_series >= test_end
 
     baseline_data = data_copy[baseline_mask].copy()
     pretest_data = data_copy[pretest_mask].copy()
@@ -400,12 +658,9 @@ def split_by_periods(
 
 
 def fit_tbr_regression_model(
-    time_series_data: pd.DataFrame,
-    time_col: str,
+    learning_data: pd.DataFrame,
     control_col: str,
     test_col: str,
-    pretest_start: Union[str, datetime.date],
-    test_start: Union[str, datetime.date],
 ) -> Dict[str, float]:
     """
     Fit TBR regression model using statsmodels OLS on pretest period.
@@ -418,18 +673,12 @@ def fit_tbr_regression_model(
 
     Parameters
     ----------
-    time_series_data : pd.DataFrame
-        Time series data with time, control, and test columns
-    time_col : str
-        Name of the time column
+    learning_data : pd.DataFrame
+        Learning set data used for training the regression model
     control_col : str
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
-    pretest_start : Union[str, datetime.date]
-        Start time for pretest period
-    test_start : Union[str, datetime.date]
-        Start time for test period (end of pretest)
 
     Returns
     -------
@@ -453,58 +702,22 @@ def fit_tbr_regression_model(
     Examples
     --------
     >>> import pandas as pd
-    >>> data = pd.DataFrame({
-    ...     'date': pd.date_range('2023-01-01', periods=60),
-    ...     'control': np.random.normal(1000, 50, 60),
-    ...     'test': np.random.normal(1020, 55, 60)
+    >>> import numpy as np
+    >>> # Example with learning data
+    >>> learning_data = pd.DataFrame({
+    ...     'control': np.random.normal(1000, 50, 30),
+    ...     'test': np.random.normal(1020, 55, 30)
     ... })
-    >>> model = fit_tbr_regression_model(
-    ...     data, 'date', 'control', 'test',
-    ...     '2023-01-01', '2023-02-15'
-    ... )
+    >>> model = fit_tbr_regression_model(learning_data, 'control', 'test')
     >>> print(f"Beta coefficient: {model['beta']:.3f}")
     """
-    # Input validation
-    if time_series_data.empty:
-        raise ValueError("Input DataFrame is empty")
 
-    required_cols = [time_col, control_col, test_col]
-    validate_required_columns(time_series_data, required_cols, "time_series_data")
-
-    # Convert time values to datetime if they aren't already
-    df = time_series_data.copy()
-    if not pd.api.types.is_datetime64_any_dtype(df[time_col]):
-        df[time_col] = pd.to_datetime(df[time_col]).dt.tz_localize("UTC")
-    elif (
-        pd.api.types.is_datetime64_any_dtype(df[time_col])
-        and df[time_col].dt.tz is None
-    ):
-        # Handle timezone-naive datetime columns
-        df[time_col] = df[time_col].dt.tz_localize("UTC")
-
-    start_pretest = pd.to_datetime(pretest_start).tz_localize("UTC")
-    start_test = pd.to_datetime(test_start).tz_localize("UTC")
-
-    # Filter to pretest period only
-    pretest_df = df[
-        (df[time_col] >= start_pretest) & (df[time_col] < start_test)
-    ].copy()
-
-    if len(pretest_df) < 3:
-        raise ValueError(
-            f"Insufficient pretest data: {len(pretest_df)} observations. Need at least 3."
-        )
-
-    # Check for missing or invalid values
-    if pretest_df[[control_col, test_col]].isnull().any().any():
-        raise ValueError("Pretest data contains null values")
-
-    if not np.isfinite(pretest_df[[control_col, test_col]]).all().all():
-        raise ValueError("Pretest data contains infinite or NaN values")
+    # Validate learning set
+    validate_learning_set(learning_data, control_col, test_col)
 
     # Extract x (control) and y (test) for regression
-    x = pretest_df[control_col].values
-    y = pretest_df[test_col].values
+    x = learning_data[control_col].values
+    y = learning_data[test_col].values
     n = len(x)
 
     # Check for constant control values
@@ -1244,9 +1457,10 @@ def perform_tbr_analysis(
     time_col: str,
     control_col: str,
     test_col: str,
-    pretest_start: Union[str, pd.Timestamp],
-    test_start: Union[str, pd.Timestamp],
-    test_end: Union[str, pd.Timestamp],
+    pretest_start: Union[pd.Timestamp, int, float],
+    test_start: Union[pd.Timestamp, int, float],
+    test_end: Union[pd.Timestamp, int, float],
+    test_end_inclusive: bool = False,
     level: float = 0.80,
     threshold: float = 0.0,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -1262,19 +1476,38 @@ def perform_tbr_analysis(
     data : pd.DataFrame
         Time series data with time, control, and test columns.
         Should contain pre-aggregated metrics for control and test groups.
-        Time column can contain dates, timestamps, integers, hours, or any time representation.
+        Time column must be one of the supported types (see time_col parameter).
     time_col : str
-        Name of the time column (supports dates, timestamps, integers, hours, etc.)
+        Name of the time column. Supported pandas native dtypes only:
+        - datetime64[ns]: Pandas native datetime (use pd.to_datetime())
+        - datetime64[ns, timezone]: Timezone-aware variants (any timezone)
+        - int64: Epochs, hours, days since start, etc.
+        - float64: Fractional time units, decimal hours, etc.
+
+        Note: Object dtypes are not supported (including Python date/datetime objects).
+        Convert all date/time data using pd.to_datetime() first.
     control_col : str
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
-    pretest_start : Union[str, pd.Timestamp]
-        Start time of pretest period
-    test_start : Union[str, pd.Timestamp]
-        Start time of test period
-    test_end : Union[str, pd.Timestamp]
+    pretest_start : Union[pd.Timestamp, int, float]
+        Start time of pretest period (always inclusive)
+    test_start : Union[pd.Timestamp, int, float]
+        Start time of test period (always inclusive)
+    test_end : Union[pd.Timestamp, int, float]
         End time of test period
+    test_end_inclusive : bool, default False
+        Whether to include the test_end boundary in the test period.
+
+        - False (default): Exclusive end boundary (data < test_end)
+        - True: Inclusive end boundary (data <= test_end)
+
+        Examples:
+        - For same-day analysis: set test_end_inclusive=True
+        - For precise time ranges: set test_end_inclusive=False
+
+        Note: This parameter works consistently across all time column types
+        (datetime64[ns], int64, float64).
     level : float, default 0.80
         Credibility level for confidence intervals (0.80 = 80%)
     threshold : float, default 0.0
@@ -1298,7 +1531,7 @@ def perform_tbr_analysis(
     >>> import pandas as pd
     >>> import numpy as np
     >>>
-    >>> # Create sample time series data
+    >>> # Create sample time series data with datetime64[ns] (pandas native)
     >>> dates = pd.date_range('2023-01-01', periods=90)
     >>> data = pd.DataFrame({
     ...     'date': dates,
@@ -1306,15 +1539,30 @@ def perform_tbr_analysis(
     ...     'test': np.random.normal(1020, 55, 90)
     ... })
     >>>
-    >>> # Run TBR analysis
+    >>> # Run TBR analysis with exclusive end boundary (default)
     >>> tbr_results, daily_summaries = perform_tbr_analysis(
     ...     data=data,
     ...     time_col='date',
     ...     control_col='control',
     ...     test_col='test',
-    ...     pretest_start='2023-01-01',
-    ...     test_start='2023-02-15',
-    ...     test_end='2023-03-01',
+    ...     pretest_start=pd.Timestamp('2023-01-01'),
+    ...     test_start=pd.Timestamp('2023-02-15'),
+    ...     test_end=pd.Timestamp('2023-03-01'),
+    ...     test_end_inclusive=False,  # Exclusive: up to but not including 2023-03-01
+    ...     level=0.80,
+    ...     threshold=0.0
+    ... )
+    >>>
+    >>> # Same-day analysis with inclusive end boundary
+    >>> same_day_results, same_day_summaries = perform_tbr_analysis(
+    ...     data=data,
+    ...     time_col='date',
+    ...     control_col='control',
+    ...     test_col='test',
+    ...     pretest_start=pd.Timestamp('2023-01-01'),
+    ...     test_start=pd.Timestamp('2023-02-15'),
+    ...     test_end=pd.Timestamp('2023-02-15'),  # Same day as start
+    ...     test_end_inclusive=True,  # Include the entire day of 2023-02-15
     ...     level=0.80,
     ...     threshold=0.0
     ... )
@@ -1327,23 +1575,46 @@ def perform_tbr_analysis(
     >>> is_significant = daily_summaries.iloc[-1]['lower'] > 0
     >>> print(f"Significant Positive Effect: {is_significant}")
 
+    Integer time example (hours since start):
+
+    >>> # Integer time column example
+    >>> hourly_data = pd.DataFrame({
+    ...     'hour': range(1, 49),  # Hours 1-48
+    ...     'control': np.random.normal(500, 25, 48),
+    ...     'test': np.random.normal(520, 30, 48)
+    ... })
+    >>>
+    >>> tbr_results, summaries = perform_tbr_analysis(
+    ...     data=hourly_data,
+    ...     time_col='hour',
+    ...     control_col='control',
+    ...     test_col='test',
+    ...     pretest_start=1,
+    ...     test_start=25,
+    ...     test_end=25,  # Same-hour analysis
+    ...     test_end_inclusive=True,  # Include hour 25
+    ...     level=0.80,
+    ...     threshold=0.0
+    ... )
+
     Medical trial example:
 
-    >>> # Medical trial data
+    >>> # Medical trial data with integer time (days since start)
     >>> medical_data = pd.DataFrame({
-    ...     'date': pd.date_range('2023-01-01', periods=120),
+    ...     'day': range(1, 121),  # Days 1-120
     ...     'control_recovery_rate': np.random.normal(0.75, 0.05, 120),
     ...     'treatment_recovery_rate': np.random.normal(0.82, 0.06, 120)
     ... })
     >>>
     >>> tbr_results, summaries = perform_tbr_analysis(
     ...     data=medical_data,
-    ...     time_col='date',
+    ...     time_col='day',
     ...     control_col='control_recovery_rate',
     ...     test_col='treatment_recovery_rate',
-    ...     pretest_start='2023-01-01',
-    ...     test_start='2023-03-01',
-    ...     test_end='2023-04-01',
+    ...     pretest_start=1,
+    ...     test_start=60,
+    ...     test_end=90,
+    ...     test_end_inclusive=False,  # Days 60-89 (exclusive end)
     ...     level=0.95,
     ...     threshold=0.05  # 5% improvement threshold
     ... )
@@ -1354,14 +1625,18 @@ def perform_tbr_analysis(
 
     required_cols = [time_col, control_col, test_col]
     validate_required_columns(data, required_cols, "data")
+
+    validate_time_column_type(data, time_col, "data")
+
+    validate_time_boundaries_type(
+        pretest_start, test_start, test_end, data[time_col].dtype
+    )
+
+    validate_time_periods(pretest_start, test_start, test_end, test_end_inclusive)
+
     validate_no_nulls(data, required_cols, "data")
 
-    # Validate metric columns are numeric
-    if not pd.api.types.is_numeric_dtype(data[control_col]):
-        raise ValueError(f"Control column '{control_col}' must be numeric")
-
-    if not pd.api.types.is_numeric_dtype(data[test_col]):
-        raise ValueError(f"Test column '{test_col}' must be numeric")
+    validate_metric_columns(data, control_col, test_col, "data")
 
     # Step 1: Split data by periods
     baseline_data, pretest_data, test_data, cooldown_data = split_by_periods(
@@ -1372,22 +1647,16 @@ def perform_tbr_analysis(
         pretest_start=pretest_start,
         test_start=test_start,
         test_end=test_end,
+        test_end_inclusive=test_end_inclusive,
     )
 
-    if pretest_data.empty:
-        raise ValueError("No pretest data found - check pretest period dates")
+    validate_period_data(pretest_data, test_data)
 
-    if test_data.empty:
-        raise ValueError("No test data found - check test period dates")
-
-    # Step 2: Fit the TBR regression model on pretest data
+    # Step 2: Fit the TBR regression model on learning data
     model_params = fit_tbr_regression_model(
-        time_series_data=data,
-        time_col=time_col,
+        learning_data=pretest_data,
         control_col=control_col,
         test_col=test_col,
-        pretest_start=pretest_start,
-        test_start=test_start,
     )
 
     # Step 3: Create TBR dataframe with all periods and calculations
