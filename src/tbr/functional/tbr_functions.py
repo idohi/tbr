@@ -94,21 +94,11 @@ __all__ = [
 def validate_time_column_type(
     data: pd.DataFrame, time_col: str, df_name: str = "data"
 ) -> None:
-    """
-    Validate that time column contains only supported data types for professional TBR analysis.
+    """Validate time column contains supported data types for TBR analysis.
 
-    This function implements industry-standard type validation following the fail-fast principle.
-    Only specific time data types are supported to ensure reliable and predictable analysis.
-
-    Supported Time Types (Pandas Native Only)
-    ------------------------------------------
-    - datetime64[ns]: Pandas native datetime type (pd.to_datetime(), pd.date_range())
-    - datetime64[ns, UTC]: Timezone-aware variants (any timezone)
-    - int64: Epochs, hours, days since start, etc.
-    - float64: Fractional time units, decimal hours, etc.
-
-    Note: Object dtypes are NOT supported (including Python date/datetime objects).
-    Convert all date/time data to pandas native types using pd.to_datetime() first.
+    Ensures the time column uses pandas native dtypes only: datetime64[ns],
+    int64, or float64. Object dtypes are not supported and must be converted
+    using pd.to_datetime() before analysis.
 
     Parameters
     ----------
@@ -122,46 +112,26 @@ def validate_time_column_type(
     Raises
     ------
     ValueError
-        If time column contains unsupported data types
+        If time column is missing, empty, or has unsupported dtype
 
     Examples
     --------
     >>> import pandas as pd
-    >>> import numpy as np
-    >>>
-    >>> # Valid: datetime64[ns] column
-    >>> df_datetime = pd.DataFrame({
-    ...     'timestamp': pd.date_range('2023-01-01', periods=10),
-    ...     'values': range(10)
-    ... })
-    >>> validate_time_column_type(df_datetime, 'timestamp')  # No error
-    >>>
-    >>> # Valid: timezone-aware datetime64[ns]
-    >>> df_tz = pd.DataFrame({
-    ...     'timestamp': pd.date_range('2023-01-01', periods=5, tz='UTC'),
+    >>> # Valid datetime column
+    >>> df = pd.DataFrame({
+    ...     'date': pd.date_range('2023-01-01', periods=5),
     ...     'values': range(5)
     ... })
-    >>> validate_time_column_type(df_tz, 'timestamp')  # No error
-    >>>
-    >>> # Valid: int64 column
-    >>> df_int = pd.DataFrame({
-    ...     'hour': range(24),
-    ...     'values': range(24)
-    ... })
-    >>> validate_time_column_type(df_int, 'hour')  # No error
-    >>>
-    >>> # Invalid: Python date objects (object dtype - rejected)
-    >>> import datetime
-    >>> df_date = pd.DataFrame({
-    ...     'date': [datetime.date(2023, 1, 1), datetime.date(2023, 1, 2)],
-    ...     'values': [1, 2]
-    ... })
-    >>> validate_time_column_type(df_date, 'date')  # Raises ValueError
-    >>>
-    >>> # Professional approach: Convert to pandas native first
-    >>> df_converted = df_date.copy()
-    >>> df_converted['date'] = pd.to_datetime(df_converted['date'])
-    >>> validate_time_column_type(df_converted, 'date')  # Now works
+    >>> validate_time_column_type(df, 'date')
+
+    >>> # Valid integer time column
+    >>> df_int = pd.DataFrame({'hour': range(24), 'values': range(24)})
+    >>> validate_time_column_type(df_int, 'hour')
+
+    Notes
+    -----
+    Supported dtypes: datetime64[ns] (timezone-aware or naive), int64, float64.
+    Object dtypes must be converted: df['date'] = pd.to_datetime(df['date'])
     """
     if time_col not in data.columns:
         raise ValueError(f"Time column '{time_col}' not found in {df_name}")
