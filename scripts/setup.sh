@@ -121,6 +121,9 @@ verify_installation() {
     # Test development tools
     python -c "import pytest, black, ruff; print('✅ Development tools working')"
 
+    # Test docstring validation tools
+    python -c "import pydocstyle, interrogate; print('✅ Docstring validation tools working')"
+
     # Test TBR package import
     python -c "import tbr; print('✅ TBR package importable')"
 
@@ -147,7 +150,8 @@ print_final_instructions() {
     echo "2. Run tests: ${YELLOW}make test${NC} or ${YELLOW}pytest${NC}"
     echo "3. Format code: ${YELLOW}make format${NC} or ${YELLOW}black src tests${NC}"
     echo "4. Run linting: ${YELLOW}make lint${NC} or ${YELLOW}ruff check src tests${NC}"
-    echo "5. Build package: ${YELLOW}make build${NC} or ${YELLOW}python -m build${NC}"
+    echo "5. Check docstrings: ${YELLOW}pydocstyle src${NC} or ${YELLOW}interrogate src${NC}"
+    echo "6. Build package: ${YELLOW}make build${NC} or ${YELLOW}python -m build${NC}"
     echo ""
     echo -e "${BLUE}Development workflow:${NC}"
     echo "• Always activate venv: ${YELLOW}source .venv/bin/activate${NC}"

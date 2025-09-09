@@ -79,8 +79,8 @@ deactivate  # (optional, but recommended)
 - ✅ Checks and installs Python 3.11.9 (via pyenv)
 - ✅ Creates/resets virtual environment (removes existing if found)
 - ✅ Installs package with all optional dependencies (`pip install -e ".[dev,docs,examples]"`)
-- ✅ Sets up pre-commit hooks
-- ✅ Verifies everything works correctly
+- ✅ Sets up pre-commit hooks (including docstring validation)
+- ✅ Verifies everything works correctly (including docstring tools)
 
 **Requirements:**
 - `pyenv` installed ([installation guide](https://github.com/pyenv/pyenv#installation))
@@ -131,6 +131,7 @@ make setup         # Complete environment setup
 make test          # Run tests
 make lint          # Run linting
 make format        # Format code
+make docstring     # Check docstring style and coverage
 make build         # Build package
 make all           # Run complete pipeline
 ```
@@ -138,7 +139,8 @@ make all           # Run complete pipeline
 ### Development Tools
 - **Testing**: `pytest` with coverage reporting
 - **Code Quality**: `black`, `isort`, `ruff`, `mypy`
-- **Pre-commit**: Automated code quality checks
+- **Docstring Validation**: `pydocstyle` (NumPy convention) + `interrogate` (90% coverage)
+- **Pre-commit**: Automated code quality checks including docstring validation
 - **Documentation**: `sphinx` with RTD theme
 - **Build**: `build` system for PyPI distribution
 
@@ -277,9 +279,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 6. Submit a pull request
 
 ### Code Quality
-- All code must pass `make check` (linting, type checking, formatting)
+- All code must pass `make check` (linting, type checking, formatting, docstring validation)
 - Tests required for new features
-- Documentation for public APIs
+- Documentation for public APIs (NumPy docstring convention required)
+- Docstring coverage must be ≥90% (enforced by pre-commit hooks)
 - Follow existing code style
 
 ## 📊 Mathematical Foundation
