@@ -12,14 +12,14 @@ trials, product launches, policy interventions, and A/B testing.
 
 Key Features
 ------------
-- **Causal inference**: Measure treatment effects with statistical rigor
-- **Domain-agnostic**: Works with any time series treatment/control data
-- **Uncertainty quantification**: Proper variance estimation and credible intervals
-- **Flexible time handling**: Supports datetime, integer, and float time columns
-- **Complete methodology**: Full mathematical implementation of TBR formulas
+- Causal inference: Measure treatment effects with statistical rigor
+- Domain-agnostic: Works with any time series treatment/control data
+- Uncertainty quantification: Proper variance estimation and credible intervals
+- Flexible time handling: Supports datetime, integer, and float time columns
+- Complete methodology: Full mathematical implementation of TBR formulas
 
-Quick Start
------------
+Examples
+--------
 >>> import pandas as pd
 >>> import numpy as np
 >>> from tbr.functional.tbr_functions import perform_tbr_analysis
@@ -49,9 +49,9 @@ Quick Start
 >>> print(f"Effect: {final_summary['estimate']:.2f}")
 >>> print(f"80% CI: [{final_summary['lower']:.2f}, {final_summary['upper']:.2f}]")
 
-Mathematical Foundation
------------------------
-TBR fits a linear model on pre-treatment data: test = α + β × control + ε
+Notes
+-----
+TBR fits a linear model on pre-treatment data: test = alpha + beta * control + epsilon
 Then generates counterfactual predictions for the treatment period to estimate
 causal effects with proper statistical uncertainty.
 
