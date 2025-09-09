@@ -1,56 +1,61 @@
 """
-TBR (Time-Based Regression) Python Package - Professional Implementation
+Time-Based Regression (TBR) Analysis for Causal Inference
 
-This module provides a comprehensive Python implementation of Time-Based
-Regression analysis for measuring intervention effects in treatment/control
-experiments across any domain. The methodology enables rigorous statistical
-analysis of causal effects in time series data with proper uncertainty
-quantification.
+This module provides a comprehensive implementation of Time-Based Regression
+methodology for measuring causal effects in treatment/control experiments.
+TBR enables rigorous statistical analysis of intervention effects in time
+series data with proper uncertainty quantification and credible intervals.
 
-All functions implement mathematically rigorous TBR formulas and are designed
-to be domain-agnostic, serving researchers and analysts across industries
-including marketing, healthcare, economics, product development, and beyond.
+The implementation is domain-agnostic and suitable for any field requiring
+causal inference from time series experiments: marketing campaigns, medical
+trials, product launches, policy interventions, and A/B testing.
 
 Key Features
 ------------
-- Domain-agnostic treatment effect analysis with simple time series input
-- Rigorous statistical methodology with proper variance quantification
-- Comprehensive credible interval construction using t-distribution
-- Support for any time series treatment/control experiment
-- Professional API following PyPI package standards
-- Complete mathematical implementation of TBR methodology
+- **Causal inference**: Measure treatment effects with statistical rigor
+- **Domain-agnostic**: Works with any time series treatment/control data
+- **Uncertainty quantification**: Proper variance estimation and credible intervals
+- **Flexible time handling**: Supports datetime, integer, and float time columns
+- **Complete methodology**: Full mathematical implementation of TBR formulas
 
-Examples
---------
-Basic TBR analysis workflow:
-
+Quick Start
+-----------
 >>> import pandas as pd
+>>> import numpy as np
 >>> from tbr.functional.tbr_functions import perform_tbr_analysis
 >>>
->>> # Simple time series with pre-aggregated control and test metrics
+>>> # Create time series data (control vs test groups)
 >>> data = pd.DataFrame({
-...     'date': pd.date_range('2023-01-01', periods=100),
-...     'control': np.random.normal(1000, 50, 100),
-...     'test': np.random.normal(1020, 55, 100)
+...     'date': pd.date_range('2023-01-01', periods=90),
+...     'control': np.random.normal(1000, 50, 90),  # Control group metric
+...     'test': np.random.normal(1020, 55, 90)      # Test group metric
 ... })
 >>>
->>> # Run TBR analysis
->>> tbr_results, daily_summaries = perform_tbr_analysis(
+>>> # Analyze treatment effect
+>>> results, summaries = perform_tbr_analysis(
 ...     data=data,
 ...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
-...     pretest_start='2023-01-01',
-...     test_start='2023-02-15',
-...     test_end='2023-03-01',
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-03-01'),
 ...     level=0.80,
-...     threshold=0.0,
-...     model_name='experiment_analysis'
+...     threshold=0.0
 ... )
 >>>
->>> # Get treatment effect estimate
->>> effect = daily_summaries.iloc[-1]['estimate']
->>> print(f"Treatment Effect: {effect}")
+>>> # Get treatment effect and confidence interval
+>>> final_summary = summaries.iloc[-1]
+>>> print(f"Effect: {final_summary['estimate']:.2f}")
+>>> print(f"80% CI: [{final_summary['lower']:.2f}, {final_summary['upper']:.2f}]")
+
+Mathematical Foundation
+-----------------------
+TBR fits a linear model on pre-treatment data: test = α + β × control + ε
+Then generates counterfactual predictions for the treatment period to estimate
+causal effects with proper statistical uncertainty.
+
+See perform_tbr_analysis() for detailed usage and additional examples.
 """
 
 from typing import Dict, List, Optional, Tuple, Union
