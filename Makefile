@@ -1,7 +1,7 @@
 # TBR Package Development Makefile
 # Professional development workflow automation
 
-.PHONY: help setup clean install install-dev test test-cov lint format type-check build upload docs serve-docs pre-commit all
+.PHONY: help setup clean install install-dev test test-cov lint format type-check docstring build upload docs serve-docs pre-commit all
 
 # Default target
 .DEFAULT_GOAL := help
@@ -95,6 +95,12 @@ type-check: ## Run type checking with mypy
 	@mypy $(SRC_DIR)/$(PACKAGE_NAME)
 	@echo "$(GREEN)✅ Type checking completed$(NC)"
 
+docstring: ## Check docstring style and coverage
+	@echo "$(BLUE)Checking docstring style and coverage...$(NC)"
+	@pydocstyle $(SRC_DIR) --convention=numpy
+	@interrogate $(SRC_DIR) --fail-under=90 -v
+	@echo "$(GREEN)✅ Docstring validation completed$(NC)"
+
 build: clean ## Build package for distribution
 	@echo "$(BLUE)Building package...$(NC)"
 	@$(PYTHON) -m build
@@ -132,7 +138,7 @@ install-pre-commit: ## Install pre-commit hooks
 	@pre-commit install
 	@echo "$(GREEN)✅ Pre-commit hooks installed$(NC)"
 
-check: lint type-check format-check ## Run all code quality checks
+check: lint type-check format-check docstring ## Run all code quality checks
 	@echo "$(GREEN)✅ All checks passed$(NC)"
 
 test-all: ## Run comprehensive test suite

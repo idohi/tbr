@@ -59,7 +59,9 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
-    "tox>=4.0.0"
+    "tox>=4.0.0",
+    "pydocstyle[toml]>=6.3.0",
+    "interrogate>=1.5.0"
 ]
 docs = [
     "sphinx>=6.0.0",
@@ -201,3 +203,30 @@ exclude_lines = [
     "if 0:",
     "if __name__ == .__main__.:"
 ]
+
+# Docstring validation configuration (NumPy convention for scientific packages)
+[tool.pydocstyle]
+convention = "numpy"
+add-ignore = [
+    "D100",  # Missing docstring in public module (optional for scientific packages)
+    "D104",  # Missing docstring in public package (optional)
+    "D105",  # Missing docstring in magic method (optional)
+    "D107",  # Missing docstring in __init__ (optional if class docstring is complete)
+]
+match = "(?!test_).*\\.py"  # Skip test files
+match-dir = "(?!tests).*"   # Skip test directories
+
+# Docstring coverage validation
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+ignore-module = false       # Require module docstrings for scientific packages
+ignore-private = true
+ignore-property-decorators = true
+fail-under = 90            # 90% docstring coverage required (scientific package standard)
+verbose = 2
+quiet = false
+whitelist-regex = []
+color = true
+exclude = ["tests", "docs", "build"]
