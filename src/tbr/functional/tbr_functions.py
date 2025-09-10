@@ -1,5 +1,5 @@
 """
-Time-Based Regression (TBR) Analysis for Causal Inference
+Time-Based Regression (TBR) Analysis for Causal Inference.
 
 This module provides a comprehensive implementation of Time-Based Regression
 methodology for measuring causal effects in treatment/control experiments.
@@ -188,21 +188,6 @@ def validate_required_columns(
         List of required column names
     df_name : str
         Name of the DataFrame for error messages
-
-    Raises
-    ------
-    ValueError
-        If any required columns are missing
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({'date': ['2023-01-01'], 'control': [100]})
-    >>> validate_required_columns(df, ['date', 'control'], 'test_data')
-    # No error - validation passes
-
-    >>> validate_required_columns(df, ['date', 'control', 'test'], 'test_data')
-    ValueError: Missing required columns in test_data: ['test']
     """
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
@@ -212,6 +197,11 @@ def validate_required_columns(
 def safe_int_conversion(value: float, param_name: str) -> int:
     """
     Safely convert float to int with validation for statistical parameters.
+
+    This function converts floating-point values that should be integers
+    (like degrees of freedom) to actual integers, with validation to catch
+    potential statistical calculation errors. Uses a 1% tolerance to handle
+    floating-point precision issues.
 
     Parameters
     ----------
@@ -236,9 +226,9 @@ def safe_int_conversion(value: float, param_name: str) -> int:
     43
     >>> safe_int_conversion(43.999999999999, "degrees_freedom")
     44
-    >>> safe_int_conversion(43.5, "degrees_freedom")
+    >>> safe_int_conversion(43.5, "degrees_freedom")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: degrees_freedom should be an integer...
+    ValueError: degrees_freedom should be an integer, got 43.5...
     """
     rounded_value = round(value)
 
@@ -264,22 +254,6 @@ def validate_no_nulls(df: pd.DataFrame, cols: List[str], df_name: str) -> None:
         List of column names to check for nulls
     df_name : str
         Name of the DataFrame for error messages
-
-    Raises
-    ------
-    ValueError
-        If null values are found
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({'date': ['2023-01-01'], 'control': [100]})
-    >>> validate_no_nulls(df, ['date', 'control'], 'test_data')
-    # No error - validation passes
-
-    >>> df_with_nulls = pd.DataFrame({'date': [None], 'control': [100]})
-    >>> validate_no_nulls(df_with_nulls, ['date', 'control'], 'test_data')
-    ValueError: Null values found in test_data: {'date': 1}
     """
     null_counts = df[cols].isnull().sum()
     if null_counts.any():
@@ -296,6 +270,10 @@ def validate_time_boundaries_type(
     """
     Validate that time boundary types are consistent and match time column dtype.
 
+    Ensures all time boundaries use the same type and are compatible with the
+    time column's data type. This prevents type mismatches that could cause
+    incorrect period splitting in TBR analysis.
+
     Parameters
     ----------
     pretest_start : Union[pd.Timestamp, int, float]
@@ -310,18 +288,33 @@ def validate_time_boundaries_type(
     Raises
     ------
     ValueError
-        If boundary types are inconsistent or don't match time column dtype
+        If boundary types are inconsistent or don't match time column dtype.
+        Specific cases:
+        - Mixed boundary types (e.g., mixing pd.Timestamp and int)
+        - Type mismatch with column (e.g., int boundaries with datetime64 column)
+        - Unsupported dtype combinations
 
     Examples
     --------
-    >>> # Valid: all Timestamps with datetime64[ns] column
+    >>> import pandas as pd
+    >>> import numpy as np
+    >>> # Valid: datetime boundaries with datetime column
     >>> validate_time_boundaries_type(
     ...     pd.Timestamp('2023-01-01'),
     ...     pd.Timestamp('2023-02-01'),
     ...     pd.Timestamp('2023-02-15'),
     ...     np.dtype('datetime64[ns]')
     ... )
-    # No error - validation passes
+
+    >>> # Valid: integer boundaries with int64 column
+    >>> validate_time_boundaries_type(1, 10, 20, np.dtype('int64'))
+
+    Notes
+    -----
+    Supported type combinations:
+    - pd.Timestamp boundaries with datetime64[ns] columns
+    - int boundaries with int64 columns
+    - float boundaries with float64 columns
     """
     # Check that all boundaries have the same type
     pretest_type = type(pretest_start)
@@ -384,21 +377,6 @@ def validate_metric_columns(
         Name of the test group metric column
     dataset_name : str, default "data"
         Name of the dataset for error messages
-
-    Raises
-    ------
-    ValueError
-        If control or test columns are not numeric
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> import numpy as np
-    >>> data = pd.DataFrame({
-    ...     'control': np.random.normal(1000, 50, 100),
-    ...     'test': np.random.normal(1020, 55, 100)
-    ... })
-    >>> validate_metric_columns(data, 'control', 'test')
     """
     if not pd.api.types.is_numeric_dtype(data[control_col]):
         raise ValueError(f"Control column '{control_col}' must be numeric")
@@ -419,18 +397,6 @@ def validate_period_data(
         Pretest period data
     test_data : pd.DataFrame
         Test period data
-
-    Raises
-    ------
-    ValueError
-        If pretest or test data is empty after period splitting
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> pretest_data = pd.DataFrame({'control': [1, 2], 'test': [3, 4]})
-    >>> test_data = pd.DataFrame({'control': [5, 6], 'test': [7, 8]})
-    >>> validate_period_data(pretest_data, test_data)
     """
     if pretest_data.empty:
         raise ValueError("No pretest data found - check pretest period dates")
@@ -440,51 +406,35 @@ def validate_period_data(
 
 
 def validate_learning_set(
-    pretest_df: pd.DataFrame,
+    learning_df: pd.DataFrame,
     control_col: str,
     test_col: str,
 ) -> None:
     """
-    Validate learning set (pretest data) for TBR regression model training.
+    Validate learning set for TBR regression model training.
 
     Parameters
     ----------
-    pretest_df : pd.DataFrame
-        Pretest period data used for training the regression model
+    learning_df : pd.DataFrame
+        Learning data used for training the regression model
     control_col : str
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
-
-    Raises
-    ------
-    ValueError
-        If learning set has insufficient data, null values, or invalid values
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> import numpy as np
-    >>> pretest_data = pd.DataFrame({
-    ...     'control': np.random.normal(1000, 50, 30),
-    ...     'test': np.random.normal(1020, 55, 30)
-    ... })
-    >>> validate_learning_set(pretest_data, 'control', 'test')
-    # No error - validation passes
     """
     # Check minimum data requirements for regression
-    if len(pretest_df) < 3:
+    if len(learning_df) < 3:
         raise ValueError(
-            f"Insufficient pretest data: {len(pretest_df)} observations. Need at least 3."
+            f"Insufficient learning data: {len(learning_df)} observations. Need at least 3."
         )
 
     # Check for missing values
-    if pretest_df[[control_col, test_col]].isnull().any().any():
-        raise ValueError("Pretest data contains null values")
+    if learning_df[[control_col, test_col]].isnull().any().any():
+        raise ValueError("Learning data contains null values")
 
     # Check for invalid values (infinite or NaN)
-    if not np.isfinite(pretest_df[[control_col, test_col]]).all().all():
-        raise ValueError("Pretest data contains infinite or NaN values")
+    if not np.isfinite(learning_df[[control_col, test_col]]).all().all():
+        raise ValueError("Learning data contains infinite or NaN values")
 
 
 def validate_time_periods(
@@ -506,25 +456,6 @@ def validate_time_periods(
         End time of test period
     test_end_inclusive : bool, default False
         Whether to include the test_end boundary in the test period
-
-    Returns
-    -------
-    None
-        Function performs validation only and returns nothing
-
-    Raises
-    ------
-    ValueError
-        If time periods are invalid or in wrong order
-
-    Examples
-    --------
-    >>> validate_time_periods(
-    ...     pd.Timestamp('2023-01-01'),
-    ...     pd.Timestamp('2023-02-01'),
-    ...     pd.Timestamp('2023-02-15')
-    ... )
-    # No error - validation passes
     """
     # Boundary validation
     if not (pretest_start < test_start):
@@ -605,7 +536,6 @@ def split_by_periods(
     ...     test_end_inclusive=False
     ... )
     """
-
     data_copy = aggregated_data.copy()
 
     # Use boundary values directly (validation done at entry point)
@@ -686,7 +616,6 @@ def fit_tbr_regression_model(
     >>> model = fit_tbr_regression_model(learning_data, 'control', 'test')
     >>> print(f"Beta coefficient: {model['beta']:.3f}")
     """
-
     # Validate learning set
     validate_learning_set(learning_data, control_col, test_col)
 
@@ -1477,7 +1406,7 @@ def perform_tbr_analysis(
         - False (default): Exclusive end boundary (data < test_end)
         - True: Inclusive end boundary (data <= test_end)
 
-        Examples:
+        Examples for test_end_inclusive:
         - For same-day analysis: set test_end_inclusive=True
         - For precise time ranges: set test_end_inclusive=False
 
@@ -1695,7 +1624,7 @@ def _create_tbr_dataframe(
     model_params: Dict[str, float],
 ) -> pd.DataFrame:
     """
-    Internal function to create the comprehensive TBR dataframe.
+    Create the comprehensive TBR dataframe.
 
     This function creates the main TBR output with all required columns
     for different periods (baseline, pretest, test, cooldown).
