@@ -362,7 +362,6 @@ def validate_metric_columns(
     data: pd.DataFrame,
     control_col: str,
     test_col: str,
-    dataset_name: str = "data",
 ) -> None:
     """
     Validate that metric columns are numeric for TBR analysis.
@@ -375,8 +374,6 @@ def validate_metric_columns(
         Name of the control group metric column
     test_col : str
         Name of the test group metric column
-    dataset_name : str, default "data"
-        Name of the dataset for error messages
     """
     if not pd.api.types.is_numeric_dtype(data[control_col]):
         raise ValueError(f"Control column '{control_col}' must be numeric")
@@ -479,15 +476,13 @@ def validate_time_periods(
 def split_by_periods(
     aggregated_data: pd.DataFrame,
     time_col: str,
-    control_col: str,
-    test_col: str,
     pretest_start: Union[pd.Timestamp, int, float],
     test_start: Union[pd.Timestamp, int, float],
     test_end: Union[pd.Timestamp, int, float],
     test_end_inclusive: bool = False,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Split aggregated time series data into pretest, test and cooldown periods.
+    Split aggregated time series data into baseline, pretest, test and cooldown periods.
 
     Parameters
     ----------
@@ -495,10 +490,6 @@ def split_by_periods(
         Time series data with columns for time, control, and test metrics
     time_col : str
         Name of the time column
-    control_col : str
-        Name of the control group metric column
-    test_col : str
-        Name of the test group metric column
     pretest_start : Union[pd.Timestamp, int, float]
         Start time of pretest period (always inclusive)
     test_start : Union[pd.Timestamp, int, float]
@@ -512,29 +503,6 @@ def split_by_periods(
     -------
     Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
         (baseline_data, pretest_data, test_data, cooldown_data) - DataFrames for each period
-
-    Raises
-    ------
-    ValueError
-        If time period validation fails or no data found in periods
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> import numpy as np
-    >>> # Example with datetime time column and realistic metrics
-    >>> data = pd.DataFrame({
-    ...     'date': pd.date_range('2023-01-01', periods=90),  # Time dimension: 90 days
-    ...     'control': np.random.normal(1000.0, 50.0, 90),   # Control group daily installs
-    ...     'test': np.random.normal(1020.0, 55.0, 90)       # Test group daily installs
-    ... })
-    >>> baseline, pretest, test, cooldown = split_by_periods(
-    ...     data, 'date', 'control', 'test',
-    ...     pretest_start=pd.Timestamp('2023-01-15'),  # Start pretest on Jan 15
-    ...     test_start=pd.Timestamp('2023-02-14'),     # Start test period on Feb 14
-    ...     test_end=pd.Timestamp('2023-03-16'),       # End test period on Mar 16
-    ...     test_end_inclusive=False
-    ... )
     """
     data_copy = aggregated_data.copy()
 
@@ -699,17 +667,19 @@ def calculate_model_variance(
     Parameters
     ----------
     x_values : np.ndarray
-        Control values for which to calculate model variance
+        Control values (predictor variable x) of the learning set
     x_mean : float
-        Mean of control values from pretest period (x̄)
+        Mean of control values over the learning set (x̄)
     sigma : float
-        Residual standard deviation (σ)
+        Residual standard deviation from the model prediction over the learning set (σ)
     n_pretest : int
-        Number of pretest observations
+        Number of observations in learning set
     sum_x_squared_deviations : Optional[float], optional
-        Σ(xi - x̄)². If not provided, calculated from var_beta and sigma
+        Sum of squared deviations over the learning set Σ(xi - x̄)². If not provided,
+        will be calculated from var_beta and sigma using: σ²/var_beta
     var_beta : Optional[float], optional
-        Variance of slope coefficient. Used to calculate sum_x_squared_deviations if not provided
+        Variance of the slope coefficient (β) from the regression model.
+        Required if sum_x_squared_deviations is not provided. Must be positive
 
     Returns
     -------
@@ -770,65 +740,60 @@ def calculate_model_variance(
 
 
 def calculate_prediction_variance(
-    x_values: np.ndarray,
-    x_mean: float,
+    model_variances: np.ndarray,
     sigma: float,
-    n_pretest: int,
-    sum_x_squared_deviations: Optional[float] = None,
-    var_beta: Optional[float] = None,
 ) -> np.ndarray:
     """
-    Calculate prediction variance including both model uncertainty and residual noise.
+    Calculate prediction variance by adding residual noise to model uncertainty.
 
     Implements the TBR prediction variance formula:
-    V[y*] = σ² + V[ŷ*] = σ² + σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
+    V[y*] = σ² + V[ŷ*]
 
-    This can be simplified to:
-    V[y*] = σ² · (1 + 1/n + (x* - x̄)²/Σ(xi - x̄)²)
+    This function adds the residual variance (σ²) to the model variances
+    to get the total prediction variance including both model uncertainty
+    and residual noise.
 
     Parameters
     ----------
-    x_values : np.ndarray
-        Control values for which to calculate prediction variance
-    x_mean : float
-        Mean of control values from pretest period (x̄)
+    model_variances : np.ndarray
+        Model variances from calculate_model_variance() (model uncertainty only)
     sigma : float
-        Residual standard deviation (σ)
-    n_pretest : int
-        Number of pretest observations
-    sum_x_squared_deviations : Optional[float], optional
-        Σ(xi - x̄)². If not provided, calculated from var_beta and sigma
-    var_beta : Optional[float], optional
-        Variance of slope coefficient. Used to calculate sum_x_squared_deviations if not provided
+        Residual standard deviation from the model prediction over the learning set (σ)
 
     Returns
     -------
     np.ndarray
-        Prediction variances for each x value (model uncertainty + residual noise)
+        Prediction variances (model uncertainty + residual noise)
 
-    Notes
-    -----
-    Either sum_x_squared_deviations OR var_beta must be provided.
-    If both are provided, sum_x_squared_deviations takes precedence.
+    Raises
+    ------
+    ValueError
+        If sigma is not positive or model_variances contains invalid values
 
     Examples
     --------
     >>> import numpy as np
-    >>> x_vals = np.array([100, 110, 120])
-    >>> variances = calculate_prediction_variance(
-    ...     x_vals, x_mean=105, sigma=10, n_pretest=30, var_beta=0.001
+    >>> # First calculate model variances
+    >>> model_vars = calculate_model_variance(
+    ...     np.array([100, 110, 120]), x_mean=105, sigma=10,
+    ...     n_pretest=30, var_beta=0.001
     ... )
-    >>> print(f"Prediction variances: {variances}")
+    >>> # Then add residual variance
+    >>> pred_vars = calculate_prediction_variance(model_vars, sigma=10)
+    >>> print(f"Prediction variances: {pred_vars}")
     """
-    # Calculate model uncertainty component
-    model_variances = calculate_model_variance(
-        x_values=x_values,
-        x_mean=x_mean,
-        sigma=sigma,
-        n_pretest=n_pretest,
-        sum_x_squared_deviations=sum_x_squared_deviations,
-        var_beta=var_beta,
-    )
+    # Input validation
+    if sigma <= 0:
+        raise ValueError("sigma must be positive")
+
+    if len(model_variances) == 0:
+        raise ValueError("model_variances cannot be empty")
+
+    if not np.isfinite(model_variances).all():
+        raise ValueError("model_variances contains invalid values")
+
+    if (model_variances < 0).any():
+        raise ValueError("model_variances must be non-negative")
 
     # Add residual variance: V[y*] = σ² + V[ŷ*]
     prediction_variances = sigma**2 + model_variances
@@ -845,51 +810,67 @@ def generate_counterfactual_predictions(
     var_beta: float,
     test_period_data: pd.DataFrame,
     control_col: str,
-    time_col: Optional[str] = None,
+    time_col: str,
 ) -> pd.DataFrame:
     """
-    Generate counterfactual predictions and their standard deviations for test period.
+    Generate counterfactual predictions and prediction uncertainties for TBR test period.
+
+    Creates counterfactual predictions using the fitted regression model and calculates
+    their prediction standard deviations including both model uncertainty and residual
+    noise. These predictions represent what the test group values would have been
+    without treatment intervention.
+
+    The function implements: ŷ* = α + β * x* with prediction variance V[y*] = σ² + V[ŷ*]
 
     Parameters
     ----------
     alpha : float
-        Regression intercept coefficient
+        Regression intercept coefficient (α)
     beta : float
-        Regression slope coefficient
+        Regression slope coefficient (β)
     sigma : float
-        Residual standard deviation from regression model
+        Residual standard deviation from the model prediction over the learning set (σ)
     x_mean : float
-        Mean of control values during pretest period
+        Mean of control values over the learning set (x̄)
     n_pretest : int
-        Number of observations in pretest period
+        Number of observations in learning set
     var_beta : float
-        Variance of the slope coefficient estimate
+        Variance of the slope coefficient (β) from the regression model.
+        Required if sum_x_squared_deviations is not provided. Must be positive
     test_period_data : pd.DataFrame
-        Data for test period with control values
+        Test period data containing control values and time column
     control_col : str
         Name of control column
-    time_col : str, optional
-        Name of time column. If None, uses the first column of test_period_data.
-        Default is None for backward compatibility.
+    time_col : str
+        Name of the time column
 
     Returns
     -------
     pd.DataFrame
-        DataFrame with columns: time column, control, pred, predsd
+        DataFrame with columns: time column, control, pred, predsd where:
         - pred: counterfactual predictions (ŷ*)
-        - predsd: prediction standard deviations (V[ŷ*]^0.5)
+        - predsd: prediction standard deviations √(V[y*]) including both
+          model uncertainty and residual noise
+
+    Raises
+    ------
+    ValueError
+        If test_period_data is empty or control_col is not found
 
     Examples
     --------
     >>> import pandas as pd
+    >>> import numpy as np
     >>> test_data = pd.DataFrame({
     ...     'date': pd.date_range('2023-02-15', periods=14),
     ...     'control': np.random.normal(1000, 50, 14)
     ... })
     >>> predictions = generate_counterfactual_predictions(
     ...     alpha=50, beta=0.95, sigma=25, x_mean=1000, n_pretest=45,
-    ...     var_beta=0.001, test_period_data=test_data, control_col='control'
+    ...     var_beta=0.001, test_period_data=test_data, control_col='control',
+    ...     time_col='date'
     ... )
+    >>> print(f"Predictions shape: {predictions.shape}")
     """
     # Input validation
     if test_period_data.empty:
@@ -899,18 +880,24 @@ def generate_counterfactual_predictions(
         raise ValueError(f"Column '{control_col}' not found in test_period_data")
 
     # Get control values for test period
-    x_test = test_period_data[control_col].values
+    X_test = test_period_data[control_col].values
 
     # Calculate counterfactual predictions: ŷ* = α + β * x*
-    predictions = alpha + beta * x_test
+    predictions = alpha + beta * X_test
 
-    # Calculate prediction variances
-    prediction_variances = calculate_prediction_variance(
-        x_values=x_test,
+    # Calculate model variances
+    model_variances = calculate_model_variance(
+        x_values=X_test,
         x_mean=x_mean,
         sigma=sigma,
         n_pretest=int(n_pretest),
         var_beta=var_beta,
+    )
+
+    # Calculate prediction variances
+    prediction_variances = calculate_prediction_variance(
+        model_variances=model_variances,
+        sigma=sigma,
     )
 
     # Calculate prediction standard deviations
@@ -1230,7 +1217,6 @@ def create_incremental_tbr_summaries(
     degrees_freedom: int,
     level: float,
     threshold: float,
-    model_name: str = DEFAULT_TBR_MODEL,
 ) -> pd.DataFrame:
     """
     Create incremental TBR summary statistics for each test period day.
@@ -1263,8 +1249,6 @@ def create_incremental_tbr_summaries(
         Credibility level for confidence intervals
     threshold : float
         Threshold for probability calculation
-    model_name : str
-        Name of the TBR model
 
     Returns
     -------
@@ -1540,14 +1524,12 @@ def perform_tbr_analysis(
 
     validate_no_nulls(data, required_cols, "data")
 
-    validate_metric_columns(data, control_col, test_col, "data")
+    validate_metric_columns(data, control_col, test_col)
 
     # Step 1: Split data by periods
     baseline_data, pretest_data, test_data, cooldown_data = split_by_periods(
         aggregated_data=data,
         time_col=time_col,
-        control_col=control_col,
-        test_col=test_col,
         pretest_start=pretest_start,
         test_start=test_start,
         test_end=test_end,
@@ -1608,7 +1590,6 @@ def perform_tbr_analysis(
         ),
         level=level,
         threshold=threshold,
-        model_name=DEFAULT_TBR_MODEL,
     )
 
     return tbr_dataframe, daily_summaries
