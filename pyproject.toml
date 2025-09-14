@@ -121,11 +121,12 @@ line-length = 88
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
-    "F",  # pyflakes
+    "F",  # pyflakes (includes F841: unused variable)
     "I",  # isort
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
+    "ARG", # flake8-unused-arguments
 ]
 ignore = [
     "E501",  # line too long, handled by black
