@@ -61,7 +61,8 @@ dev = [
     "pre-commit>=3.0.0",
     "tox>=4.0.0",
     "pydocstyle[toml]>=6.3.0",
-    "interrogate>=1.5.0"
+    "interrogate>=1.5.0",
+    "vulture>=2.7"
 ]
 docs = [
     "sphinx>=6.0.0",
@@ -121,7 +122,7 @@ line-length = 88
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
-    "F",  # pyflakes (includes F841: unused variable)
+    "F",  # pyflakes (includes F841: unused variable, F401: unused imports)
     "I",  # isort
     "B",  # flake8-bugbear
     "C4", # flake8-comprehensions
@@ -231,3 +232,12 @@ quiet = false
 whitelist-regex = []
 color = true
 exclude = ["tests", "docs", "build"]
+
+# Dead code detection
+[tool.vulture]
+paths = ["src"]
+exclude = ["tests", "docs", "build", "examples"]
+ignore_decorators = ["@pytest.fixture", "@property"]
+ignore_names = ["_*"]  # Ignore private methods/functions
+min_confidence = 80    # Only report high-confidence unused code
+sort_by_size = true

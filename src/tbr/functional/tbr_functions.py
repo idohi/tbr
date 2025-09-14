@@ -58,7 +58,7 @@ causal effects with proper statistical uncertainty.
 See perform_tbr_analysis() for detailed usage and additional examples.
 """
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -66,6 +66,58 @@ import statsmodels.api as sm
 from scipy import stats
 
 from tbr.utils.constants import DEFAULT_TBR_MODEL
+from tbr.utils.validation import validate_array_not_empty, validate_sample_size
+
+
+def calculate_sum_x_squared_deviations(x: np.ndarray) -> float:
+    """
+    Calculate sum of squared deviations from the mean.
+
+    Computes Σ(xi - x̄)² where x̄ is the sample mean. Uses the mathematical
+    definition for maximum numerical precision.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input array of values
+
+    Returns
+    -------
+    float
+        Sum of squared deviations from the mean
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> x = np.array([1, 2, 3, 4, 5])
+    >>> calculate_sum_x_squared_deviations(x)
+    10.0
+    """
+    x_mean = np.mean(x)
+    return float(np.sum((x - x_mean) ** 2))
+
+
+def extract_sum_x_squared_deviations(var_beta: float, sigma: float) -> float:
+    """
+    Extract sum of squared deviations from regression variance parameters.
+
+    Calculates Σ(xi - x̄)² using the relationship: Σ(xi - x̄)² = σ²/var_beta
+    Use this only when original data is not available.
+
+    Parameters
+    ----------
+    var_beta : float
+        Variance of the slope coefficient (β) from regression model
+    sigma : float
+        Residual standard deviation from regression model
+
+    Returns
+    -------
+    float
+        Sum of squared deviations: Σ(xi - x̄)²
+    """
+    return sigma**2 / var_beta
+
 
 # Export list for clean imports
 __all__ = [
@@ -81,6 +133,8 @@ __all__ = [
     "validate_learning_set",
     "split_by_periods",
     "fit_tbr_regression_model",
+    "calculate_sum_x_squared_deviations",
+    "extract_sum_x_squared_deviations",
     "calculate_model_variance",
     "calculate_prediction_variance",
     "generate_counterfactual_predictions",
@@ -592,6 +646,11 @@ def fit_tbr_regression_model(
     y = learning_data[test_col].values
     n = len(x)
 
+    # Validation of regression inputs
+    validate_array_not_empty(x, "control values")
+    validate_array_not_empty(y, "test values")
+    validate_sample_size(n, min_size=3, param_name="learning set size")
+
     # Check for constant control values
     if np.var(x) == 0:
         raise ValueError(
@@ -652,8 +711,7 @@ def calculate_model_variance(
     x_mean: float,
     sigma: float,
     n_pretest: int,
-    sum_x_squared_deviations: Optional[float] = None,
-    var_beta: Optional[float] = None,
+    sum_x_squared_deviations: float,
 ) -> np.ndarray:
     """
     Calculate model variance for fitted values using TBR formula.
@@ -667,67 +725,33 @@ def calculate_model_variance(
     Parameters
     ----------
     x_values : np.ndarray
-        Control values (predictor variable x) of the learning set
+        Control values (predictor variable x) from the learning set
     x_mean : float
         Mean of control values over the learning set (x̄)
     sigma : float
         Residual standard deviation from the model prediction over the learning set (σ)
     n_pretest : int
         Number of observations in learning set
-    sum_x_squared_deviations : Optional[float], optional
-        Sum of squared deviations over the learning set Σ(xi - x̄)². If not provided,
-        will be calculated from var_beta and sigma using: σ²/var_beta
-    var_beta : Optional[float], optional
-        Variance of the slope coefficient (β) from the regression model.
-        Required if sum_x_squared_deviations is not provided. Must be positive
+    sum_x_squared_deviations : float
+        Sum of squared deviations over the learning set: Σ(xi - x̄)²
 
     Returns
     -------
     np.ndarray
         Model variances for each x value (model uncertainty only)
 
-    Raises
-    ------
-    ValueError
-        If parameters are invalid or insufficient information provided
-
-    Notes
-    -----
-    Either sum_x_squared_deviations OR var_beta must be provided.
-    If both are provided, sum_x_squared_deviations takes precedence.
-
     Examples
     --------
     >>> import numpy as np
+    >>> # Calculate sum of squared deviations directly for maximum precision
     >>> x_vals = np.array([100, 110, 120])
+    >>> sum_sq_dev = calculate_sum_x_squared_deviations(x_vals)
     >>> variances = calculate_model_variance(
-    ...     x_vals, x_mean=105, sigma=10, n_pretest=30, var_beta=0.001
+    ...     x_vals, x_mean=110, sigma=10, n_pretest=30,
+    ...     sum_x_squared_deviations=sum_sq_dev
     ... )
     >>> print(f"Model variances: {variances}")
     """
-    # Input validation
-    if len(x_values) == 0:
-        raise ValueError("x_values cannot be empty")
-
-    if sigma <= 0:
-        raise ValueError("sigma must be positive")
-
-    if n_pretest < 3:
-        raise ValueError("n_pretest must be at least 3")
-
-    # Calculate sum_x_squared_deviations if not provided
-    if sum_x_squared_deviations is None:
-        if var_beta is None:
-            raise ValueError(
-                "Either sum_x_squared_deviations or var_beta must be provided"
-            )
-        if var_beta <= 0:
-            raise ValueError("var_beta must be positive")
-        sum_x_squared_deviations = sigma**2 / var_beta
-
-    if sum_x_squared_deviations <= 0:
-        raise ValueError("sum_x_squared_deviations must be positive")
-
     # Apply TBR model variance formula (MODEL UNCERTAINTY ONLY)
     # V[ŷ*] = σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
     x_deviations_squared = (x_values - x_mean) ** 2
@@ -765,11 +789,6 @@ def calculate_prediction_variance(
     np.ndarray
         Prediction variances (model uncertainty + residual noise)
 
-    Raises
-    ------
-    ValueError
-        If sigma is not positive or model_variances contains invalid values
-
     Examples
     --------
     >>> import numpy as np
@@ -782,19 +801,6 @@ def calculate_prediction_variance(
     >>> pred_vars = calculate_prediction_variance(model_vars, sigma=10)
     >>> print(f"Prediction variances: {pred_vars}")
     """
-    # Input validation
-    if sigma <= 0:
-        raise ValueError("sigma must be positive")
-
-    if len(model_variances) == 0:
-        raise ValueError("model_variances cannot be empty")
-
-    if not np.isfinite(model_variances).all():
-        raise ValueError("model_variances contains invalid values")
-
-    if (model_variances < 0).any():
-        raise ValueError("model_variances must be non-negative")
-
     # Add residual variance: V[y*] = σ² + V[ŷ*]
     prediction_variances = sigma**2 + model_variances
 
@@ -807,7 +813,6 @@ def generate_counterfactual_predictions(
     sigma: float,
     x_mean: float,
     n_pretest: int,
-    var_beta: float,
     test_period_data: pd.DataFrame,
     control_col: str,
     time_col: str,
@@ -834,9 +839,6 @@ def generate_counterfactual_predictions(
         Mean of control values over the learning set (x̄)
     n_pretest : int
         Number of observations in learning set
-    var_beta : float
-        Variance of the slope coefficient (β) from the regression model.
-        Required if sum_x_squared_deviations is not provided. Must be positive
     test_period_data : pd.DataFrame
         Test period data containing control values and time column
     control_col : str
@@ -852,11 +854,6 @@ def generate_counterfactual_predictions(
         - predsd: prediction standard deviations √(V[y*]) including both
           model uncertainty and residual noise
 
-    Raises
-    ------
-    ValueError
-        If test_period_data is empty or control_col is not found
-
     Examples
     --------
     >>> import pandas as pd
@@ -867,31 +864,24 @@ def generate_counterfactual_predictions(
     ... })
     >>> predictions = generate_counterfactual_predictions(
     ...     alpha=50, beta=0.95, sigma=25, x_mean=1000, n_pretest=45,
-    ...     var_beta=0.001, test_period_data=test_data, control_col='control',
-    ...     time_col='date'
+    ...     test_period_data=test_data, control_col='control', time_col='date'
     ... )
     >>> print(f"Predictions shape: {predictions.shape}")
     """
-    # Input validation
-    if test_period_data.empty:
-        raise ValueError("test_period_data cannot be empty")
-
-    if control_col not in test_period_data.columns:
-        raise ValueError(f"Column '{control_col}' not found in test_period_data")
-
     # Get control values for test period
     X_test = test_period_data[control_col].values
 
     # Calculate counterfactual predictions: ŷ* = α + β * x*
     predictions = alpha + beta * X_test
 
-    # Calculate model variances
+    # Calculate model variances using direct calculation
+    sum_x_squared_deviations = calculate_sum_x_squared_deviations(X_test)
     model_variances = calculate_model_variance(
         x_values=X_test,
         x_mean=x_mean,
         sigma=sigma,
         n_pretest=int(n_pretest),
-        var_beta=var_beta,
+        sum_x_squared_deviations=sum_x_squared_deviations,
     )
 
     # Calculate prediction variances
@@ -1635,12 +1625,15 @@ def _create_tbr_dataframe(
     pretest_df["pred"] = model_params["alpha"] + model_params["beta"] * pretest_df["x"]
 
     # Calculate fitted value standard deviations for pretest
+    sum_x_squared_deviations = calculate_sum_x_squared_deviations(
+        pretest_df["x"].values
+    )
     fitted_variances = calculate_model_variance(
         x_values=pretest_df["x"].values,
         x_mean=model_params["x_mean"],
         sigma=model_params["sigma"],
         n_pretest=safe_int_conversion(model_params["n_pretest"], "n_pretest"),
-        var_beta=model_params["var_beta"],
+        sum_x_squared_deviations=sum_x_squared_deviations,
     )
     pretest_df["estsd"] = np.sqrt(fitted_variances)
     pretest_df["predsd"] = 0.0
@@ -1662,7 +1655,6 @@ def _create_tbr_dataframe(
         sigma=model_params["sigma"],
         x_mean=model_params["x_mean"],
         n_pretest=safe_int_conversion(model_params["n_pretest"], "n_pretest"),
-        var_beta=model_params["var_beta"],
         test_period_data=test_df,
         control_col=control_col,
         time_col=time_col,
