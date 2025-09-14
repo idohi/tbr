@@ -821,11 +821,10 @@ def generate_counterfactual_predictions(
     Generate counterfactual predictions and prediction uncertainties for TBR test period.
 
     Creates counterfactual predictions using the fitted regression model and calculates
-    their prediction standard deviations including both model uncertainty and residual
-    noise. These predictions represent what the test group values would have been
-    without treatment intervention.
+    their prediction standard deviations. These predictions represent what the test
+    group values would have been without treatment intervention.
 
-    The function implements: ŷ* = α + β * x* with prediction variance V[y*] = σ² + V[ŷ*]
+    Implements: ŷ* = α + β * x* with prediction variance V[y*] = σ² + V[ŷ*]
 
     Parameters
     ----------
@@ -851,8 +850,7 @@ def generate_counterfactual_predictions(
     pd.DataFrame
         DataFrame with columns: time column, control, pred, predsd where:
         - pred: counterfactual predictions (ŷ*)
-        - predsd: prediction standard deviations √(V[y*]) including both
-          model uncertainty and residual noise
+        - predsd: prediction standard deviations including model uncertainty and residual noise
 
     Examples
     --------
