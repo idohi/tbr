@@ -16,7 +16,7 @@ Create a comprehensive, domain-agnostic Python package for Time-Based Regression
 ### Target Users
 - **Data Scientists** analyzing treatment effects across any domain
 - **Marketing Analysts** measuring campaign lift and ROI
-- **Medical Researchers** conducting clinical trials and treatment analysis  
+- **Medical Researchers** conducting clinical trials and treatment analysis
 - **Economists** studying policy interventions and causal effects
 - **Product Managers** evaluating feature rollouts and A/B tests
 - **Statisticians** applying causal inference methods
@@ -118,7 +118,7 @@ tbr/
 
 ### Package Metadata & Configuration
 - **Package Name**: `tbr` (Time-Based Regression)
-- **PyPI Classification**: 
+- **PyPI Classification**:
   - Development Status: 5 - Production/Stable
   - Intended Audience: Science/Research, Developers
   - Topic: Scientific/Engineering, Statistics
@@ -175,7 +175,7 @@ tbr/
 - [ ] Implement model diagnostics and assumption testing
 - [ ] Performance validation ensuring no regression from functional code
 
-#### Week 4: Effects & Inference Modules  
+#### Week 4: Effects & Inference Modules
 - [ ] Create `core/effects.py` wrapping lift calculation and cumulative effect functions
 - [ ] Implement `core/inference.py` for statistical inference and credible intervals
 - [ ] Build cumulative variance computation (leveraging `calculate_cumulative_standard_deviation`)
