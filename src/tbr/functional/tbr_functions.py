@@ -909,27 +909,30 @@ def calculate_cumulative_standard_deviation(
     """
     Calculate standard deviation of cumulative causal effect for TBR test period.
 
-    This function implements the TBR formula for cumulative variance:
+    Implements the TBR formula for cumulative effect variance:
     V[Δr(T)] = T · σ² + T² · v
     where v = Var(α̂) + 2·x̄_T·Cov(α̂,β̂) + x̄_T²·Var(β̂)
+
+    This calculates the uncertainty in cumulative treatment effects as they
+    accumulate over time during the test period.
 
     Parameters
     ----------
     test_x_values : np.ndarray
-        Array of control group values during test period
+        Control values during test period
     sigma : float
-        Residual standard deviation from regression model
+        Residual standard deviation from the model prediction over the learning set (σ)
     var_alpha : float
-        Variance of intercept estimate
+        Variance of intercept estimate (α)
     var_beta : float
-        Variance of slope estimate
+        Variance of slope estimate (β)
     cov_alpha_beta : float
         Covariance between intercept and slope estimates
 
     Returns
     -------
     np.ndarray
-        Array of cumulative standard deviations for each time point
+        Cumulative standard deviations for each time point in test period
 
     Examples
     --------
