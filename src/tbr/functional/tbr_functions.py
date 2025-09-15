@@ -1612,10 +1612,57 @@ def _create_tbr_dataframe(
     model_params: Dict[str, float],
 ) -> pd.DataFrame:
     """
-    Create the comprehensive TBR dataframe.
+    Create the comprehensive TBR dataframe with all periods and calculations.
 
-    This function creates the main TBR output with all required columns
-    for different periods (baseline, pretest, test, cooldown).
+    This internal function processes baseline, pretest, and test period data to create
+    the main TBR output DataFrame. It handles period assignment, calculates fitted
+    values, residuals, cumulative effects, and prediction uncertainties for each
+    period according to TBR methodology.
+
+    Parameters
+    ----------
+    baseline_data : pd.DataFrame
+        Baseline period data (before pretest). May be empty.
+    pretest_data : pd.DataFrame
+        Pretest period data used for model fitting (learning set)
+    test_data : pd.DataFrame
+        Test period data including test and cooldown periods if present
+    time_col : str
+        Name of time column
+    control_col : str
+        Name of control column
+    test_col : str
+        Name of test column
+    model_params : Dict[str, float]
+        Regression model parameters from fit_tbr_regression_model containing:
+        alpha, beta, sigma, var_alpha, var_beta, cov_alpha_beta, n_pretest, x_mean
+
+    Returns
+    -------
+    pd.DataFrame
+        Comprehensive TBR DataFrame with columns:
+        - time_col: Original time column
+        - period: Period indicator (-1=baseline, 0=pretest, 1=test, 3=cooldown)
+        - y: Test group values
+        - x: Control group values
+        - pred: Fitted/predicted values (NaN for baseline)
+        - predsd: Prediction standard deviations (0 for pretest, calculated for test)
+        - dif: Residuals/effects (y - pred, NaN for baseline)
+        - cumdif: Cumulative effects (NaN for baseline/pretest, cumulative for test)
+        - cumsd: Cumulative standard deviations (0 for pretest, calculated for test)
+        - estsd: Fitted value standard deviations (calculated for pretest, NaN elsewhere)
+
+    Notes
+    -----
+    This function is called internally by perform_tbr_analysis and handles the
+    complex DataFrame construction that combines multiple periods with different
+    statistical calculations appropriate for each period type.
+
+    Period codes:
+    - -1: Baseline period (before pretest)
+    - 0: Pretest period (learning set for model fitting)
+    - 1: Test period (treatment effect measurement)
+    - 3: Cooldown period (post-treatment observation)
     """
     # Process baseline period (if exists)
     if not baseline_data.empty:
