@@ -1068,15 +1068,15 @@ def create_tbr_summary(
     tbr_dataframe : pd.DataFrame
         Complete TBR dataframe with all periods and statistics
     alpha : float
-        Regression intercept coefficient
+        Regression intercept coefficient (α)
     beta : float
-        Regression slope coefficient
+        Regression slope coefficient (β)
     sigma : float
-        Residual standard deviation from regression model
+        Residual standard deviation from the model prediction over the learning set (σ)
     var_alpha : float
-        Variance of intercept estimate
+        Variance of intercept estimate (α)
     var_beta : float
-        Variance of slope estimate
+        Variance of slope estimate (β)
     cov_alpha_beta : float
         Covariance between intercept and slope estimates
     degrees_freedom : int
@@ -1091,7 +1091,12 @@ def create_tbr_summary(
     Returns
     -------
     pd.DataFrame
-        Single-row DataFrame with TBR summary statistics
+        Single-row DataFrame with TBR summary statistics including:
+        - 'estimate': Cumulative treatment effect
+        - 'precision': Half-width of credible interval
+        - 'lower', 'upper': Credible interval bounds
+        - 'prob': Posterior probability of exceeding threshold
+        - Model parameters and metadata
 
     Raises
     ------
