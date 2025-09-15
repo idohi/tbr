@@ -1382,9 +1382,9 @@ def perform_tbr_analysis(
         Note: Object dtypes are not supported (including Python date/datetime objects).
         Convert all date/time data using pd.to_datetime() first.
     control_col : str
-        Name of the control group metric column
+        Name of control column
     test_col : str
-        Name of the test group metric column
+        Name of test column
     pretest_start : Union[pd.Timestamp, int, float]
         Start time of pretest period (always inclusive)
     test_start : Union[pd.Timestamp, int, float]
