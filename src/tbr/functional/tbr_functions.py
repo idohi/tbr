@@ -1355,9 +1355,9 @@ def perform_tbr_analysis(
     pretest_start: Union[pd.Timestamp, int, float],
     test_start: Union[pd.Timestamp, int, float],
     test_end: Union[pd.Timestamp, int, float],
+    level: float,
+    threshold: float,
     test_end_inclusive: bool = False,
-    level: float = 0.80,
-    threshold: float = 0.0,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Execute complete TBR analysis pipeline for domain-agnostic time series data.
@@ -1403,10 +1403,12 @@ def perform_tbr_analysis(
 
         Note: This parameter works consistently across all time column types
         (datetime64[ns], int64, float64).
-    level : float, default 0.80
-        Credibility level for confidence intervals (0.80 = 80%)
-    threshold : float, default 0.0
-        Threshold for probability calculation (usually 0 for positive effect testing)
+    level : float
+        Credibility level for confidence intervals (e.g., 0.80 for 80% CI)
+    threshold : float
+        Threshold for probability calculation (typically 0.0 for positive effect testing)
+    test_end_inclusive : bool, default False
+        Whether to include test_end date in the analysis period
 
     Returns
     -------
