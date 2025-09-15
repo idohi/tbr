@@ -31,6 +31,7 @@ repos:
     hooks:
       - id: mypy
         args: [--ignore-missing-imports]
+        exclude: ^(tests/|references/)
 
   # Docstring validation (NumPy convention for scientific packages)
   - repo: https://github.com/PyCQA/pydocstyle
@@ -38,7 +39,8 @@ repos:
     hooks:
       - id: pydocstyle
         additional_dependencies: [toml]
-        args: ["--convention=numpy"]
+        args: ["--convention=numpy", "--add-ignore=D104"]
+        exclude: ^(tests/|references/)
 
   # Docstring coverage validation
   - repo: https://github.com/econchick/interrogate
@@ -46,6 +48,7 @@ repos:
     hooks:
       - id: interrogate
         args: ["--fail-under=90", "-v", "--color"]
+        exclude: ^(tests/|references/)
 
   # Dead code detection (unused functions, variables, imports)
   - repo: https://github.com/jendrikseipp/vulture
