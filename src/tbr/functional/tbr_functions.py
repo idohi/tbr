@@ -201,13 +201,7 @@ def validate_time_column_type(
             f"Time column '{time_col}' in {df_name} contains only null values"
         )
 
-    # Get the actual data type (excluding nulls for type checking)
-    non_null_series = time_series.dropna()
-    if non_null_series.empty:
-        raise ValueError(
-            f"Time column '{time_col}' in {df_name} has no valid (non-null) values"
-        )
-
+    # Get the actual data type
     dtype = time_series.dtype
     dtype_str = str(dtype)
 
@@ -1191,7 +1185,6 @@ def create_tbr_summary(
         "level": "float64",
         "thres": "float64",
         "prob": "float64",
-        "model": "object",
         "alpha": "float64",
         "beta": "float64",
         "alpha_beta_cov": "float64",
