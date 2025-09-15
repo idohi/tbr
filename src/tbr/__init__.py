@@ -1,5 +1,5 @@
 """
-TBR - Time-Based Regression Analysis Package
+TBR - Time-Based Regression Analysis Package.
 
 ⚠️  **ALPHA RELEASE** ⚠️
 This package is under active development. The API may change in future versions.
@@ -53,13 +53,12 @@ __license__ = "Apache-2.0"
 
 # Import main functionality for easy access
 from .functional import perform_tbr_analysis
-from .utils import CONTROL_VAL, DEFAULT_TBR_MODEL, TEST_VAL
+from .utils import CONTROL_VAL, TEST_VAL
 
 __all__ = [
     "perform_tbr_analysis",
     "CONTROL_VAL",
     "TEST_VAL",
-    "DEFAULT_TBR_MODEL",
     "__version__",
     "__author__",
     "__license__",

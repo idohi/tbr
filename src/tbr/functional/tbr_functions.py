@@ -65,7 +65,6 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
 
-from tbr.utils.constants import DEFAULT_TBR_MODEL
 from tbr.utils.validation import validate_array_not_empty, validate_sample_size
 
 
@@ -1054,7 +1053,6 @@ def create_tbr_summary(
     degrees_freedom: int,
     level: float,
     threshold: float,
-    model_name: str = DEFAULT_TBR_MODEL,
 ) -> pd.DataFrame:
     """
     Create TBR summary statistics DataFrame with credible intervals and probabilities.
@@ -1085,8 +1083,6 @@ def create_tbr_summary(
         Credibility level for confidence intervals
     threshold : float
         Threshold for probability calculation
-    model_name : str
-        Name of the TBR model
 
     Returns
     -------
@@ -1173,7 +1169,6 @@ def create_tbr_summary(
         "level": float(level),
         "thres": float(threshold),
         "prob": float(prob),
-        "model": str(model_name),
         "alpha": float(alpha),
         "beta": float(beta),
         "alpha_beta_cov": float(cov_alpha_beta),
@@ -1329,7 +1324,6 @@ def create_incremental_tbr_summaries(
             degrees_freedom=degrees_freedom,
             level=level,
             threshold=threshold,
-            model_name=DEFAULT_TBR_MODEL,
         )
 
         # Add test day identifier
