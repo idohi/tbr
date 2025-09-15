@@ -973,25 +973,34 @@ def compute_interval_estimate_and_ci(
     ci_level: float,
 ) -> Dict[str, float]:
     """
-    Compute cumulative effect estimate and credible interval for a subinterval.
+    Compute cumulative treatment effect estimate and credible interval for a subinterval.
+
+    Calculates the cumulative treatment effect over a specified subinterval within
+    the test period, along with its credible interval using t-distribution. This
+    enables analysis of treatment effects for specific time ranges rather than
+    the entire test period.
 
     Parameters
     ----------
     tbr_df : pd.DataFrame
         TBR daily output with columns 'y', 'pred', 'period', 'estsd'
     tbr_summary : pd.DataFrame
-        TBR summary with 'sigma' and 't_dist_df'
+        TBR summary containing 'sigma' and 't_dist_df' (degrees of freedom) parameters
     start_day : int
         Start day of subinterval (1-indexed within test period)
     end_day : int
         End day of subinterval (inclusive)
     ci_level : float
-        Credible interval level (default 0.80)
+        Credible interval level (e.g., 0.80 for 80% interval)
 
     Returns
     -------
     Dict[str, float]
-        Dictionary with keys: 'estimate', 'precision', 'lower', 'upper'
+        Dictionary containing:
+        - 'estimate': Cumulative treatment effect for the subinterval
+        - 'precision': Half-width of credible interval
+        - 'lower': Lower bound of credible interval
+        - 'upper': Upper bound of credible interval
 
     Examples
     --------
