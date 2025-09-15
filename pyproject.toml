@@ -246,7 +246,7 @@ addopts = [
     "--cov-report=term-missing", # Show missing coverage in terminal
     "--cov-report=html:htmlcov", # Generate HTML coverage report
     "--cov-report=xml",       # Generate XML coverage report for CI
-    "--cov-fail-under=85",    # Fail if coverage below 85%
+    "--cov-fail-under=95",    # ULTIMATE PyPI standard: 95% coverage - absolute best packages
     "--durations=10",         # Show 10 slowest tests
 ]
 
