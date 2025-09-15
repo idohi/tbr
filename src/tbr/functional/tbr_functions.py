@@ -1232,20 +1232,23 @@ def create_incremental_tbr_summaries(
     - Day 3: Summary for first three days (cumulative)
     - ...and so on
 
+    This enables day-by-day analysis of cumulative treatment effects during the
+    test period, providing insights into when effects become detectable and stable.
+
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
         Complete TBR dataframe with all periods and statistics
     alpha : float
-        Regression intercept coefficient
+        Regression intercept coefficient (α)
     beta : float
-        Regression slope coefficient
+        Regression slope coefficient (β)
     sigma : float
-        Residual standard deviation from regression model
+        Residual standard deviation from the model prediction over the learning set (σ)
     var_alpha : float
-        Variance of intercept estimate
+        Variance of intercept estimate (α)
     var_beta : float
-        Variance of slope estimate
+        Variance of slope estimate (β)
     cov_alpha_beta : float
         Covariance between intercept and slope estimates
     degrees_freedom : int
@@ -1272,8 +1275,7 @@ def create_incremental_tbr_summaries(
     >>> incremental_summaries = create_incremental_tbr_summaries(
     ...     tbr_results, alpha=50, beta=0.95, sigma=25,
     ...     var_alpha=100, var_beta=0.001, cov_alpha_beta=-0.05,
-    ...     degrees_freedom=43, level=0.80, threshold=0.0,
-    ...     model_name='experiment_analysis'
+    ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
     >>> print(f"Day 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
     """
