@@ -230,19 +230,44 @@ print(summary_results)
 
 ## 🧪 Testing
 
+Our testing framework follows scientific PyPI package standards with comprehensive test categories.
+
+### Quick Start
 ```bash
-# Run all tests
+# Run all tests (recommended)
 make test
 
-# Run with coverage
+# Run with coverage report
 make test-cov
 
-# Run specific test file
-pytest tests/unit/test_core.py -v
-
-# Run mathematical validation tests
-pytest tests/mathematical/ -v
+# Run specific test categories
+pytest tests/unit/ -v          # Unit tests
+pytest tests/integration/ -v   # Integration tests
+pytest tests/mathematical/ -v  # Mathematical validation
+pytest tests/performance/ -v   # Performance tests
 ```
+
+### Test Categories (69 tests total)
+- **Unit Tests (35)**: Individual function/class testing
+- **Integration Tests (12)**: Package structure and imports
+- **Mathematical Tests (15)**: Known-value validation and algorithm verification
+- **Performance Tests (7)**: Speed, scalability, and memory efficiency
+
+### Advanced Testing
+```bash
+# Run by test markers
+pytest -m "mathematical" -v    # Mathematical validation only
+pytest -m "performance" -v     # Performance tests only
+
+# Coverage with HTML report
+pytest tests/ --cov=src/tbr --cov-report=html
+open htmlcov/index.html
+
+# Show slowest tests
+pytest tests/ --durations=10
+```
+
+📚 **For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
 
 ## 🔧 Project Structure
 
