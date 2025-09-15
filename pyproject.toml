@@ -103,7 +103,6 @@ extend-exclude = '''
   | \.venv
   | build
   | dist
-  | references  # Exclude references directory
   | tests       # Exclude tests directory
 )/
 '''
@@ -141,7 +140,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/**/*" = ["B011"]
-"references/**/*" = ["ALL"]  # Exclude references directory from all linting
 
 # MyPy configuration
 [tool.mypy]
@@ -158,9 +156,6 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
-exclude = [
-    "references/.*",  # Exclude references directory from type checking
-]
 
 [[tool.mypy.overrides]]
 module = [

@@ -1,5 +1,5 @@
 """
-TBR (Time-Based Regression) Python Package - Functional Implementation
+TBR (Time-Based Regression) Python Package - Functional Implementation.
 
 This module provides a pure functional Python implementation of Time-Based
 Regression analysis for measuring ad effectiveness through geo experiments,
@@ -8,16 +8,19 @@ replacing the R GeoexperimentsResearch package functionality.
 All functions are designed to be independent, testable, and reusable.
 """
 
-import pandas as pd
-from typing import List, Tuple, Union, Dict, Optional
 import datetime
-import numpy as np
-import statsmodels.api as sm
+from typing import Dict, List, Optional, Tuple, Union
+
 import constants
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
 from scipy import stats
 
 
-def validate_required_columns(df: pd.DataFrame, required_cols: List[str], df_name: str) -> None:
+def validate_required_columns(
+    df: pd.DataFrame, required_cols: List[str], df_name: str
+) -> None:
     """
     Validate that DataFrame contains all required columns.
 
@@ -70,7 +73,7 @@ def merge_data_with_assignments(
     geo_col: str,
     date_col: str,
     metric_col: str,
-    assignment_col: str
+    assignment_col: str,
 ) -> pd.DataFrame:
     """
     Merge time series data with geo assignments.
@@ -124,9 +127,7 @@ def merge_data_with_assignments(
 
     # Merge data with assignments (inner join to keep only assigned geos)
     merged_df = data.merge(
-        assignments[[geo_col, assignment_col]],
-        on=geo_col,
-        how='inner'
+        assignments[[geo_col, assignment_col]], on=geo_col, how="inner"
     )
 
     # Check that merge was successful
@@ -142,7 +143,7 @@ def aggregate_metrics_by_group(
     assignment_col: str,
     metric_col: str,
     control_group: str,
-    test_group: str
+    test_group: str,
 ) -> pd.DataFrame:
     """
     Aggregate metrics by date and assignment group.
@@ -173,8 +174,12 @@ def aggregate_metrics_by_group(
         If required groups are not found or validation fails
     """
     # Validate input
-    validate_required_columns(merged_data, [date_col, assignment_col, metric_col], "merged_data")
-    validate_no_nulls(merged_data, [date_col, assignment_col, metric_col], "merged_data")
+    validate_required_columns(
+        merged_data, [date_col, assignment_col, metric_col], "merged_data"
+    )
+    validate_no_nulls(
+        merged_data, [date_col, assignment_col, metric_col], "merged_data"
+    )
 
     # Check that required groups exist
     unique_groups = set(merged_data[assignment_col].unique())
@@ -184,22 +189,21 @@ def aggregate_metrics_by_group(
         raise ValueError(f"Missing required groups in data: {missing_groups}")
 
     # Filter to only include required groups
-    filtered_data = merged_data[merged_data[assignment_col].isin([control_group, test_group])]
+    filtered_data = merged_data[
+        merged_data[assignment_col].isin([control_group, test_group])
+    ]
 
     # Aggregate by date and assignment
-    aggregated = (
-        filtered_data
-        .groupby([date_col, assignment_col], as_index=False)
-        [metric_col]
-        .sum()
-    )
+    aggregated = filtered_data.groupby([date_col, assignment_col], as_index=False)[
+        metric_col
+    ].sum()
 
     # Pivot to wide format (control and test as columns)
-    pivoted = aggregated.pivot(
-        index=date_col,
-        columns=assignment_col,
-        values=metric_col
-    ).fillna(0.0).reset_index()
+    pivoted = (
+        aggregated.pivot(index=date_col, columns=assignment_col, values=metric_col)
+        .fillna(0.0)
+        .reset_index()
+    )
 
     # Ensure both control and test columns exist
     if control_group not in pivoted.columns:
@@ -208,10 +212,9 @@ def aggregate_metrics_by_group(
         pivoted[test_group] = 0.0
 
     # Rename columns to standard names and reorder
-    pivoted = pivoted.rename(columns={
-        control_group: constants.CONTROL_VAL,
-        test_group: constants.TEST_VAL
-    })
+    pivoted = pivoted.rename(
+        columns={control_group: constants.CONTROL_VAL, test_group: constants.TEST_VAL}
+    )
 
     # Ensure column order
     pivoted = pivoted[[date_col, control_group, test_group]]
@@ -221,7 +224,9 @@ def aggregate_metrics_by_group(
     return pivoted
 
 
-def parse_date_string(date_str: Union[str, pd.Timestamp], param_name: str, make_exclusive: bool) -> pd.Timestamp:
+def parse_date_string(
+    date_str: Union[str, pd.Timestamp], param_name: str, make_exclusive: bool
+) -> pd.Timestamp:
     """
     Parse date string or timezone-aware datetime to a UTC datetime object.
 
@@ -249,14 +254,18 @@ def parse_date_string(date_str: Union[str, pd.Timestamp], param_name: str, make_
     if isinstance(date_str, pd.Timestamp):
         if date_str.tzinfo is None:
             raise ValueError(f"{param_name} must be timezone-aware, got naive datetime")
-        parsed_date = date_str.tz_convert('UTC')
+        parsed_date = date_str.tz_convert("UTC")
     elif isinstance(date_str, str):
         try:
-            parsed_date = pd.to_datetime(date_str).tz_localize('UTC')
-        except ValueError:
-            raise ValueError(f"{param_name} must be in YYYY-MM-DD format, got: {date_str}")
+            parsed_date = pd.to_datetime(date_str).tz_localize("UTC")
+        except ValueError as e:
+            raise ValueError(
+                f"{param_name} must be in YYYY-MM-DD format, got: {date_str}"
+            ) from e
     else:
-        raise ValueError(f"{param_name} must be string or timezone-aware datetime, got: {type(date_str)}")
+        raise ValueError(
+            f"{param_name} must be string or timezone-aware datetime, got: {type(date_str)}"
+        )
 
     # Add 1 day for exclusive end dates
     if make_exclusive:
@@ -268,7 +277,7 @@ def parse_date_string(date_str: Union[str, pd.Timestamp], param_name: str, make_
 def validate_date_periods(
     pretest_start: Union[str, datetime.date],
     test_start: Union[str, datetime.date],
-    test_end: Union[str, datetime.date]
+    test_end: Union[str, datetime.date],
 ) -> Tuple[datetime.date, datetime.date, datetime.date]:
     """
     Validate and parse date parameters for TBR analysis.
@@ -293,15 +302,19 @@ def validate_date_periods(
         If dates are invalid or in wrong order
     """
     # Parse dates
-    pretest_start_date = parse_date_string(pretest_start, "pretest_start", make_exclusive=False)
+    pretest_start_date = parse_date_string(
+        pretest_start, "pretest_start", make_exclusive=False
+    )
     test_start_date = parse_date_string(test_start, "test_start", make_exclusive=False)
     test_end_date = parse_date_string(test_end, "test_end", make_exclusive=True)
 
     # Validate date order
     if not (pretest_start_date < test_start_date < test_end_date):
-        raise ValueError(f"Dates must be in order: pretest_start < test_start < test_end, "
-                         f"got: {pretest_start_date} < {test_start_date} < {test_end_date} "
-                         f"(Note: test_end shown as next day due to exclusive boundary handling)")
+        raise ValueError(
+            f"Dates must be in order: pretest_start < test_start < test_end, "
+            f"got: {pretest_start_date} < {test_start_date} < {test_end_date} "
+            f"(Note: test_end shown as next day due to exclusive boundary handling)"
+        )
 
     return pretest_start_date, test_start_date, test_end_date
 
@@ -313,7 +326,7 @@ def split_by_periods(
     test_col: str,
     pretest_start: Union[str, datetime.date],
     test_start: Union[str, datetime.date],
-    test_end: Union[str, datetime.date]
+    test_end: Union[str, datetime.date],
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split aggregated time series data into pretest, test and cooldown periods.
@@ -347,31 +360,26 @@ def split_by_periods(
     )
 
     # Validate input data
-    validate_required_columns(aggregated_data,
-                              [date_col, control_col, test_col],
-                              "aggregated_data"
-                              )
+    validate_required_columns(
+        aggregated_data, [date_col, control_col, test_col], "aggregated_data"
+    )
 
     # Convert date column to datetime if it's string
     data_copy = aggregated_data.copy()
-    if data_copy[date_col].dtype == 'object':
-        data_copy[date_col] = pd.to_datetime(data_copy[date_col]).dt.tz_localize('UTC')
+    if data_copy[date_col].dtype == "object":
+        data_copy[date_col] = pd.to_datetime(data_copy[date_col]).dt.tz_localize("UTC")
 
     # Split into periods - pandas handles datetime vs date comparison well
-    baseline_mask = (
-        (data_copy[date_col] < pd.to_datetime(pretest_start_date))
+    baseline_mask = data_copy[date_col] < pd.to_datetime(pretest_start_date)
+    pretest_mask = (data_copy[date_col] >= pd.to_datetime(pretest_start_date)) & (
+        data_copy[date_col] < pd.to_datetime(test_start_date)
     )
-    pretest_mask = (
-        (data_copy[date_col] >= pd.to_datetime(pretest_start_date)) &
-        (data_copy[date_col] < pd.to_datetime(test_start_date))
-    )
-    test_mask = (
-        (data_copy[date_col] >= pd.to_datetime(test_start_date)) &
-        (data_copy[date_col] < pd.to_datetime(test_end_date))  # Exclusive end date
-    )
-    cooldown_mask = (
-        (data_copy[date_col] >= pd.to_datetime(test_end_date))  # Exclusive end date
-    )
+    test_mask = (data_copy[date_col] >= pd.to_datetime(test_start_date)) & (
+        data_copy[date_col] < pd.to_datetime(test_end_date)
+    )  # Exclusive end date
+    cooldown_mask = data_copy[date_col] >= pd.to_datetime(
+        test_end_date
+    )  # Exclusive end date
 
     baseline_data = data_copy[baseline_mask].copy()
     pretest_data = data_copy[pretest_mask].copy()
@@ -392,7 +400,7 @@ def create_time_series_for_tbr(
     test_group: str,
     pretest_start: Union[str, datetime.date],
     test_start: Union[str, datetime.date],
-    test_end: Union[str, datetime.date]
+    test_end: Union[str, datetime.date],
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Complete pipeline to create time series data for TBR analysis.
@@ -455,7 +463,7 @@ def create_time_series_for_tbr(
         test_col=test_group,
         pretest_start=pretest_start,
         test_start=test_start,
-        test_end=test_end
+        test_end=test_end,
     )
 
     return aggregated_data, baseline_data, pretest_data, test_data, cooldown_data
@@ -466,7 +474,7 @@ def fit_tbr_regression_model(
     start_pretest_date: str,
     start_test_date: str,
     control_col: str,
-    test_col: str
+    test_col: str,
 ) -> Dict[str, float]:
     """
     Fits a TBR regression model using statsmodels OLS.
@@ -474,54 +482,52 @@ def fit_tbr_regression_model(
     This function fits a linear regression model of the form:
     test = α + β * control + ε
 
-    Parameters:
-    - control_test_df: DataFrame with 'date', control, and test columns
-    - start_pretest_date: Start date for pretest period (YYYY-MM-DD)
-    - start_test_date: Start date for test period (YYYY-MM-DD)
-    - control_col: Name of the control column
-    - test_col: Name of the test column (can be flexible)
+    Parameters
+    ----------
+    control_test_df : pd.DataFrame
+        DataFrame with 'date', control, and test columns
+    start_pretest_date : str
+        Start date for pretest period (YYYY-MM-DD)
+    start_test_date : str
+        Start date for test period (YYYY-MM-DD)
+    control_col : str
+        Name of the control column
+    test_col : str
+        Name of the test column (can be flexible)
 
-    Parameters returned:
-    - 'alpha': Intercept (α)
-    - 'beta': Slope coefficient (β)
-    - 'sigma': Residual standard deviation (σ)
-    - 'var_alpha': Variance of intercept estimate
-    - 'var_beta': Variance of slope estimate
-    - 'cov_alpha_beta': Covariance between α and β estimates
-    - 'degrees_freedom': Residual degrees of freedom
-    - 'n_pretest': Number of pretest observations
-    - 'x_mean': Mean of control values (x̄)
-
-    Args:
-        control_test_df: DataFrame with control and test columns
-        start_pretest_date: Start date for pretest period
-        start_test_date: Start date for test period (end of pretest)
-
-    Returns:
-        Dict with regression parameters needed for TBR analysis
+    Returns
+    -------
+    dict
+        Parameters returned:
+        - 'alpha': Intercept (α)
+        - 'beta': Slope coefficient (β)
+        - 'sigma': Residual standard deviation (σ)
+        - 'var_alpha': Variance of intercept estimate
+        - 'var_beta': Variance of slope estimate
+        - 'cov_alpha_beta': Covariance between α and β estimates
+        - 'degrees_freedom': Residual degrees of freedom
+        - 'n_pretest': Number of pretest observations
+        - 'x_mean': Mean of control values (x̄)
     """
     # Input validation
     if control_test_df.empty:
         raise ValueError("Input DataFrame is empty")
 
-    required_cols = ['date', control_col, test_col]
+    required_cols = ["date", control_col, test_col]
     missing_cols = [col for col in required_cols if col not in control_test_df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
     # Convert dates to datetime if they aren't already
     df = control_test_df.copy()
-    if not pd.api.types.is_datetime64_any_dtype(df['date']):
-        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+    if not pd.api.types.is_datetime64_any_dtype(df["date"]):
+        df["date"] = pd.to_datetime(df["date"]).dt.tz_localize("UTC")
 
-    start_pretest = pd.to_datetime(start_pretest_date).tz_localize('UTC')
-    start_test = pd.to_datetime(start_test_date).tz_localize('UTC')
+    start_pretest = pd.to_datetime(start_pretest_date).tz_localize("UTC")
+    start_test = pd.to_datetime(start_test_date).tz_localize("UTC")
 
     # Filter to pretest period only
-    pretest_df = df[
-        (df['date'] >= start_pretest) &
-        (df['date'] < start_test)
-    ].copy()
+    pretest_df = df[(df["date"] >= start_pretest) & (df["date"] < start_test)].copy()
 
     if len(pretest_df) < 3:
         raise ValueError(
@@ -554,11 +560,11 @@ def fit_tbr_regression_model(
 
     # Extract all parameters directly from statsmodels
     alpha = model.params[0]  # Intercept
-    beta = model.params[1]   # Slope
+    beta = model.params[1]  # Slope
 
     # Extract variances from standard errors
     var_alpha = model.bse[0] ** 2  # Variance of intercept
-    var_beta = model.bse[1] ** 2   # Variance of slope
+    var_beta = model.bse[1] ** 2  # Variance of slope
 
     # Extract covariance from covariance matrix
     cov_matrix = model.cov_params()
@@ -583,15 +589,15 @@ def fit_tbr_regression_model(
 
     # Return all parameters as a simple dictionary
     return {
-        'alpha': float(alpha),
-        'beta': float(beta),
-        'sigma': float(sigma),
-        'var_alpha': float(var_alpha),
-        'var_beta': float(var_beta),
-        'cov_alpha_beta': float(cov_alpha_beta),
-        'degrees_freedom': int(degrees_freedom),
-        'n_pretest': int(n),
-        'x_mean': float(x_mean)
+        "alpha": float(alpha),
+        "beta": float(beta),
+        "sigma": float(sigma),
+        "var_alpha": float(var_alpha),
+        "var_beta": float(var_beta),
+        "cov_alpha_beta": float(cov_alpha_beta),
+        "degrees_freedom": int(degrees_freedom),
+        "n_pretest": int(n),
+        "x_mean": float(x_mean),
     }
 
 
@@ -601,7 +607,7 @@ def calculate_model_variance(
     sigma: float,
     n_pretest: int,
     sum_x_squared_deviations: Optional[float] = None,
-    var_beta: Optional[float] = None
+    var_beta: Optional[float] = None,
 ) -> np.ndarray:
     """
     Calculate model variance for fitted values using TBR formula.
@@ -650,7 +656,9 @@ def calculate_model_variance(
     # Calculate sum_x_squared_deviations if not provided
     if sum_x_squared_deviations is None:
         if var_beta is None:
-            raise ValueError("Either sum_x_squared_deviations or var_beta must be provided")
+            raise ValueError(
+                "Either sum_x_squared_deviations or var_beta must be provided"
+            )
         if var_beta <= 0:
             raise ValueError("var_beta must be positive")
         sum_x_squared_deviations = sigma**2 / var_beta
@@ -663,8 +671,7 @@ def calculate_model_variance(
     x_deviations_squared = (x_values - x_mean) ** 2
 
     model_variances = sigma**2 * (
-        1.0/n_pretest +
-        x_deviations_squared / sum_x_squared_deviations
+        1.0 / n_pretest + x_deviations_squared / sum_x_squared_deviations
     )
 
     return model_variances
@@ -676,7 +683,7 @@ def calculate_prediction_variance(
     sigma: float,
     n_pretest: int,
     sum_x_squared_deviations: Optional[float] = None,
-    var_beta: Optional[float] = None
+    var_beta: Optional[float] = None,
 ) -> np.ndarray:
     """
     Calculate prediction variance including both model uncertainty and residual noise.
@@ -719,7 +726,7 @@ def calculate_prediction_variance(
         sigma=sigma,
         n_pretest=n_pretest,
         sum_x_squared_deviations=sum_x_squared_deviations,
-        var_beta=var_beta
+        var_beta=var_beta,
     )
 
     # Add residual variance: V[y*] = σ² + V[ŷ*]
@@ -736,7 +743,7 @@ def generate_counterfactual_predictions(
     n_pretest: int,
     var_beta: float,
     test_period_data: pd.DataFrame,
-    control_col: str
+    control_col: str,
 ) -> pd.DataFrame:
     """
     Generate counterfactual predictions and their standard deviations for test period.
@@ -786,16 +793,16 @@ def generate_counterfactual_predictions(
         x_mean=x_mean,
         sigma=sigma,
         n_pretest=int(n_pretest),
-        var_beta=var_beta
+        var_beta=var_beta,
     )
 
     # Calculate prediction standard deviations
     prediction_std_devs = np.sqrt(prediction_variances)
 
     # Create result DataFrame
-    result_df = test_period_data[['date', control_col]].copy()
-    result_df['pred'] = predictions
-    result_df['predsd'] = prediction_std_devs
+    result_df = test_period_data[["date", control_col]].copy()
+    result_df["pred"] = predictions
+    result_df["predsd"] = prediction_std_devs
 
     return result_df
 
@@ -805,7 +812,7 @@ def calculate_cumulative_standard_deviation(
     sigma: float,
     var_alpha: float,
     var_beta: float,
-    cov_alpha_beta: float
+    cov_alpha_beta: float,
 ) -> np.ndarray:
     """
     Calculate the standard deviation of the cumulative causal effect for TBR test period using vectorized operations.
@@ -841,44 +848,60 @@ def calculate_cumulative_standard_deviation(
 
     # Vectorized calculation of v for all time points
     v_values = (
-            var_alpha + 2 * x_mean_cumulative * cov_alpha_beta + (x_mean_cumulative ** 2) * var_beta
+        var_alpha
+        + 2 * x_mean_cumulative * cov_alpha_beta
+        + (x_mean_cumulative**2) * var_beta
     )
 
     # Vectorized calculation of cumulative variance
-    cum_variance = T_values * (sigma ** 2) + (T_values ** 2) * v_values
+    cum_variance = T_values * (sigma**2) + (T_values**2) * v_values
 
     # Vectorized square root
     return np.sqrt(cum_variance)
 
 
-def compute_interval_estimate_and_ci(tbr_df, tbr_summary, start_day, end_day, ci_level):
+def compute_interval_estimate_and_ci(
+    tbr_df: pd.DataFrame,
+    tbr_summary: pd.DataFrame,
+    start_day: int,
+    end_day: int,
+    ci_level: float,
+) -> Dict:
     """
     Compute the cumulative effect estimate and credible interval for a subinterval of the test period.
 
-    Parameters:
-        tbr_df (pd.DataFrame): TBR daily output with columns 'y', 'pred', 'period', 'estsd'
-        tbr_summary (pd.DataFrame): TBR summary with 'sigma' and 't_dist_df'
-        start_day (int): Start day of subinterval (1-indexed within test period)
-        end_day (int): End day of subinterval (inclusive)
-        ci_level (float): Credible interval level (default 0.80)
+    Parameters
+    ----------
+    tbr_df : pd.DataFrame
+        TBR daily output with columns 'y', 'pred', 'period', 'estsd'
+    tbr_summary : pd.DataFrame
+        TBR summary with 'sigma' and 't_dist_df'
+    start_day : int
+        Start day of subinterval (1-indexed within test period)
+    end_day : int
+        End day of subinterval (inclusive)
+    ci_level : float
+        Credible interval level (default 0.80)
 
-    Returns:
+    Returns
+    -------
+    dict
         dict with keys: 'estimate', 'precision', 'lower', 'upper'
     """
     # Filter for test period
-    test_df = tbr_df[tbr_df['period'] == 1].reset_index(drop=True)
+    test_df = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
 
     # Slice the subinterval (remember start_day is 1-indexed)
-    interval_df = test_df.iloc[start_day - 1: end_day]
+    interval_df = test_df.iloc[start_day - 1 : end_day]
 
     # Estimate of cumulative effect (sum of differences)
-    estimate = (interval_df['y'] - interval_df['pred']).sum()
+    estimate = (interval_df["y"] - interval_df["pred"]).sum()
 
     # Posterior variance = sum of estsd^2 + n * sigma^2
-    sum_estsd_sq = np.sum(interval_df['estsd'] ** 2)
+    sum_estsd_sq = np.sum(interval_df["estsd"] ** 2)
     n_days = end_day - start_day + 1
-    sigma = float(tbr_summary.iloc[-1]['sigma'])
-    dof = int(tbr_summary.iloc[-1]['t_dist_df'])
+    sigma = float(tbr_summary.iloc[-1]["sigma"])
+    dof = int(tbr_summary.iloc[-1]["t_dist_df"])
 
     posterior_variance = sum_estsd_sq + n_days * sigma**2
     se = np.sqrt(posterior_variance)
@@ -891,20 +914,19 @@ def compute_interval_estimate_and_ci(tbr_df, tbr_summary, start_day, end_day, ci
     precision = t_mult * se
 
     return {
-        'estimate': estimate,
-        'precision': precision,
-        'lower': estimate - precision,
-        'upper': estimate + precision
+        "estimate": estimate,
+        "precision": precision,
+        "lower": estimate - precision,
+        "upper": estimate + precision,
     }
 
 
 def create_tbr_baseline_dataframe(
-    baseline_data: pd.DataFrame,
-    control_col: str,
-    test_col: str
+    baseline_data: pd.DataFrame, control_col: str, test_col: str
 ) -> pd.DataFrame:
     """
     Create a TBR baseline dataframe segment from the baseline data.
+
     Parameters
     ----------
     baseline_data : pd.DataFrame
@@ -922,15 +944,15 @@ def create_tbr_baseline_dataframe(
     baseline_df = baseline_data.copy()
     if baseline_df.empty:
         return None
-    baseline_df['period'] = -1
-    baseline_df['y'] = baseline_df[test_col]
-    baseline_df['x'] = baseline_df[control_col]
-    baseline_df['pred'] = np.nan
-    baseline_df['estsd'] = np.nan
-    baseline_df['predsd'] = np.nan
-    baseline_df['dif'] = np.nan
-    baseline_df['cumdif'] = np.nan
-    baseline_df['cumsd'] = np.nan
+    baseline_df["period"] = -1
+    baseline_df["y"] = baseline_df[test_col]
+    baseline_df["x"] = baseline_df[control_col]
+    baseline_df["pred"] = np.nan
+    baseline_df["estsd"] = np.nan
+    baseline_df["predsd"] = np.nan
+    baseline_df["dif"] = np.nan
+    baseline_df["cumdif"] = np.nan
+    baseline_df["cumsd"] = np.nan
 
     return baseline_df
 
@@ -944,7 +966,7 @@ def create_tbr_pretest_dataframe(
     n_pretest: int,
     var_beta: float,
     control_col: str,
-    test_col: str
+    test_col: str,
 ) -> pd.DataFrame:
     """
     Process the pretest period data to create a TBR dataframe segment.
@@ -976,35 +998,35 @@ def create_tbr_pretest_dataframe(
         Pretest period TBR dataframe segment
     """
     pretest_df = pretest_data.copy()
-    pretest_df['period'] = 0
-    pretest_df['y'] = pretest_df[test_col]
-    pretest_df['x'] = pretest_df[control_col]
+    pretest_df["period"] = 0
+    pretest_df["y"] = pretest_df[test_col]
+    pretest_df["x"] = pretest_df[control_col]
 
     # Calculate fitted values for pretest period
-    pretest_df['pred'] = alpha + beta * pretest_df['x']
+    pretest_df["pred"] = alpha + beta * pretest_df["x"]
 
     # Calculate fitted value standard deviations (estsd) for pretest
     # This uses the formula for variance of fitted values: V[ŷ] = σ²(1/n + (x-x̄)²/Σ(xi-x̄)²)
     # For fitted values, we want only model uncertainty, not residual noise
     fitted_variances = calculate_model_variance(
-        x_values=pretest_df['x'].values,
+        x_values=pretest_df["x"].values,
         x_mean=x_mean,
         sigma=sigma,
         n_pretest=n_pretest,
-        var_beta=var_beta
+        var_beta=var_beta,
     )
-    pretest_df['estsd'] = np.sqrt(fitted_variances)
+    pretest_df["estsd"] = np.sqrt(fitted_variances)
 
     # Pretest period doesn't have prediction standard deviation in the same sense because the focus is on model fitting
     # rather than prediction, emphasizing the standard deviation of the fitted model.
-    pretest_df['predsd'] = 0.0
+    pretest_df["predsd"] = 0.0
 
     # Calculate residuals for pretest
-    pretest_df['dif'] = pretest_df['y'] - pretest_df['pred']
+    pretest_df["dif"] = pretest_df["y"] - pretest_df["pred"]
 
     # Pretest doesn't have cumulative metrics
-    pretest_df['cumdif'] = np.nan
-    pretest_df['cumsd'] = 0.0
+    pretest_df["cumdif"] = np.nan
+    pretest_df["cumsd"] = 0.0
 
     return pretest_df
 
@@ -1020,10 +1042,11 @@ def create_tbr_test_dataframe(
     var_alpha: float,
     cov_alpha_beta: float,
     control_col: str,
-    test_col: str
+    test_col: str,
 ) -> pd.DataFrame:
     """
     Process the test period data to create a TBR dataframe segment.
+
     Note: test_data should include both test period (period=1) and cooldown period (period=3) if exists.
     The period values should already be assigned when the data reaches this function.
 
@@ -1066,40 +1089,39 @@ def create_tbr_test_dataframe(
         n_pretest=n_pretest,
         var_beta=var_beta,
         test_period_data=test_data,
-        control_col=control_col
+        control_col=control_col,
     )
 
     test_df = test_data.copy()
-    test_df['y'] = test_df[test_col]
-    test_df['x'] = test_df[control_col]
-    test_df['pred'] = test_predictions['pred']
-    test_df['predsd'] = test_predictions['predsd']
+    test_df["y"] = test_df[test_col]
+    test_df["x"] = test_df[control_col]
+    test_df["pred"] = test_predictions["pred"]
+    test_df["predsd"] = test_predictions["predsd"]
 
     # Calculate effects (difference from counterfactual)
-    test_df['dif'] = test_df['y'] - test_df['pred']
+    test_df["dif"] = test_df["y"] - test_df["pred"]
 
     # Calculate cumulative effects continuously across test period
-    test_df['cumdif'] = test_df['dif'].cumsum()
+    test_df["cumdif"] = test_df["dif"].cumsum()
 
     # Calculate cumulative standard deviations for the entire period
     cumsd_values = calculate_cumulative_standard_deviation(
-        test_df['x'].values,
-        sigma,
-        var_alpha,
-        var_beta,
-        cov_alpha_beta
+        test_df["x"].values, sigma, var_alpha, var_beta, cov_alpha_beta
     )
-    test_df['cumsd'] = cumsd_values
+    test_df["cumsd"] = cumsd_values
 
     # Test period doesn't have fitted value standard deviations
-    test_df['estsd'] = np.nan
+    test_df["estsd"] = np.nan
 
     return test_df
 
 
-def validate_and_prepare_period_dataframe(df: pd.DataFrame, name: str, required_cols: List[str]) -> pd.DataFrame:
+def validate_and_prepare_period_dataframe(
+    df: pd.DataFrame, name: str, required_cols: List[str]
+) -> pd.DataFrame:
     """
     Validate and prepare a period dataframe for TBR analysis.
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -1121,7 +1143,7 @@ def validate_and_prepare_period_dataframe(df: pd.DataFrame, name: str, required_
     """
     if df.empty:
         return df
-    df = df.sort_values('date').reset_index(drop=True)
+    df = df.sort_values("date").reset_index(drop=True)
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing columns in {name}: {missing_cols}")
@@ -1142,7 +1164,7 @@ def create_tbr_dataframe(
     var_beta: float,
     cov_alpha_beta: float,
     control_col: str,
-    test_col: str
+    test_col: str,
 ) -> pd.DataFrame:
     """
     Create the main TBR dataframe with all required columns for analysis.
@@ -1204,16 +1226,20 @@ def create_tbr_dataframe(
     if pretest_data.empty or test_data.empty:
         raise ValueError("Both pretest_data and test_data must be non-empty")
 
-    required_cols = ['date', control_col, test_col]
-    baseline_data = validate_and_prepare_period_dataframe(baseline_data, 'baseline_data', required_cols)
-    pretest_data = validate_and_prepare_period_dataframe(pretest_data, 'pretest_data', required_cols)
-    test_data = validate_and_prepare_period_dataframe(test_data, 'test_data', required_cols)
+    required_cols = ["date", control_col, test_col]
+    baseline_data = validate_and_prepare_period_dataframe(
+        baseline_data, "baseline_data", required_cols
+    )
+    pretest_data = validate_and_prepare_period_dataframe(
+        pretest_data, "pretest_data", required_cols
+    )
+    test_data = validate_and_prepare_period_dataframe(
+        test_data, "test_data", required_cols
+    )
 
     # Process baseline period
     baseline_df = create_tbr_baseline_dataframe(
-        baseline_data=baseline_data,
-        control_col=control_col,
-        test_col=test_col
+        baseline_data=baseline_data, control_col=control_col, test_col=test_col
     )
 
     # Process pretest period
@@ -1226,7 +1252,7 @@ def create_tbr_dataframe(
         n_pretest=n_pretest,
         var_beta=var_beta,
         control_col=control_col,
-        test_col=test_col
+        test_col=test_col,
     )
 
     # Process test data (includes test period and cooldown period if exists)
@@ -1241,14 +1267,25 @@ def create_tbr_dataframe(
         var_alpha=var_alpha,
         cov_alpha_beta=cov_alpha_beta,
         control_col=control_col,
-        test_col=test_col
+        test_col=test_col,
     )
 
     # Combine all periods
     tbr_df = pd.concat([baseline_df, pretest_df, test_df], ignore_index=True)
 
     # Order columns
-    output_cols = ['date', 'period', 'y', 'x', 'pred', 'predsd', 'dif', 'cumdif', 'cumsd', 'estsd']
+    output_cols = [
+        "date",
+        "period",
+        "y",
+        "x",
+        "pred",
+        "predsd",
+        "dif",
+        "cumdif",
+        "cumsd",
+        "estsd",
+    ]
     tbr_df = tbr_df[output_cols]
 
     return tbr_df
@@ -1265,7 +1302,7 @@ def create_tbr_summary(
     degrees_freedom: int,
     level: float,
     threshold: float,
-    model_name: str
+    model_name: str,
 ) -> pd.DataFrame:
     """
     Create TBR summary statistics DataFrame matching R package output format.
@@ -1313,7 +1350,7 @@ def create_tbr_summary(
     if tbr_dataframe.empty:
         raise ValueError("TBR dataframe cannot be empty")
 
-    required_cols = ['period', 'cumdif', 'cumsd']
+    required_cols = ["period", "cumdif", "cumsd"]
     missing_cols = [col for col in required_cols if col not in tbr_dataframe.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns in TBR dataframe: {missing_cols}")
@@ -1328,21 +1365,21 @@ def create_tbr_summary(
         raise ValueError(f"Sigma must be positive, got: {sigma}")
 
     # Extract test period data (period == 1)
-    test_period_data = tbr_dataframe[tbr_dataframe['period'] == 1].copy()
+    test_period_data = tbr_dataframe[tbr_dataframe["period"] == 1].copy()
 
     if test_period_data.empty:
         raise ValueError("No test period data found (period == 1)")
 
     # Calculate core summary statistics
     # estimate: Final cumulative effect from test period
-    estimate = test_period_data['cumdif'].iloc[-1]
+    estimate = test_period_data["cumdif"].iloc[-1]
 
     # se: Final cumulative standard deviation from test period
-    se = test_period_data['cumsd'].iloc[-1]
+    se = test_period_data["cumsd"].iloc[-1]
 
     # Calculate credible interval using t-distribution
     alpha_level = 1 - level  # Probability outside interval
-    t_critical = stats.t.ppf(1 - alpha_level/2, df=degrees_freedom)
+    t_critical = stats.t.ppf(1 - alpha_level / 2, df=degrees_freedom)
 
     # Credible interval bounds
     margin_of_error = t_critical * se
@@ -1373,22 +1410,22 @@ def create_tbr_summary(
 
     # Create summary dictionary
     summary_data = {
-        'estimate': float(estimate),
-        'precision': float(precision),
-        'lower': float(lower),
-        'upper': float(upper),
-        'se': float(se),
-        'level': float(level),
-        'thres': float(threshold),
-        'prob': float(prob),
-        'model': str(model_name),
-        'alpha': float(alpha),
-        'beta': float(beta),
-        'alpha_beta_cov': float(cov_alpha_beta),
-        'var_alpha': float(var_alpha),
-        'var_beta': float(var_beta),
-        'sigma': float(sigma),
-        't_dist_df': float(degrees_freedom)
+        "estimate": float(estimate),
+        "precision": float(precision),
+        "lower": float(lower),
+        "upper": float(upper),
+        "se": float(se),
+        "level": float(level),
+        "thres": float(threshold),
+        "prob": float(prob),
+        "model": str(model_name),
+        "alpha": float(alpha),
+        "beta": float(beta),
+        "alpha_beta_cov": float(cov_alpha_beta),
+        "var_alpha": float(var_alpha),
+        "var_beta": float(var_beta),
+        "sigma": float(sigma),
+        "t_dist_df": float(degrees_freedom),
     }
 
     # Create single-row DataFrame with specified dtypes
@@ -1396,22 +1433,22 @@ def create_tbr_summary(
 
     # Ensure correct dtypes match the specification
     dtype_mapping = {
-        'estimate': 'float64',
-        'precision': 'float64',
-        'lower': 'float64',
-        'upper': 'float64',
-        'se': 'float64',
-        'level': 'float64',
-        'thres': 'float64',
-        'prob': 'float64',
-        'model': 'object',
-        'alpha': 'float64',
-        'beta': 'float64',
-        'alpha_beta_cov': 'float64',
-        'var_alpha': 'float64',
-        'var_beta': 'float64',
-        'sigma': 'float64',
-        't_dist_df': 'float64'
+        "estimate": "float64",
+        "precision": "float64",
+        "lower": "float64",
+        "upper": "float64",
+        "se": "float64",
+        "level": "float64",
+        "thres": "float64",
+        "prob": "float64",
+        "model": "object",
+        "alpha": "float64",
+        "beta": "float64",
+        "alpha_beta_cov": "float64",
+        "var_alpha": "float64",
+        "var_beta": "float64",
+        "sigma": "float64",
+        "t_dist_df": "float64",
     }
 
     summary_df = summary_df.astype(dtype_mapping)
@@ -1430,7 +1467,7 @@ def create_incremental_tbr_summaries(
     degrees_freedom: int,
     level: float,
     threshold: float,
-    model_name: str
+    model_name: str,
 ) -> pd.DataFrame:
     """
     Create incremental TBR summary statistics for each test period day.
@@ -1485,7 +1522,7 @@ def create_incremental_tbr_summaries(
     if tbr_dataframe.empty:
         raise ValueError("TBR dataframe cannot be empty")
 
-    required_cols = ['period', 'cumdif', 'cumsd']
+    required_cols = ["period", "cumdif", "cumsd"]
     missing_cols = [col for col in required_cols if col not in tbr_dataframe.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns in TBR dataframe: {missing_cols}")
@@ -1500,13 +1537,13 @@ def create_incremental_tbr_summaries(
         raise ValueError(f"Sigma must be positive, got: {sigma}")
 
     # Extract test period data (period == 1)
-    test_period_data = tbr_dataframe[tbr_dataframe['period'] == 1].copy()
+    test_period_data = tbr_dataframe[tbr_dataframe["period"] == 1].copy()
 
     if test_period_data.empty:
         raise ValueError("No test period data found (period == 1)")
 
     # Get pretest data for combining with incremental test periods
-    pretest_data = tbr_dataframe[tbr_dataframe['period'] == 0].copy()
+    pretest_data = tbr_dataframe[tbr_dataframe["period"] == 0].copy()
 
     num_test_days = len(test_period_data)
     incremental_summaries = []
@@ -1514,7 +1551,7 @@ def create_incremental_tbr_summaries(
     # Generate summary for each incremental test period
     for day_idx in range(num_test_days):
         # Create subset of test data up to current day (inclusive)
-        test_subset = test_period_data.iloc[:day_idx + 1].copy()
+        test_subset = test_period_data.iloc[: day_idx + 1].copy()
 
         # Combine pretest data with current test subset
         incremental_df = pd.concat([pretest_data, test_subset], ignore_index=True)
@@ -1531,11 +1568,11 @@ def create_incremental_tbr_summaries(
             degrees_freedom=degrees_freedom,
             level=level,
             threshold=threshold,
-            model_name=model_name
+            model_name=model_name,
         )
 
         # Add test day identifier
-        summary['test_day'] = day_idx + 1
+        summary["test_day"] = day_idx + 1
 
         incremental_summaries.append(summary)
 
@@ -1543,15 +1580,14 @@ def create_incremental_tbr_summaries(
     result_df = pd.concat(incremental_summaries, ignore_index=True)
 
     # Reorder columns to put test_day first for clarity
-    cols = ['test_day'] + [col for col in result_df.columns if col != 'test_day']
+    cols = ["test_day"] + [col for col in result_df.columns if col != "test_day"]
     result_df = result_df[cols]
 
     return result_df
 
 
 def prepare_test_data_extended(
-    test_data: pd.DataFrame,
-    cooldown_data: pd.DataFrame
+    test_data: pd.DataFrame, cooldown_data: pd.DataFrame
 ) -> pd.DataFrame:
     """
     Prepare test and cooldown data as one continuous period.
@@ -1570,18 +1606,21 @@ def prepare_test_data_extended(
     """
     # Add period column to test data
     test_data_with_period = test_data.copy()
-    test_data_with_period['period'] = 1
+    test_data_with_period["period"] = 1
 
     # Add period column to cooldown data if it exists
     if not cooldown_data.empty:
         cooldown_data_with_period = cooldown_data.copy()
-        cooldown_data_with_period['period'] = 3
+        cooldown_data_with_period["period"] = 3
 
         # Combine test and cooldown data and sort by date
-        test_data_extended = pd.concat(
-            [test_data_with_period, cooldown_data_with_period],
-            ignore_index=True
-        ).sort_values('date').reset_index(drop=True)
+        test_data_extended = (
+            pd.concat(
+                [test_data_with_period, cooldown_data_with_period], ignore_index=True
+            )
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
     else:
         test_data_extended = test_data_with_period
 
@@ -1602,7 +1641,7 @@ def perform_tbr_analysis(
     test_end: Union[str, pd.Timestamp],
     level: float,
     threshold: float,
-    model_name: str
+    model_name: str,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Execute the full TBR analysis pipeline.
@@ -1651,7 +1690,13 @@ def perform_tbr_analysis(
         TBR dataframe and incremental TBR summary statistics
     """
     # Step 1: Create time series data for TBR analysis
-    aggregated_data, baseline_data, pretest_data, test_data, cooldown_data = create_time_series_for_tbr(
+    (
+        aggregated_data,
+        baseline_data,
+        pretest_data,
+        test_data,
+        cooldown_data,
+    ) = create_time_series_for_tbr(
         data=data,
         assignments=assignments,
         geo_col=geo_col,
@@ -1662,7 +1707,7 @@ def perform_tbr_analysis(
         test_group=test_group,
         pretest_start=pretest_start,
         test_start=test_start,
-        test_end=test_end
+        test_end=test_end,
     )
 
     # Step 2: Fit the TBR regression model
@@ -1671,7 +1716,7 @@ def perform_tbr_analysis(
         start_pretest_date=pretest_start,
         start_test_date=test_start,
         control_col=control_group,
-        test_col=test_group
+        test_col=test_group,
     )
 
     # Step 3: Prepare test and cooldown data as one continuous period
@@ -1682,31 +1727,31 @@ def perform_tbr_analysis(
         baseline_data=baseline_data,
         pretest_data=pretest_data,
         test_data=test_data_extended,
-        alpha=model['alpha'],
-        beta=model['beta'],
-        sigma=model['sigma'],
-        x_mean=model['x_mean'],
-        n_pretest=int(model['n_pretest']),
-        var_alpha=model['var_alpha'],
-        var_beta=model['var_beta'],
-        cov_alpha_beta=model['cov_alpha_beta'],
+        alpha=model["alpha"],
+        beta=model["beta"],
+        sigma=model["sigma"],
+        x_mean=model["x_mean"],
+        n_pretest=int(model["n_pretest"]),
+        var_alpha=model["var_alpha"],
+        var_beta=model["var_beta"],
+        cov_alpha_beta=model["cov_alpha_beta"],
         control_col=control_group,
-        test_col=test_group
+        test_col=test_group,
     )
 
     # Step 5: Create incremental TBR summaries
     tbr_daily_summary = create_incremental_tbr_summaries(
         tbr_dataframe=tbr_dataframe,
-        alpha=model['alpha'],
-        beta=model['beta'],
-        sigma=model['sigma'],
-        var_alpha=model['var_alpha'],
-        var_beta=model['var_beta'],
-        cov_alpha_beta=model['cov_alpha_beta'],
-        degrees_freedom=int(model['degrees_freedom']),
+        alpha=model["alpha"],
+        beta=model["beta"],
+        sigma=model["sigma"],
+        var_alpha=model["var_alpha"],
+        var_beta=model["var_beta"],
+        cov_alpha_beta=model["cov_alpha_beta"],
+        degrees_freedom=int(model["degrees_freedom"]),
         level=level,
         threshold=threshold,
-        model_name=model_name
+        model_name=model_name,
     )
 
     return tbr_dataframe, tbr_daily_summary
