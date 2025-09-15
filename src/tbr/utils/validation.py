@@ -1,11 +1,4 @@
-"""
-Validation utilities for TBR package.
-
-This module provides centralized validation functions following the patterns
-used by scikit-learn, NumPy, and statsmodels. Validation is performed at
-API entry points to ensure data quality while maintaining fast internal
-operations.
-"""
+"""Input validation utilities for TBR analysis."""
 
 import numpy as np
 
