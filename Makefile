@@ -156,6 +156,21 @@ test-tox-py: ## Run tests for current Python version only
 	@tox -e py$$(python -c "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')")
 	@echo "$(GREEN)✅ Tox Python-specific tests completed$(NC)"
 
+ci-local: ## Run exact CI tests locally (mirrors GitHub Actions)
+	@echo "$(BLUE)Running CI pipeline locally...$(NC)"
+	@echo "$(YELLOW)Step 1: Installing dependencies$(NC)"
+	@python -m pip install --upgrade pip
+	@pip install -e .[dev]
+	@echo "$(YELLOW)Step 2: Running unit tests with coverage$(NC)"
+	@pytest tests/unit/ -v --cov=src/tbr --cov-report=xml --cov-report=term-missing
+	@echo "$(YELLOW)Step 3: Running integration tests$(NC)"
+	@pytest tests/integration/ -v
+	@echo "$(YELLOW)Step 4: Running mathematical validation tests$(NC)"
+	@pytest tests/mathematical/ -v
+	@echo "$(YELLOW)Step 5: Running performance tests$(NC)"
+	@pytest tests/performance/ -v
+	@echo "$(GREEN)✅ CI pipeline completed locally$(NC)"
+
 all: clean install-dev check test-cov ## Run complete development pipeline
 	@echo "$(GREEN)🎉 Complete development pipeline finished successfully!$(NC)"
 
