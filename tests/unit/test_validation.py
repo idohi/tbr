@@ -11,6 +11,7 @@ import pytest
 
 from tbr.utils.validation import (
     validate_array_not_empty,
+    validate_column_types,
     validate_confidence_level,
     validate_dataframe_not_empty,
     validate_degrees_freedom,
@@ -494,3 +495,76 @@ class TestPeriodDataValidation:
         empty_df = pd.DataFrame()
         with pytest.raises(ValueError, match="No test data found"):
             validate_period_data(pretest, empty_df)
+
+
+class TestMissingCoverageScenarios:
+    """Test scenarios to achieve 100% coverage."""
+
+    def test_int64_boundaries_with_numpy_int64_type(self):
+        """Test int64 boundaries with np.int64 type (line 330)."""
+        # This should work - np.int64 is valid for int64 columns
+        validate_time_boundaries_type(
+            np.int64(1), np.int64(10), np.int64(20), np.dtype("int64")
+        )
+
+    def test_inclusive_time_periods_validation_error(self):
+        """Test inclusive time period validation error (line 399)."""
+        # test_start > test_end with inclusive=True should raise error
+        with pytest.raises(
+            ValueError,
+            match="test_start must be <= test_end when test_end_inclusive=True",
+        ):
+            validate_time_periods(
+                pd.Timestamp("2023-01-01"),
+                pd.Timestamp("2023-02-15"),
+                pd.Timestamp("2023-02-10"),  # end before start
+                test_end_inclusive=True,
+            )
+
+    def test_validate_column_types_missing_column(self):
+        """Test validate_column_types with missing column (line 683)."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        with pytest.raises(ValueError, match="Column 'missing' not found in DataFrame"):
+            validate_column_types(df, {"missing": "int64"})
+
+    def test_validate_column_types_wrong_dtype(self):
+        """Test validate_column_types with wrong dtype (line 687)."""
+        df = pd.DataFrame({"a": [1.0, 2.0, 3.0]})  # float64
+        with pytest.raises(
+            ValueError, match="Column 'a' has dtype 'float64', expected 'int64'"
+        ):
+            validate_column_types(df, {"a": "int64"})
+
+    def test_time_series_continuity_single_datetime_value(self):
+        """Test time series continuity with single datetime value (line 731)."""
+        # Single value should not trigger gap checking
+        df = pd.DataFrame(
+            {"date": pd.date_range("2023-01-01", periods=1), "value": [1]}
+        )
+        validate_time_series_continuity(df, "date")  # Should not raise
+
+    def test_time_series_continuity_non_datetime_column(self):
+        """Test time series continuity with non-datetime column (line 730)."""
+        # Non-datetime columns should skip gap checking
+        df = pd.DataFrame(
+            {
+                "int_time": [1, 2, 3, 100],
+                "value": [1, 2, 3, 4],
+            }  # Large gap but not datetime
+        )
+        validate_time_series_continuity(df, "int_time")  # Should not raise
+
+    def test_inclusive_time_periods_valid_case(self):
+        """Test valid inclusive time period case (line 399 branch coverage)."""
+        # test_start <= test_end with inclusive=True should pass
+        validate_time_periods(
+            pd.Timestamp("2023-01-01"),
+            pd.Timestamp("2023-02-15"),
+            pd.Timestamp("2023-02-15"),  # end equals start (valid for inclusive)
+            test_end_inclusive=True,
+        )  # Should not raise
+
+    def test_validate_column_types_valid_case(self):
+        """Test validate_column_types with matching types (line 687 branch coverage)."""
+        df = pd.DataFrame({"a": [1, 2, 3]})  # int64
+        validate_column_types(df, {"a": "int64"})  # Should not raise
