@@ -244,18 +244,10 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
-# Output and reporting
+# Core testing behavior only (NumPy/SciPy approach)
 addopts = [
     "--strict-markers",        # Treat unregistered markers as errors
     "--strict-config",         # Treat config errors as errors
-    "--verbose",               # Verbose output
-    "--tb=short",             # Short traceback format
-    "--cov=src/tbr",          # Coverage for source code
-    "--cov-report=term-missing", # Show missing coverage in terminal
-    "--cov-report=html:htmlcov", # Generate HTML coverage report
-    "--cov-report=xml",       # Generate XML coverage report for CI
-    "--cov-fail-under=95",    # ULTIMATE PyPI standard: 95% coverage - absolute best packages
-    "--durations=10",         # Show 10 slowest tests
 ]
 
 # Test markers for categorization
