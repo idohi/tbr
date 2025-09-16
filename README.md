@@ -247,11 +247,33 @@ pytest tests/mathematical/ -v  # Mathematical validation
 pytest tests/performance/ -v   # Performance tests
 ```
 
-### Test Categories (69 tests total)
-- **Unit Tests (35)**: Individual function/class testing
-- **Integration Tests (12)**: Package structure and imports
+### Test Categories (194 tests total)
+- **Unit Tests (148)**: Individual function/class testing with comprehensive coverage
+- **Integration Tests (24)**: Package structure and imports validation
 - **Mathematical Tests (15)**: Known-value validation and algorithm verification
 - **Performance Tests (7)**: Speed, scalability, and memory efficiency
+
+### CI-Local Parity Testing
+```bash
+# Run exact same tests as GitHub Actions CI (recommended for debugging)
+make ci-local
+
+# This runs the complete CI pipeline locally:
+# 1. Install dependencies (pip install --upgrade pip && pip install -e .[dev])
+# 2. Unit tests with coverage (pytest tests/unit/ -v --cov=src/tbr --cov-report=xml --cov-report=term-missing)
+# 3. Integration tests (pytest tests/integration/ -v)
+# 4. Mathematical validation tests (pytest tests/mathematical/ -v)
+# 5. Performance tests (pytest tests/performance/ -v)
+```
+
+### Cross-Platform Testing
+```bash
+# Test across multiple Python versions (like CI)
+make test-tox
+
+# Test current Python version only
+make test-tox-py
+```
 
 ### Advanced Testing
 ```bash
@@ -267,7 +289,8 @@ open htmlcov/index.html
 pytest tests/ --durations=10
 ```
 
-📚 **For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
+### Debug CI Failures Locally
+When GitHub Actions CI fails, use `make ci-local` to reproduce the exact same environment and commands locally for faster debugging and fixing.
 
 ## 🔧 Project Structure
 
