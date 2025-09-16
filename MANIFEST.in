@@ -1,0 +1,48 @@
+# Include standard project files
+include README.md
+include LICENSE
+include CHANGELOG.md
+include pyproject.toml
+include tox.ini
+
+# Include package metadata and configuration
+include src/tbr/py.typed
+
+# Include development and build configuration
+include Makefile
+include .pre-commit-config.yaml
+
+# Include documentation
+recursive-include docs *
+recursive-exclude docs/_build *
+
+# Include examples and notebooks
+recursive-include examples *
+recursive-include notebooks *
+
+# Include reference materials
+recursive-include references *
+
+# Include scripts
+recursive-include scripts *
+
+# Exclude development artifacts
+exclude .gitignore
+exclude coverage.xml
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.pyo
+recursive-exclude * .DS_Store
+recursive-exclude * .pytest_cache
+recursive-exclude * .mypy_cache
+recursive-exclude * .coverage
+recursive-exclude * .tox
+recursive-exclude * htmlcov
+recursive-exclude * *.egg-info
+
+# Exclude build artifacts
+recursive-exclude * build
+recursive-exclude * dist
+
+# Exclude development notes (not needed in distribution)
+recursive-exclude ai_helper_notes *
