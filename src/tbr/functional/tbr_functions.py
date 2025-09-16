@@ -58,14 +58,25 @@ causal effects with proper statistical uncertainty.
 See perform_tbr_analysis() for detailed usage and additional examples.
 """
 
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
 
-from tbr.utils.validation import validate_array_not_empty, validate_sample_size
+from tbr.utils.validation import (
+    validate_array_not_empty,
+    validate_learning_set,
+    validate_metric_columns,
+    validate_no_nulls,
+    validate_period_data,
+    validate_required_columns,
+    validate_sample_size,
+    validate_time_boundaries_type,
+    validate_time_column_type,
+    validate_time_periods,
+)
 
 
 def calculate_sum_x_squared_deviations(x: np.ndarray) -> float:
@@ -121,15 +132,7 @@ def extract_sum_x_squared_deviations(var_beta: float, sigma: float) -> float:
 # Export list for clean imports
 __all__ = [
     "perform_tbr_analysis",
-    "validate_required_columns",
-    "validate_time_column_type",
     "safe_int_conversion",
-    "validate_no_nulls",
-    "validate_time_boundaries_type",
-    "validate_time_periods",
-    "validate_metric_columns",
-    "validate_period_data",
-    "validate_learning_set",
     "split_by_periods",
     "fit_tbr_regression_model",
     "calculate_sum_x_squared_deviations",
@@ -142,103 +145,6 @@ __all__ = [
     "create_tbr_summary",
     "create_incremental_tbr_summaries",
 ]
-
-
-def validate_time_column_type(
-    data: pd.DataFrame, time_col: str, df_name: str = "data"
-) -> None:
-    """Validate time column contains supported data types for TBR analysis.
-
-    Ensures the time column uses pandas native dtypes only: datetime64[ns],
-    int64, or float64. Object dtypes are not supported and must be converted
-    using pd.to_datetime() before analysis.
-
-    Parameters
-    ----------
-    data : pd.DataFrame
-        DataFrame containing the time column to validate
-    time_col : str
-        Name of the time column to validate
-    df_name : str, default "data"
-        Name of the DataFrame for error messages
-
-    Raises
-    ------
-    ValueError
-        If time column is missing, empty, or has unsupported dtype
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> # Valid datetime column
-    >>> df = pd.DataFrame({
-    ...     'date': pd.date_range('2023-01-01', periods=5),
-    ...     'values': range(5)
-    ... })
-    >>> validate_time_column_type(df, 'date')
-
-    >>> # Valid integer time column
-    >>> df_int = pd.DataFrame({'hour': range(24), 'values': range(24)})
-    >>> validate_time_column_type(df_int, 'hour')
-
-    Notes
-    -----
-    Supported dtypes: datetime64[ns] (timezone-aware or naive), int64, float64.
-    Object dtypes must be converted: df['date'] = pd.to_datetime(df['date'])
-    """
-    if time_col not in data.columns:
-        raise ValueError(f"Time column '{time_col}' not found in {df_name}")
-
-    time_series = data[time_col]
-
-    # Check for empty column
-    if time_series.empty:
-        raise ValueError(f"Time column '{time_col}' in {df_name} is empty")
-
-    # Check for all null values
-    if time_series.isnull().all():
-        raise ValueError(
-            f"Time column '{time_col}' in {df_name} contains only null values"
-        )
-
-    # Get the actual data type
-    dtype = time_series.dtype
-    dtype_str = str(dtype)
-
-    # Check supported dtypes: datetime64 variants, int64, float64
-    if (
-        dtype_str.startswith("datetime64")
-        or dtype.name == "int64"
-        or dtype.name == "float64"
-    ):
-        return
-
-    # Raise error for unsupported dtypes
-    raise ValueError(
-        f"Unsupported dtype '{dtype}' for time column '{time_col}'. "
-        f"Supported dtypes: datetime64[ns], int64, float64. "
-        f"Use pd.to_datetime() for datetime columns or .astype() for numeric columns."
-    )
-
-
-def validate_required_columns(
-    df: pd.DataFrame, required_cols: List[str], df_name: str
-) -> None:
-    """
-    Validate that DataFrame contains all required columns.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to validate
-    required_cols : List[str]
-        List of required column names
-    df_name : str
-        Name of the DataFrame for error messages
-    """
-    missing_cols = [col for col in required_cols if col not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing required columns in {df_name}: {missing_cols}")
 
 
 def safe_int_conversion(value: float, param_name: str) -> int:
@@ -287,237 +193,6 @@ def safe_int_conversion(value: float, param_name: str) -> int:
         )
 
     return rounded_value
-
-
-def validate_no_nulls(df: pd.DataFrame, cols: List[str], df_name: str) -> None:
-    """
-    Validate that specified columns contain no null values.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to validate
-    cols : List[str]
-        List of column names to check for nulls
-    df_name : str
-        Name of the DataFrame for error messages
-    """
-    null_counts = df[cols].isnull().sum()
-    if null_counts.any():
-        null_cols = null_counts[null_counts > 0].to_dict()
-        raise ValueError(f"Null values found in {df_name}: {null_cols}")
-
-
-def validate_time_boundaries_type(
-    pretest_start: Union[pd.Timestamp, int, float],
-    test_start: Union[pd.Timestamp, int, float],
-    test_end: Union[pd.Timestamp, int, float],
-    time_column_dtype: np.dtype,
-) -> None:
-    """
-    Validate that time boundary types are consistent and match time column dtype.
-
-    Ensures all time boundaries use the same type and are compatible with the
-    time column's data type. This prevents type mismatches that could cause
-    incorrect period splitting in TBR analysis.
-
-    Parameters
-    ----------
-    pretest_start : Union[pd.Timestamp, int, float]
-        Start time of pretest period
-    test_start : Union[pd.Timestamp, int, float]
-        Start time of test period
-    test_end : Union[pd.Timestamp, int, float]
-        End time of test period
-    time_column_dtype : np.dtype
-        The dtype of the time column from the DataFrame
-
-    Raises
-    ------
-    ValueError
-        If boundary types are inconsistent or don't match time column dtype.
-        Specific cases:
-        - Mixed boundary types (e.g., mixing pd.Timestamp and int)
-        - Type mismatch with column (e.g., int boundaries with datetime64 column)
-        - Unsupported dtype combinations
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> import numpy as np
-    >>> # Valid: datetime boundaries with datetime column
-    >>> validate_time_boundaries_type(
-    ...     pd.Timestamp('2023-01-01'),
-    ...     pd.Timestamp('2023-02-01'),
-    ...     pd.Timestamp('2023-02-15'),
-    ...     np.dtype('datetime64[ns]')
-    ... )
-
-    >>> # Valid: integer boundaries with int64 column
-    >>> validate_time_boundaries_type(1, 10, 20, np.dtype('int64'))
-
-    Notes
-    -----
-    Supported type combinations:
-    - pd.Timestamp boundaries with datetime64[ns] columns
-    - int boundaries with int64 columns
-    - float boundaries with float64 columns
-    """
-    # Check that all boundaries have the same type
-    pretest_type = type(pretest_start)
-    test_start_type = type(test_start)
-    test_end_type = type(test_end)
-
-    if not (pretest_type == test_start_type == test_end_type):
-        raise ValueError(
-            f"All time boundaries must have the same type. Got: "
-            f"pretest_start: {pretest_type.__name__}, "
-            f"test_start: {test_start_type.__name__}, "
-            f"test_end: {test_end_type.__name__}"
-        )
-
-    # Check that boundary type matches time column dtype
-    boundary_type = pretest_type
-    dtype_str = str(time_column_dtype)
-
-    if dtype_str.startswith("datetime64"):
-        if boundary_type != pd.Timestamp:
-            raise ValueError(
-                f"Time column has dtype '{time_column_dtype}' but boundaries are {boundary_type.__name__}. "
-                f"Use pd.Timestamp for datetime columns."
-            )
-    elif time_column_dtype.name == "int64":
-        if boundary_type not in (int, np.int64):
-            raise ValueError(
-                f"Time column has dtype '{time_column_dtype}' but boundaries are {boundary_type.__name__}. "
-                f"Use int for integer time columns."
-            )
-    elif time_column_dtype.name == "float64":
-        if boundary_type not in (float, np.float64):
-            raise ValueError(
-                f"Time column has dtype '{time_column_dtype}' but boundaries are {boundary_type.__name__}. "
-                f"Use float for float time columns."
-            )
-    else:
-        raise ValueError(
-            f"Boundary type {boundary_type.__name__} does not match time column dtype '{time_column_dtype}'. "
-            f"Supported combinations: pd.Timestamp for datetime64, int for int64, float for float64."
-        )
-
-
-def validate_metric_columns(
-    data: pd.DataFrame,
-    control_col: str,
-    test_col: str,
-) -> None:
-    """
-    Validate that metric columns are numeric for TBR analysis.
-
-    Parameters
-    ----------
-    data : pd.DataFrame
-        Dataset containing the metric columns
-    control_col : str
-        Name of the control group metric column
-    test_col : str
-        Name of the test group metric column
-    """
-    if not pd.api.types.is_numeric_dtype(data[control_col]):
-        raise ValueError(f"Control column '{control_col}' must be numeric")
-    if not pd.api.types.is_numeric_dtype(data[test_col]):
-        raise ValueError(f"Test column '{test_col}' must be numeric")
-
-
-def validate_period_data(
-    pretest_data: pd.DataFrame,
-    test_data: pd.DataFrame,
-) -> None:
-    """
-    Validate that period data contains observations after splitting.
-
-    Parameters
-    ----------
-    pretest_data : pd.DataFrame
-        Pretest period data
-    test_data : pd.DataFrame
-        Test period data
-    """
-    if pretest_data.empty:
-        raise ValueError("No pretest data found - check pretest period dates")
-
-    if test_data.empty:
-        raise ValueError("No test data found - check test period dates")
-
-
-def validate_learning_set(
-    learning_df: pd.DataFrame,
-    control_col: str,
-    test_col: str,
-) -> None:
-    """
-    Validate learning set for TBR regression model training.
-
-    Parameters
-    ----------
-    learning_df : pd.DataFrame
-        Learning data used for training the regression model
-    control_col : str
-        Name of the control group metric column
-    test_col : str
-        Name of the test group metric column
-    """
-    # Check minimum data requirements for regression
-    if len(learning_df) < 3:
-        raise ValueError(
-            f"Insufficient learning data: {len(learning_df)} observations. Need at least 3."
-        )
-
-    # Check for missing values
-    if learning_df[[control_col, test_col]].isnull().any().any():
-        raise ValueError("Learning data contains null values")
-
-    # Check for invalid values (infinite or NaN)
-    if not np.isfinite(learning_df[[control_col, test_col]]).all().all():
-        raise ValueError("Learning data contains infinite or NaN values")
-
-
-def validate_time_periods(
-    pretest_start: Union[pd.Timestamp, int, float],
-    test_start: Union[pd.Timestamp, int, float],
-    test_end: Union[pd.Timestamp, int, float],
-    test_end_inclusive: bool = False,
-) -> None:
-    """
-    Validate time period parameters for TBR analysis.
-
-    Parameters
-    ----------
-    pretest_start : Union[pd.Timestamp, int, float]
-        Start time of pretest period
-    test_start : Union[pd.Timestamp, int, float]
-        Start time of test period
-    test_end : Union[pd.Timestamp, int, float]
-        End time of test period
-    test_end_inclusive : bool, default False
-        Whether to include the test_end boundary in the test period
-    """
-    # Boundary validation
-    if not (pretest_start < test_start):
-        raise ValueError(
-            f"pretest_start must be before test_start: {pretest_start} >= {test_start}"
-        )
-
-    # Validate test period boundaries based on inclusive/exclusive setting
-    if test_end_inclusive:
-        if not (test_start <= test_end):
-            raise ValueError(
-                f"test_start must be <= test_end when test_end_inclusive=True: {test_start} > {test_end}"
-            )
-    else:
-        if not (test_start < test_end):
-            raise ValueError(
-                f"test_start must be < test_end when test_end_inclusive=False: {test_start} >= {test_end}"
-            )
 
 
 def split_by_periods(

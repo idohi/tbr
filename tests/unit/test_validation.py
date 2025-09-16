@@ -9,16 +9,24 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tbr.functional.tbr_functions import (
+from tbr.utils.validation import (
+    validate_array_not_empty,
+    validate_confidence_level,
+    validate_dataframe_not_empty,
+    validate_degrees_freedom,
     validate_learning_set,
     validate_metric_columns,
     validate_no_nulls,
+    validate_period_data,
     validate_required_columns,
+    validate_sample_size,
+    validate_threshold_parameter,
     validate_time_boundaries_type,
     validate_time_column_type,
     validate_time_periods,
+    validate_time_series_continuity,
+    validate_variance_parameters,
 )
-from tbr.utils.validation import validate_array_not_empty, validate_sample_size
 
 
 class TestTimeColumnValidation:
@@ -341,3 +349,148 @@ class TestUtilityValidation:
         """Test sample size validation with negative value (line 47)."""
         with pytest.raises(ValueError, match="test_param cannot be negative"):
             validate_sample_size(-1, min_size=3, param_name="test_param")
+
+
+class TestStatisticalParameterValidation:
+    """Test statistical parameter validation functions."""
+
+    def test_validate_confidence_level_valid(self):
+        """Test validation of valid confidence levels."""
+        validate_confidence_level(0.80)
+        validate_confidence_level(0.95)
+        validate_confidence_level(0.99, "credibility level")
+
+    def test_validate_confidence_level_invalid_bounds(self):
+        """Test error for confidence levels outside (0,1)."""
+        with pytest.raises(ValueError, match="must be between 0 and 1"):
+            validate_confidence_level(0.0)
+
+        with pytest.raises(ValueError, match="must be between 0 and 1"):
+            validate_confidence_level(1.0)
+
+        with pytest.raises(ValueError, match="must be between 0 and 1"):
+            validate_confidence_level(1.2)
+
+        with pytest.raises(ValueError, match="must be between 0 and 1"):
+            validate_confidence_level(-0.1)
+
+    def test_validate_threshold_parameter_valid(self):
+        """Test validation of valid threshold parameters."""
+        validate_threshold_parameter(0.0)
+        validate_threshold_parameter(5.5)
+        validate_threshold_parameter(-2.3, "effect threshold")
+
+    def test_validate_threshold_parameter_invalid(self):
+        """Test error for non-finite threshold values."""
+        with pytest.raises(ValueError, match="must be finite"):
+            validate_threshold_parameter(float("inf"))
+
+        with pytest.raises(ValueError, match="must be finite"):
+            validate_threshold_parameter(float("nan"))
+
+    def test_validate_degrees_freedom_valid(self):
+        """Test validation of valid degrees of freedom."""
+        validate_degrees_freedom(1)
+        validate_degrees_freedom(10)
+        validate_degrees_freedom(100, "residual df")
+
+    def test_validate_degrees_freedom_invalid(self):
+        """Test error for non-positive degrees of freedom."""
+        with pytest.raises(ValueError, match="must be positive"):
+            validate_degrees_freedom(0)
+
+        with pytest.raises(ValueError, match="must be positive"):
+            validate_degrees_freedom(-5)
+
+    def test_validate_variance_parameters_valid(self):
+        """Test validation of valid variance parameters."""
+        validate_variance_parameters(var_alpha=0.01, var_beta=0.005)
+        validate_variance_parameters(sigma_squared=100.0)
+        validate_variance_parameters(variance=0.0)  # Zero variance is valid
+
+    def test_validate_variance_parameters_negative(self):
+        """Test error for negative variance parameters."""
+        with pytest.raises(ValueError, match="must be non-negative"):
+            validate_variance_parameters(var_alpha=-0.01)
+
+        with pytest.raises(ValueError, match="must be non-negative"):
+            validate_variance_parameters(var_beta=-0.005)
+
+    def test_validate_variance_parameters_non_finite(self):
+        """Test error for non-finite variance parameters."""
+        with pytest.raises(ValueError, match="must be finite"):
+            validate_variance_parameters(var_alpha=float("inf"))
+
+        with pytest.raises(ValueError, match="must be finite"):
+            validate_variance_parameters(var_beta=float("nan"))
+
+
+class TestEnhancedDataQualityValidation:
+    """Test enhanced data quality validation functions."""
+
+    def test_validate_dataframe_not_empty_valid(self):
+        """Test validation of non-empty DataFrames."""
+        df = pd.DataFrame({"a": [1, 2, 3]})
+        validate_dataframe_not_empty(df, "test_data")
+
+    def test_validate_dataframe_not_empty_invalid(self):
+        """Test error for empty DataFrames."""
+        empty_df = pd.DataFrame()
+        with pytest.raises(ValueError, match="empty_data cannot be empty"):
+            validate_dataframe_not_empty(empty_df, "empty_data")
+
+    def test_validate_time_series_continuity_valid(self):
+        """Test validation of continuous time series."""
+        df = pd.DataFrame(
+            {"date": pd.date_range("2023-01-01", periods=5), "value": [1, 2, 3, 4, 5]}
+        )
+        validate_time_series_continuity(df, "date")
+
+    def test_validate_time_series_continuity_empty(self):
+        """Test validation handles empty DataFrames gracefully."""
+        empty_df = pd.DataFrame()
+        validate_time_series_continuity(empty_df, "date")  # Should not raise
+
+    def test_validate_time_series_continuity_unsorted(self):
+        """Test error for unsorted time series."""
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2023-01-03", "2023-01-01", "2023-01-02"]),
+                "value": [3, 1, 2],
+            }
+        )
+        with pytest.raises(ValueError, match="must be sorted in ascending order"):
+            validate_time_series_continuity(df, "date")
+
+    def test_validate_time_series_continuity_large_gaps(self):
+        """Test detection of large gaps in time series."""
+        # Create time series with a large gap
+        dates = list(pd.date_range("2023-01-01", periods=3, freq="D"))
+        dates.append(pd.Timestamp("2023-02-01"))  # Large 29-day gap
+        df = pd.DataFrame({"date": dates, "value": [1, 2, 3, 4]})
+        with pytest.raises(ValueError, match="has large gaps"):
+            validate_time_series_continuity(df, "date")
+
+
+class TestPeriodDataValidation:
+    """Test period data validation functions."""
+
+    def test_validate_period_data_valid(self):
+        """Test validation of valid period data."""
+        pretest = pd.DataFrame({"date": [1, 2], "control": [100, 110]})
+        test = pd.DataFrame({"date": [3, 4], "control": [120, 130]})
+        validate_period_data(pretest, test)
+
+    def test_validate_period_data_empty_pretest(self):
+        """Test error when pretest data is empty."""
+        empty_df = pd.DataFrame()
+        test = pd.DataFrame({"date": [3, 4], "control": [120, 130]})
+        with pytest.raises(ValueError, match="No pretest data found"):
+            validate_period_data(empty_df, test)
+
+    def test_validate_period_data_empty_test(self):
+        """Test error when test data is empty."""
+        pretest = pd.DataFrame({"date": [1, 2], "control": [100, 110]})
+        empty_df = pd.DataFrame()
+        with pytest.raises(ValueError, match="No test data found"):
+            validate_period_data(pretest, empty_df)
