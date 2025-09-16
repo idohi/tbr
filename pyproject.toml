@@ -7,7 +7,7 @@ name = "tbr"
 version = "0.1.0a1"
 description = "A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis"
 readme = "README.md"
-license = "Apache-2.0"
+license = {text = "Apache-2.0"}
 authors = [
     {name = "Ido Hirsh", email = "idohirsh@users.noreply.github.com"}
 ]
@@ -44,13 +44,17 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "pandas>=1.5.0,<2.0.0;python_version<'3.9'",
-    "pandas~=2.0.0;python_version>='3.9'",
+    "pandas~=2.0.0;python_version>='3.9' and python_version<'3.12'",
+    "pandas>=2.0.0;python_version>='3.11'",
     "numpy>=1.21.0,<1.25.0;python_version<'3.9'",
-    "numpy~=1.24.0;python_version>='3.9'",
+    "numpy~=1.24.0;python_version>='3.9' and python_version<'3.12'",
+    "numpy>=1.24.0;python_version>='3.11'",
     "scipy>=1.9.0,<1.11.0;python_version<'3.9'",
-    "scipy~=1.10.0;python_version>='3.9'",
+    "scipy~=1.10.0;python_version>='3.9' and python_version<'3.12'",
+    "scipy>=1.10.0;python_version>='3.11'",
     "statsmodels>=0.13.0,<0.15.0;python_version<'3.9'",
-    "statsmodels~=0.14.0;python_version>='3.9'"
+    "statsmodels~=0.14.0;python_version>='3.9' and python_version<'3.12'",
+    "statsmodels>=0.14.0;python_version>='3.11'"
 ]
 
 [project.optional-dependencies]
