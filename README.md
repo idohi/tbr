@@ -275,6 +275,26 @@ make test-tox
 make test-tox-py
 ```
 
+### Individual Test Execution
+```bash
+# Using Make commands (recommended)
+make test-single TEST=tests/unit/test_validation.py::TestTimeColumnValidation::test_valid_datetime_column
+make test-pattern PATTERN=datetime
+
+# Direct pytest commands
+pytest tests/unit/test_validation.py::TestTimeColumnValidation::test_valid_datetime_column -v  # Single test function
+pytest tests/unit/test_validation.py::TestTimeColumnValidation -v                              # Single test class
+pytest tests/unit/test_validation.py -v                                                        # All tests in file
+
+# Run tests matching a pattern
+pytest -k "test_validation" -v          # All tests with "validation" in name
+pytest -k "datetime" -v                 # All tests with "datetime" in name
+pytest -k "not performance" -v          # Exclude performance tests
+
+# Run specific test with detailed output and print statements
+pytest tests/unit/test_core_functions.py::TestSumSquaredDeviations::test_basic_calculation -v -s
+```
+
 ### Advanced Testing
 ```bash
 # Run by test markers
@@ -287,6 +307,9 @@ open htmlcov/index.html
 
 # Show slowest tests
 pytest tests/ --durations=10
+
+# Debug failing tests with detailed output
+pytest tests/unit/test_validation.py::TestTimeColumnValidation::test_valid_datetime_column -v -s --tb=long
 ```
 
 ### Debug CI Failures Locally

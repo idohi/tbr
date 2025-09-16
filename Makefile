@@ -171,6 +171,16 @@ ci-local: ## Run exact CI tests locally (mirrors GitHub Actions)
 	@pytest tests/performance/ -v
 	@echo "$(GREEN)✅ CI pipeline completed locally$(NC)"
 
+test-single: ## Run a single test (usage: make test-single TEST=tests/unit/test_validation.py::TestTimeColumnValidation::test_valid_datetime_column)
+	@echo "$(BLUE)Running single test: $(TEST)$(NC)"
+	@pytest $(TEST) -v -s
+	@echo "$(GREEN)✅ Single test completed$(NC)"
+
+test-pattern: ## Run tests matching pattern (usage: make test-pattern PATTERN=datetime)
+	@echo "$(BLUE)Running tests matching pattern: $(PATTERN)$(NC)"
+	@pytest -k "$(PATTERN)" -v
+	@echo "$(GREEN)✅ Pattern-based tests completed$(NC)"
+
 all: clean install-dev check test-cov ## Run complete development pipeline
 	@echo "$(GREEN)🎉 Complete development pipeline finished successfully!$(NC)"
 
