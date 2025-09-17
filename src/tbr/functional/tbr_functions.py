@@ -65,6 +65,11 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
 
+from tbr.utils.preprocessing import (
+    extract_regression_arrays,
+    prepare_regression_arrays,
+    split_time_series_by_periods,
+)
 from tbr.utils.validation import (
     validate_array_not_empty,
     validate_learning_set,
@@ -133,7 +138,6 @@ def extract_sum_x_squared_deviations(var_beta: float, sigma: float) -> float:
 __all__ = [
     "perform_tbr_analysis",
     "safe_int_conversion",
-    "split_by_periods",
     "fit_tbr_regression_model",
     "calculate_sum_x_squared_deviations",
     "extract_sum_x_squared_deviations",
@@ -195,63 +199,6 @@ def safe_int_conversion(value: float, param_name: str) -> int:
     return rounded_value
 
 
-def split_by_periods(
-    aggregated_data: pd.DataFrame,
-    time_col: str,
-    pretest_start: Union[pd.Timestamp, int, float],
-    test_start: Union[pd.Timestamp, int, float],
-    test_end: Union[pd.Timestamp, int, float],
-    test_end_inclusive: bool = False,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Split aggregated time series data into baseline, pretest, test and cooldown periods.
-
-    Parameters
-    ----------
-    aggregated_data : pd.DataFrame
-        Time series data with columns for time, control, and test metrics
-    time_col : str
-        Name of the time column
-    pretest_start : Union[pd.Timestamp, int, float]
-        Start time of pretest period (always inclusive)
-    test_start : Union[pd.Timestamp, int, float]
-        Start time of test period (always inclusive)
-    test_end : Union[pd.Timestamp, int, float]
-        End time of test period
-    test_end_inclusive : bool, default False
-        Whether to include the test_end boundary in the test period
-
-    Returns
-    -------
-    Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
-        (baseline_data, pretest_data, test_data, cooldown_data) - DataFrames for each period
-    """
-    data_copy = aggregated_data.copy()
-
-    # Use boundary values directly (validation done at entry point)
-
-    time_series = data_copy[time_col]
-
-    # Create period masks using boundary values directly
-    baseline_mask = time_series < pretest_start
-    pretest_mask = (time_series >= pretest_start) & (time_series < test_start)
-
-    # Inclusive/exclusive boundary handling
-    if test_end_inclusive:
-        test_mask = (time_series >= test_start) & (time_series <= test_end)
-        cooldown_mask = time_series > test_end
-    else:
-        test_mask = (time_series >= test_start) & (time_series < test_end)
-        cooldown_mask = time_series >= test_end
-
-    baseline_data = data_copy[baseline_mask].copy()
-    pretest_data = data_copy[pretest_mask].copy()
-    test_data = data_copy[test_mask].copy()
-    cooldown_data = data_copy[cooldown_mask].copy()
-
-    return baseline_data, pretest_data, test_data, cooldown_data
-
-
 def fit_tbr_regression_model(
     learning_data: pd.DataFrame,
     control_col: str,
@@ -310,8 +257,7 @@ def fit_tbr_regression_model(
     validate_learning_set(learning_data, control_col, test_col)
 
     # Extract x (control) and y (test) for regression
-    x = learning_data[control_col].values
-    y = learning_data[test_col].values
+    x, y = extract_regression_arrays(learning_data, control_col, test_col)
     n = len(x)
 
     # Validation of regression inputs
@@ -326,7 +272,7 @@ def fit_tbr_regression_model(
         )
 
     # Prepare data for statsmodels (add constant for intercept)
-    X = sm.add_constant(x)
+    X = prepare_regression_arrays(x, add_constant=True)
 
     # Fit OLS regression using statsmodels
     model = sm.OLS(y, X).fit()
@@ -1198,7 +1144,12 @@ def perform_tbr_analysis(
     validate_metric_columns(data, control_col, test_col)
 
     # Step 1: Split data by periods
-    baseline_data, pretest_data, test_data, cooldown_data = split_by_periods(
+    (
+        baseline_data,
+        pretest_data,
+        test_data,
+        cooldown_data,
+    ) = split_time_series_by_periods(
         aggregated_data=data,
         time_col=time_col,
         pretest_start=pretest_start,
