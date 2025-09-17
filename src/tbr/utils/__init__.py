@@ -7,6 +7,13 @@ from .exceptions import (
     NumericalInstabilityError,
     TBRError,
 )
+from .preprocessing import (
+    assign_period_indicators,
+    calculate_basic_statistics,
+    extract_regression_arrays,
+    prepare_regression_arrays,
+    split_time_series_by_periods,
+)
 from .validation import (
     validate_array_not_empty,
     validate_column_types,
@@ -59,4 +66,10 @@ __all__ = [
     "validate_dataframe_not_empty",
     "validate_column_types",
     "validate_time_series_continuity",
+    # Data Preprocessing Functions
+    "split_time_series_by_periods",
+    "extract_regression_arrays",
+    "assign_period_indicators",
+    "prepare_regression_arrays",
+    "calculate_basic_statistics",
 ]

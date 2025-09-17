@@ -18,8 +18,8 @@ from tbr.functional.tbr_functions import (
     create_incremental_tbr_summaries,
     create_tbr_summary,
     perform_tbr_analysis,
-    split_by_periods,
 )
+from tbr.utils.preprocessing import split_time_series_by_periods
 
 
 class TestPeriodSplitting:
@@ -35,7 +35,7 @@ class TestPeriodSplitting:
             }
         )
 
-        baseline, pretest, test, cooldown = split_by_periods(
+        baseline, pretest, test, cooldown = split_time_series_by_periods(
             data,
             time_col="date",
             pretest_start=pd.Timestamp("2023-01-15"),
@@ -63,7 +63,7 @@ class TestPeriodSplitting:
             }
         )
 
-        baseline, pretest, test, cooldown = split_by_periods(
+        baseline, pretest, test, cooldown = split_time_series_by_periods(
             data,
             time_col="date",
             pretest_start=pd.Timestamp("2023-01-10"),
@@ -91,7 +91,7 @@ class TestPeriodSplitting:
             }
         )
 
-        baseline, pretest, test, cooldown = split_by_periods(
+        baseline, pretest, test, cooldown = split_time_series_by_periods(
             data, time_col="hour", pretest_start=10, test_start=25, test_end=35
         )
 
@@ -114,7 +114,7 @@ class TestPeriodSplitting:
             }
         )
 
-        baseline, pretest, test, cooldown = split_by_periods(
+        baseline, pretest, test, cooldown = split_time_series_by_periods(
             data,
             time_col="date",
             pretest_start=pd.Timestamp("2023-01-01"),  # Before data starts
