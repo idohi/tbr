@@ -1,34 +1,23 @@
 """
-Mathematical Validation Tests Against Reference Implementation.
+Mathematical Validation Tests for TBR Implementation.
 
-This module provides comprehensive mathematical validation tests that compare
-our current functional implementation against the reference implementation
+This module provides comprehensive mathematical validation tests that verify
+our functional implementation against mathematical definitions and properties
 to ensure mathematical accuracy, numerical consistency, and statistical correctness.
 
 The tests validate:
-1. Core mathematical functions against reference calculations
+1. Core mathematical functions against mathematical definitions
 2. Regression model parameters and statistical properties
 3. End-to-end TBR analysis pipeline accuracy
 4. Statistical inference and credible interval calculations
 
 These tests serve as the mathematical foundation ensuring our implementation
-maintains the same level of accuracy as the reference implementation.
+maintains mathematical rigor and statistical correctness.
 """
-
-import os
-import sys
 
 import numpy as np
 import pandas as pd
 import pytest
-
-# Add references directory to path for importing reference implementation
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "references"))
-
-try:
-    import tbr_func as reference_impl
-except ImportError:
-    reference_impl = None
 
 from tbr.functional.tbr_functions import (
     calculate_cumulative_standard_deviation,
@@ -47,11 +36,8 @@ from tbr.functional.tbr_functions import (
 class TestMathematicalFunctionValidation:
     """Test core mathematical functions against reference implementation."""
 
-    @pytest.mark.skipif(
-        reference_impl is None, reason="Reference implementation not available"
-    )
-    def test_sum_squared_deviations_against_reference(self):
-        """Test calculate_sum_x_squared_deviations against reference implementation."""
+    def test_sum_squared_deviations_mathematical_validation(self):
+        """Test calculate_sum_x_squared_deviations against mathematical definition."""
         # Test data with known mathematical properties
         test_cases = [
             np.array([1, 2, 3, 4, 5]),
@@ -65,31 +51,26 @@ class TestMathematicalFunctionValidation:
             # Our implementation
             our_result = calculate_sum_x_squared_deviations(test_data)
 
-            # Reference implementation (if available)
-            if hasattr(reference_impl, "calculate_sum_x_squared_deviations"):
-                ref_result = reference_impl.calculate_sum_x_squared_deviations(
-                    test_data
-                )
-
-                # Mathematical validation with appropriate tolerance
-                np.testing.assert_allclose(
-                    our_result,
-                    ref_result,
-                    rtol=1e-12,
-                    atol=1e-12,
-                    err_msg=f"Sum squared deviations mismatch for data: {test_data[:5]}...",
-                )
-
-            # Mathematical property validation (independent of reference)
-            # Sum of squared deviations should equal: sum((x - mean(x))^2)
+            # Mathematical property validation: sum of squared deviations should equal sum((x - mean(x))^2)
             expected = np.sum((test_data - np.mean(test_data)) ** 2)
             np.testing.assert_allclose(
                 our_result,
                 expected,
                 rtol=1e-12,
                 atol=1e-12,
-                err_msg="Mathematical property validation failed",
+                err_msg=f"Mathematical property validation failed for data: {test_data[:5] if len(test_data) > 5 else test_data}",
             )
+
+            # Additional validation: result should be non-negative
+            assert (
+                our_result >= 0
+            ), f"Sum squared deviations must be non-negative, got {our_result}"
+
+            # For constant arrays, sum of squared deviations should be zero
+            if np.allclose(test_data, test_data[0]):
+                assert np.allclose(
+                    our_result, 0
+                ), f"Sum squared deviations for constant array should be 0, got {our_result}"
 
     def test_extract_sum_squared_deviations_mathematical_consistency(self):
         """Test extract_sum_x_squared_deviations mathematical relationship."""
