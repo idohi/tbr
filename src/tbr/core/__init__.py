@@ -9,6 +9,8 @@ The core modules include:
 """
 
 from .regression import (
+    calculate_model_variance,
+    calculate_prediction_variance,
     calculate_sum_squared_deviations,
     calculate_variances,
     convert_to_integer,
@@ -18,6 +20,8 @@ from .regression import (
 
 __all__ = [
     "fit_regression_model",
+    "calculate_model_variance",
+    "calculate_prediction_variance",
     "calculate_variances",
     "calculate_sum_squared_deviations",
     "extract_sum_squared_deviations_from_model",

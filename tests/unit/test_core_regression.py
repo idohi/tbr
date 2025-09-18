@@ -14,6 +14,8 @@ import pandas as pd
 import pytest
 
 from tbr.core.regression import (
+    calculate_model_variance,
+    calculate_prediction_variance,
     calculate_sum_squared_deviations,
     calculate_variances,
     convert_to_integer,
@@ -109,6 +111,123 @@ class TestFitRegressionModel:
         assert abs(params["x_mean"] - expected_x_mean) < 1e-10
 
 
+class TestCalculateModelVariance:
+    """Test the calculate_model_variance function."""
+
+    def test_basic_model_variance_calculation(self):
+        """Test basic model variance calculation."""
+        x_values = np.array([900, 1000, 1100])
+        x_mean = 1000.0
+        sigma = 25.0
+        n_pretest = 30
+        sum_x_squared_deviations = 15000.0
+
+        model_vars = calculate_model_variance(
+            x_values, x_mean, sigma, n_pretest, sum_x_squared_deviations
+        )
+
+        # Verify output shape
+        assert len(model_vars) == len(x_values)
+
+        # Verify all variances are positive
+        assert np.all(model_vars > 0), "All model variances should be positive"
+
+        # Verify minimum variance at x_mean
+        center_idx = 1  # x_values[1] = x_mean
+        assert (
+            model_vars[center_idx] <= model_vars[0]
+        ), "Variance should be minimum at x_mean"
+        assert (
+            model_vars[center_idx] <= model_vars[2]
+        ), "Variance should be minimum at x_mean"
+
+    def test_model_variance_symmetry(self):
+        """Test that model variances are symmetric around x_mean."""
+        x_mean = 1000.0
+        deviation = 100.0
+        x_values = np.array([x_mean - deviation, x_mean, x_mean + deviation])
+
+        model_vars = calculate_model_variance(
+            x_values,
+            x_mean=x_mean,
+            sigma=20.0,
+            n_pretest=50,
+            sum_x_squared_deviations=10000.0,
+        )
+
+        # Variances should be symmetric around x_mean
+        assert (
+            abs(model_vars[0] - model_vars[2]) < 1e-10
+        ), "Model variances should be symmetric"
+
+    def test_model_variance_formula_validation(self):
+        """Test that model variance formula is implemented correctly."""
+        # Simple test case with known values
+        x_values = np.array([10.0])  # Single point
+        x_mean = 10.0  # Same as x_values
+        sigma = 2.0
+        n_pretest = 20
+        sum_x_squared_deviations = 100.0
+
+        model_vars = calculate_model_variance(
+            x_values, x_mean, sigma, n_pretest, sum_x_squared_deviations
+        )
+
+        # At x_mean, deviation squared = 0, so formula becomes: σ² * (1/n + 0)
+        expected = sigma**2 * (1.0 / n_pretest)  # 4 * (1/20) = 0.2
+        assert (
+            abs(model_vars[0] - expected) < 1e-10
+        ), f"Expected {expected}, got {model_vars[0]}"
+
+
+class TestCalculatePredictionVariance:
+    """Test the calculate_prediction_variance function."""
+
+    def test_basic_prediction_variance_calculation(self):
+        """Test basic prediction variance calculation."""
+        model_variances = np.array([10.0, 15.0, 20.0])
+        sigma = 25.0
+
+        pred_vars = calculate_prediction_variance(model_variances, sigma)
+
+        # Verify output shape
+        assert len(pred_vars) == len(model_variances)
+
+        # Verify prediction variance = model variance + sigma²
+        expected = model_variances + sigma**2
+        np.testing.assert_array_almost_equal(pred_vars, expected, decimal=10)
+
+        # Verify prediction variance > model variance
+        assert np.all(
+            pred_vars > model_variances
+        ), "Prediction variance should exceed model variance"
+
+    def test_prediction_variance_formula(self):
+        """Test that prediction variance formula is implemented correctly."""
+        # Test with single value
+        model_vars = np.array([100.0])
+        sigma = 10.0
+
+        pred_vars = calculate_prediction_variance(model_vars, sigma)
+
+        # Formula: V[y*] = σ² + V[ŷ*]
+        expected = sigma**2 + model_vars[0]  # 100 + 100 = 200
+        assert (
+            abs(pred_vars[0] - expected) < 1e-10
+        ), f"Expected {expected}, got {pred_vars[0]}"
+
+    def test_prediction_variance_with_zero_model_variance(self):
+        """Test prediction variance when model variance is zero."""
+        model_vars = np.array([0.0, 0.0])
+        sigma = 5.0
+
+        pred_vars = calculate_prediction_variance(model_vars, sigma)
+
+        # Should equal sigma² when model variance is zero
+        expected = np.full_like(model_vars, sigma**2)
+        np.testing.assert_array_almost_equal(pred_vars, expected, decimal=10)
+
+
 class TestCalculateVariances:
     """Test the calculate_variances function."""
 
@@ -164,6 +283,33 @@ class TestCalculateVariances:
         assert (
             abs(pred_vars[0] - pred_vars[2]) < 1e-10
         ), "Prediction variances should be symmetric"
+
+    def test_combined_function_uses_utilities(self):
+        """Test that calculate_variances uses our new utility functions."""
+        x_values = np.array([1000, 1010, 1020])
+        x_mean = 1005.0
+        sigma = 25.0
+        n_pretest = 30
+        sum_x_squared_deviations = 15000.0
+
+        # Combined function result
+        model_vars_combined, pred_vars_combined = calculate_variances(
+            x_values, x_mean, sigma, n_pretest, sum_x_squared_deviations
+        )
+
+        # Individual utility function results
+        model_vars_utility = calculate_model_variance(
+            x_values, x_mean, sigma, n_pretest, sum_x_squared_deviations
+        )
+        pred_vars_utility = calculate_prediction_variance(model_vars_utility, sigma)
+
+        # Should get identical results
+        np.testing.assert_array_almost_equal(
+            model_vars_combined, model_vars_utility, decimal=12
+        )
+        np.testing.assert_array_almost_equal(
+            pred_vars_combined, pred_vars_utility, decimal=12
+        )
 
 
 class TestCalculateSumSquaredDeviations:
