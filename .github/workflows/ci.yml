@@ -9,7 +9,7 @@ on:
 jobs:
   # Code Quality Checks (Fast - runs first)
   quality:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Code Quality
 
     steps:
@@ -41,19 +41,22 @@ jobs:
   # Core Testing Matrix (Multiple Python versions)
   test:
     needs: quality
-    runs-on: self-hosted
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11']
         include:
-          # Coverage testing on latest Python
+          # Coverage testing on latest Python/Ubuntu
           - python-version: '3.11'
+            os: ubuntu-latest
             coverage: true
           # Minimal dependencies testing on oldest supported Python
           - python-version: '3.8'
+            os: ubuntu-latest
             minimal: true
 
-    name: Test Python ${{ matrix.python-version }} on self-hosted
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -112,7 +115,7 @@ jobs:
   # Performance Testing (Separate job - only on main Python/OS)
   performance:
     needs: test
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Performance Tests
 
     steps:
@@ -155,7 +158,7 @@ jobs:
   # Package Building and Installation Test
   package:
     needs: quality
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Package Build Test
 
     steps:
@@ -203,7 +206,7 @@ jobs:
   # Documentation Building (Future-ready)
   documentation:
     needs: quality
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Documentation Build
 
     steps:
@@ -247,7 +250,7 @@ jobs:
   # Comprehensive Test Suite (All tests together)
   comprehensive:
     needs: [test, performance, documentation]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Comprehensive Test Suite
 
     steps:
