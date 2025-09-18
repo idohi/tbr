@@ -84,6 +84,22 @@ from tbr.utils.validation import (
     validate_time_periods,
 )
 
+# Export list for clean imports
+__all__ = [
+    "perform_tbr_analysis",
+    "safe_int_conversion",
+    "fit_tbr_regression_model",
+    "calculate_sum_x_squared_deviations",
+    "extract_sum_x_squared_deviations",
+    "calculate_model_variance",
+    "calculate_prediction_variance",
+    "generate_counterfactual_predictions",
+    "calculate_cumulative_standard_deviation",
+    "compute_interval_estimate_and_ci",
+    "create_tbr_summary",
+    "create_incremental_tbr_summaries",
+]
+
 
 def calculate_sum_x_squared_deviations(x: np.ndarray) -> float:
     """
@@ -133,23 +149,6 @@ def extract_sum_x_squared_deviations(var_beta: float, sigma: float) -> float:
         Sum of squared deviations: Σ(xi - x̄)²
     """
     return sigma**2 / var_beta
-
-
-# Export list for clean imports
-__all__ = [
-    "perform_tbr_analysis",
-    "safe_int_conversion",
-    "fit_tbr_regression_model",
-    "calculate_sum_x_squared_deviations",
-    "extract_sum_x_squared_deviations",
-    "calculate_model_variance",
-    "calculate_prediction_variance",
-    "generate_counterfactual_predictions",
-    "calculate_cumulative_standard_deviation",
-    "compute_interval_estimate_and_ci",
-    "create_tbr_summary",
-    "create_incremental_tbr_summaries",
-]
 
 
 def safe_int_conversion(value: float, param_name: str) -> int:
