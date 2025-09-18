@@ -65,6 +65,7 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
 
+from tbr.utils.datetime_utils import sort_dataframe_by_time
 from tbr.utils.preprocessing import (
     extract_regression_arrays,
     prepare_regression_arrays,
@@ -1177,12 +1178,11 @@ def perform_tbr_analysis(
         cooldown_data_with_period["period"] = 3
 
         # Combine test and cooldown data
-        test_data_extended = (
-            pd.concat(
-                [test_data_with_period, cooldown_data_with_period], ignore_index=True
-            )
-            .sort_values(time_col)
-            .reset_index(drop=True)
+        combined_data = pd.concat(
+            [test_data_with_period, cooldown_data_with_period], ignore_index=True
+        )
+        test_data_extended = sort_dataframe_by_time(
+            combined_data, time_col, validate_column=False
         )
     else:
         test_data_extended = test_data_with_period

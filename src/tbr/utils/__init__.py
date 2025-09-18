@@ -1,6 +1,11 @@
 """TBR utilities module."""
 
 from .constants import CONTROL_VAL, TEST_VAL
+from .datetime_utils import (
+    create_time_range_mask,
+    process_time_column,
+    sort_dataframe_by_time,
+)
 from .exceptions import (
     ConvergenceError,
     InsufficientDataError,
@@ -72,4 +77,8 @@ __all__ = [
     "assign_period_indicators",
     "prepare_regression_arrays",
     "calculate_basic_statistics",
+    # Date/Time Handling Functions
+    "sort_dataframe_by_time",
+    "process_time_column",
+    "create_time_range_mask",
 ]
