@@ -19,6 +19,12 @@ from .preprocessing import (
     prepare_regression_arrays,
     split_time_series_by_periods,
 )
+from .structure_validation import (
+    validate_analysis_results_tuple,
+    validate_model_parameters_dict,
+    validate_nested_dict_structure,
+    validate_tbr_output_structure,
+)
 from .validation import (
     validate_array_not_empty,
     validate_column_types,
@@ -81,4 +87,9 @@ __all__ = [
     "sort_dataframe_by_time",
     "process_time_column",
     "create_time_range_mask",
+    # Data Structure Validation Functions
+    "validate_model_parameters_dict",
+    "validate_tbr_output_structure",
+    "validate_analysis_results_tuple",
+    "validate_nested_dict_structure",
 ]
