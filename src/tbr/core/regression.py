@@ -43,8 +43,6 @@ import numpy as np
 import pandas as pd
 
 from ..functional.tbr_functions import (
-    calculate_model_variance,
-    calculate_prediction_variance,
     calculate_sum_x_squared_deviations,
     extract_sum_x_squared_deviations,
     fit_tbr_regression_model,
@@ -98,6 +96,105 @@ def fit_regression_model(
     >>> print(f"Regression coefficients: α={params['alpha']:.2f}, β={params['beta']:.3f}")
     """
     return fit_tbr_regression_model(learning_data, control_col, test_col)
+
+
+def calculate_model_variance(
+    x_values: np.ndarray,
+    x_mean: float,
+    sigma: float,
+    n_pretest: int,
+    sum_x_squared_deviations: float,
+) -> np.ndarray:
+    """
+    Calculate model variance for fitted values using TBR formula.
+
+    Implements the TBR model variance formula for MODEL UNCERTAINTY ONLY:
+    V[ŷ*] = σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
+
+    This function provides direct access to model variance calculations
+    in the core module without dependencies on the functional module.
+
+    Parameters
+    ----------
+    x_values : np.ndarray
+        Control values (predictor variable x) to calculate variances for
+    x_mean : float
+        Mean of control values over the learning set (x̄)
+    sigma : float
+        Residual standard deviation from regression model (σ)
+    n_pretest : int
+        Number of observations in learning set
+    sum_x_squared_deviations : float
+        Sum of squared deviations: Σ(xi - x̄)²
+
+    Returns
+    -------
+    np.ndarray
+        Model variances for each x value (model uncertainty only)
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> x_vals = np.array([1000, 1010, 1020])
+    >>> model_vars = calculate_model_variance(
+    ...     x_vals, x_mean=1005, sigma=25, n_pretest=30,
+    ...     sum_x_squared_deviations=15000
+    ... )
+    >>> print(f"Model uncertainties: {model_vars}")
+    """
+    # Apply TBR model variance formula (MODEL UNCERTAINTY ONLY)
+    # V[ŷ*] = σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
+    x_deviations_squared = (x_values - x_mean) ** 2
+
+    model_variances = sigma**2 * (
+        1.0 / n_pretest + x_deviations_squared / sum_x_squared_deviations
+    )
+
+    return model_variances
+
+
+def calculate_prediction_variance(
+    model_variances: np.ndarray,
+    sigma: float,
+) -> np.ndarray:
+    """
+    Calculate prediction variance by adding residual noise to model uncertainty.
+
+    Implements the TBR prediction variance formula:
+    V[y*] = σ² + V[ŷ*]
+
+    This function provides direct access to prediction variance calculations
+    in the core module without dependencies on the functional module.
+
+    Parameters
+    ----------
+    model_variances : np.ndarray
+        Model variances from calculate_model_variance() (model uncertainty only)
+    sigma : float
+        Residual standard deviation from regression model (σ)
+
+    Returns
+    -------
+    np.ndarray
+        Prediction variances (model uncertainty + residual noise)
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> # First calculate model variances
+    >>> x_vals = np.array([1000, 1010, 1020])
+    >>> model_vars = calculate_model_variance(
+    ...     x_vals, x_mean=1005, sigma=25, n_pretest=30,
+    ...     sum_x_squared_deviations=15000
+    ... )
+    >>> # Then calculate prediction variances
+    >>> pred_vars = calculate_prediction_variance(model_vars, sigma=25)
+    >>> print(f"Prediction uncertainties: {pred_vars}")
+    """
+    # Add residual variance: V[y*] = σ² + V[ŷ*]
+    prediction_variances = sigma**2 + model_variances
+
+    return prediction_variances
 
 
 def calculate_variances(

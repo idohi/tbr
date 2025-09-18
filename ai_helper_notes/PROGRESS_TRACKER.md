@@ -7,12 +7,12 @@
 **How to check progress:**
 - Count ✅ completed tasks in each phase
 - Phase 1: 8/15 tasks completed
-- Phase 2: 8/12 tasks completed
+- Phase 2: 9/12 tasks completed
 - Phase 3: _/12 tasks completed
 - Phase 4: _/12 tasks completed
 - Phase 5: _/12 tasks completed
 - Phase 6: _/13 tasks completed
-- **TOTAL: 16/76 tasks completed**
+- **TOTAL: 17/76 tasks completed**
 
 ---
 
@@ -302,11 +302,21 @@
     - ✅ **Clean modular interface** - improved code organization while preserving functionality
     - ✅ **Production ready** - professional module structure ready for Phase 2 continuation
 
-- [ ] **3.2** Build variance calculation utilities (`calculate_model_variance`, `calculate_prediction_variance`)
-  - **Status**: 🔄 Not Started
-  - **Date Completed**:
-  - **Dependencies**: 3.1 (need regression module)
-  - **Notes**:
+- [x] **3.2** Build variance calculation utilities (`calculate_model_variance`, `calculate_prediction_variance`)
+  - **Status**: ✅ Completed
+  - **Date Completed**: September 18, 2025
+  - **Dependencies**: ✅ 3.1 (regression module)
+  - **Notes**: **FULLY COMPLETED** - Professional standalone variance calculation utilities with independence from functional module:
+    - ✅ **Created `calculate_model_variance()`** - standalone model variance calculation implementing TBR formula V[ŷ*] = σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
+    - ✅ **Created `calculate_prediction_variance()`** - standalone prediction variance calculation implementing V[y*] = σ² + V[ŷ*]
+    - ✅ **Enhanced combined `calculate_variances()`** - now uses internal utilities instead of functional module imports
+    - ✅ **Reduced dependencies** - removed imports of calculate_model_variance and calculate_prediction_variance from functional module
+    - ✅ **Professional documentation** - comprehensive docstrings with mathematical formulas, parameters, examples
+    - ✅ **Updated exports** - added new utility functions to core module __init__.py and __all__ list
+    - ✅ **Comprehensive testing** - 7 new test methods (332 total tests) with 100% coverage maintained
+    - ✅ **Mathematical validation** - formula correctness, symmetry properties, edge cases tested
+    - ✅ **Backward compatibility** - existing calculate_variances function unchanged in API
+    - ✅ **Production ready** - standalone utilities ready for Task 3.3 dependencies
 
 - [ ] **3.3** Implement `core/prediction.py` wrapping counterfactual prediction functions
   - **Status**: 🔄 Not Started
