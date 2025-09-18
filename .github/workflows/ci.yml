@@ -90,7 +90,7 @@ jobs:
 
     - name: Run mathematical validation tests
       run: |
-        pytest tests/mathematical/ -v
+        pytest tests/mathematical/ -v --tb=short
 
     - name: Generate coverage reports
       if: matrix.coverage
@@ -277,7 +277,7 @@ jobs:
 
     - name: Run all tests with coverage
       run: |
-        pytest tests/ -v --cov=src/tbr --cov-report=html --cov-report=term-missing --cov-fail-under=85
+        pytest tests/ -v --cov=src/tbr --cov-report=html --cov-report=term-missing --cov-fail-under=95
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
