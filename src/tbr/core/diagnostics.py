@@ -47,8 +47,6 @@ from typing import Dict, List, TypedDict, Union
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from scipy import stats
 
 from tbr.utils.preprocessing import extract_regression_arrays, prepare_regression_arrays
 from tbr.utils.validation import validate_array_not_empty, validate_sample_size
@@ -356,6 +354,9 @@ def calculate_goodness_of_fit(
     f_statistic = mse_reg / mse_res if mse_res > 0 else 0.0
 
     # Calculate F-statistic p-value
+    # Lazy import to avoid loading scipy until needed
+    from scipy import stats
+
     f_p_value = 1 - stats.f.cdf(f_statistic, df_reg, df_res) if f_statistic > 0 else 1.0
 
     # Calculate error metrics
@@ -472,6 +473,9 @@ def check_normality(residuals: np.ndarray) -> NormalityTestResult:
     validate_array_not_empty(residuals, "residuals")
 
     # Perform Shapiro-Wilk test
+    # Lazy import to avoid loading scipy until needed
+    from scipy import stats
+
     statistic, p_value = stats.shapiro(residuals)
 
     # Determine normality at α = 0.05
@@ -536,6 +540,9 @@ def check_homoscedasticity(
 
     # Fit auxiliary regression: e² = γ₀ + γ₁x + u
     X = prepare_regression_arrays(x, add_constant=True)
+    # Lazy import to avoid loading statsmodels until needed
+    import statsmodels.api as sm
+
     aux_model = sm.OLS(residuals_squared, X).fit()
 
     # Calculate Breusch-Pagan statistic
@@ -544,6 +551,9 @@ def check_homoscedasticity(
     bp_statistic = n * r_squared_aux
 
     # Calculate p-value (chi-squared distribution with 1 df)
+    # Lazy import to avoid loading scipy until needed (reuse from earlier in function)
+    from scipy import stats
+
     p_value = 1 - stats.chi2.cdf(bp_statistic, df=1)
 
     # Determine homoscedasticity at α = 0.05

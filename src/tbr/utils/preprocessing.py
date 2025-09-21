@@ -34,7 +34,6 @@ from typing import Dict, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 
 
 def split_time_series_by_periods(
@@ -227,6 +226,9 @@ def prepare_regression_arrays(x: np.ndarray, add_constant: bool = True) -> np.nd
     >>> print(f"Original shape: {x.shape}, Prepared shape: {X.shape}")
     """
     if add_constant:
+        # Lazy import to avoid loading statsmodels until needed
+        import statsmodels.api as sm
+
         # Prepare data for statsmodels (add constant for intercept)
         X = sm.add_constant(x)
         return X
