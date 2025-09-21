@@ -49,6 +49,7 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "validate_model_assumptions",
         ],
         "effects": [
+            "calculate_cumulative_variance",
             "create_tbr_summary",
             "create_incremental_tbr_summaries",
         ],
