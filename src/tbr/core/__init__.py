@@ -8,6 +8,7 @@ The core modules include:
 - regression: Linear regression model fitting and variance calculations
 - prediction: Counterfactual predictions and uncertainty quantification
 - diagnostics: Model diagnostics and assumption testing
+- effects: Treatment effects, lift calculation, and summary statistics
 
 This module uses lazy loading (SPEC-1) to optimize memory usage and import times.
 Heavy scientific modules (scipy, statsmodels) are only loaded when their
@@ -46,6 +47,10 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "check_independence",
             "create_diagnostic_summary",
             "validate_model_assumptions",
+        ],
+        "effects": [
+            "create_tbr_summary",
+            "create_incremental_tbr_summaries",
         ],
     },
 )
