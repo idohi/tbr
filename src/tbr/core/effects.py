@@ -22,6 +22,7 @@ import pandas as pd
 # Export list for clean imports
 __all__ = [
     "calculate_cumulative_standard_deviation",
+    "calculate_cumulative_variance",
     "compute_interval_estimate_and_ci",
     "create_tbr_summary",
     "create_incremental_tbr_summaries",
@@ -82,6 +83,103 @@ def calculate_cumulative_standard_deviation(
         var_beta=var_beta,
         cov_alpha_beta=cov_alpha_beta,
     )
+
+
+def calculate_cumulative_variance(
+    test_x_values: np.ndarray,
+    sigma: float,
+    var_alpha: float,
+    var_beta: float,
+    cov_alpha_beta: float,
+) -> np.ndarray:
+    """
+    Calculate variance of cumulative causal effect for TBR test period.
+
+    This function implements the TBR formula for cumulative effect variance directly,
+    providing the mathematical foundation for statistical inference and credible intervals.
+    The variance quantifies uncertainty in cumulative treatment effects as they
+    accumulate over time during the test period.
+
+    Mathematical Formula
+    --------------------
+    V[Δr(T)] = T · σ² + T² · v
+    where:
+    - T = time point (1, 2, 3, ..., n)
+    - σ² = residual variance from regression model
+    - v = Var(α̂) + 2·x̄_T·Cov(α̂,β̂) + x̄_T²·Var(β̂)
+    - x̄_T = cumulative mean of control values up to time T
+
+    This formula captures both:
+    1. Residual uncertainty (T · σ²) - grows linearly with time
+    2. Model parameter uncertainty (T² · v) - grows quadratically with time
+
+    Parameters
+    ----------
+    test_x_values : np.ndarray
+        Control values during test period
+    sigma : float
+        Residual standard deviation from the model prediction over the learning set (σ)
+    var_alpha : float
+        Variance of intercept estimate (α)
+    var_beta : float
+        Variance of slope estimate (β)
+    cov_alpha_beta : float
+        Covariance between intercept and slope estimates
+
+    Returns
+    -------
+    np.ndarray
+        Cumulative variances for each time point in test period
+
+    Notes
+    -----
+    This function provides the variance directly, which is more efficient than
+    computing standard deviation and squaring when variance is the desired output.
+    For standard deviation, use calculate_cumulative_standard_deviation().
+
+    The relationship between this function and calculate_cumulative_standard_deviation()
+    is: variance = standard_deviation²
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from tbr.core.effects import calculate_cumulative_variance
+    >>> x_vals = np.array([1000, 1020, 1010, 1030])
+    >>> cum_var = calculate_cumulative_variance(
+    ...     x_vals, sigma=25, var_alpha=100, var_beta=0.001,
+    ...     cov_alpha_beta=-0.05
+    ... )
+    >>> print(f"Cumulative variances: {cum_var}")
+
+    References
+    ----------
+    .. [1] Time-Based Regression methodology for causal inference
+    .. [2] Statistical inference for cumulative treatment effects
+    """
+    # Input validation following scientific Python standards
+    if len(test_x_values) == 0:
+        raise ValueError("test_x_values cannot be empty")
+
+    n = len(test_x_values)
+    T_values = np.arange(1, n + 1)  # [1, 2, 3, ..., n]
+
+    # Calculate cumulative means efficiently using vectorized operations
+    cumsum_x = np.cumsum(test_x_values)
+    x_mean_cumulative = cumsum_x / T_values
+
+    # Vectorized calculation of v for all time points
+    # v = Var(α̂) + 2·x̄_T·Cov(α̂,β̂) + x̄_T²·Var(β̂)
+    v_values = (
+        var_alpha
+        + 2 * x_mean_cumulative * cov_alpha_beta
+        + (x_mean_cumulative**2) * var_beta
+    )
+
+    # Direct calculation of cumulative variance using TBR formula
+    # V[Δr(T)] = T · σ² + T² · v
+    cum_variance = T_values * (sigma**2) + (T_values**2) * v_values
+
+    return cum_variance
 
 
 def compute_interval_estimate_and_ci(
