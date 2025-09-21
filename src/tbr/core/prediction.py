@@ -47,17 +47,6 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-# Import the proven functional implementations
-from tbr.functional.tbr_functions import (
-    calculate_cumulative_standard_deviation as _calculate_cumulative_standard_deviation,
-)
-from tbr.functional.tbr_functions import (
-    compute_interval_estimate_and_ci as _compute_interval_estimate_and_ci,
-)
-from tbr.functional.tbr_functions import (
-    generate_counterfactual_predictions as _generate_counterfactual_predictions,
-)
-
 # Export list for clean imports
 __all__ = [
     "generate_counterfactual_predictions",
@@ -131,6 +120,11 @@ def generate_counterfactual_predictions(
     Implements: ŷ* = α + β * x* with prediction variance V[y*] = σ² + V[ŷ*]
     where V[ŷ*] = σ² * (1/n + (x* - x̄)²/Σ(xi - x̄)²)
     """
+    # Lazy import - only load when function is called
+    from tbr.functional.tbr_functions import (
+        generate_counterfactual_predictions as _generate_counterfactual_predictions,
+    )
+
     return _generate_counterfactual_predictions(
         alpha=alpha,
         beta=beta,
@@ -192,6 +186,11 @@ def calculate_cumulative_standard_deviation(
     Implements: V[Δr(T)] = T · σ² + T² · v
     where v = Var(α̂) + 2·x̄_T·Cov(α̂,β̂) + x̄_T²·Var(β̂)
     """
+    # Lazy import - only load when function is called
+    from tbr.functional.tbr_functions import (
+        calculate_cumulative_standard_deviation as _calculate_cumulative_standard_deviation,
+    )
+
     return _calculate_cumulative_standard_deviation(
         test_x_values=test_x_values,
         sigma=sigma,
@@ -254,6 +253,11 @@ def compute_interval_estimate_and_ci(
     Uses t-distribution for credible intervals with degrees of freedom from the
     regression model. Posterior variance combines model uncertainty and residual noise.
     """
+    # Lazy import - only load when function is called
+    from tbr.functional.tbr_functions import (
+        compute_interval_estimate_and_ci as _compute_interval_estimate_and_ci,
+    )
+
     return _compute_interval_estimate_and_ci(
         tbr_df=tbr_df,
         tbr_summary=tbr_summary,

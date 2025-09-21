@@ -51,15 +51,18 @@ __version__ = "0.1.0a1"
 __author__ = "Ido Hirsh"
 __license__ = "Apache-2.0"
 
-# Import main functionality for easy access
-from .functional import perform_tbr_analysis
-from .utils import CONTROL_VAL, TEST_VAL
+# Lazy imports for optimal memory usage following SPEC-1 standards
+import lazy_loader as lazy
 
-__all__ = [
-    "perform_tbr_analysis",
-    "CONTROL_VAL",
-    "TEST_VAL",
-    "__version__",
-    "__author__",
-    "__license__",
-]
+# SPEC-1 Lazy Loading Implementation for main package
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submodules=["functional", "utils"],
+    submod_attrs={
+        "functional": ["perform_tbr_analysis"],
+        "utils": ["CONTROL_VAL", "TEST_VAL"],
+    },
+)
+
+# Add package metadata to __all__
+__all__ = __all__ + ["__version__", "__author__", "__license__"]
