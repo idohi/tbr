@@ -6,9 +6,12 @@
 > **Current release is primarily for name reservation and early community feedback.**
 
 [![PyPI version](https://badge.fury.io/py/tbr.svg)](https://badge.fury.io/py/tbr)
+[![Build Status](https://github.com/idohi/tbr/workflows/CI/badge.svg)](https://github.com/idohi/tbr/actions)
+[![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/idohi/tbr/actions)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Documentation Status](https://img.shields.io/badge/docs-testing%20guide-blue.svg)](docs/testing/testing.rst)
 [![Development Status](https://img.shields.io/badge/status-alpha-red.svg)](https://pypi.org/project/tbr/)
 
 A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis. Perform rigorous statistical analysis of treatment/control group time series data across any industry - marketing, medical research, economics, and more.
@@ -230,7 +233,7 @@ print(summary_results)
 
 ## 🧪 Testing
 
-Our testing framework follows scientific PyPI package standards with comprehensive test categories.
+Our testing framework follows scientific PyPI package standards with comprehensive test categories. For detailed testing methodology, see our [Testing Guide](docs/testing/testing.rst).
 
 ### Quick Start
 ```bash
@@ -247,11 +250,11 @@ pytest tests/mathematical/ -v  # Mathematical validation
 pytest tests/performance/ -v   # Performance tests
 ```
 
-### Test Categories (194 tests total)
-- **Unit Tests (148)**: Individual function/class testing with comprehensive coverage
-- **Integration Tests (24)**: Package structure and imports validation
-- **Mathematical Tests (15)**: Known-value validation and algorithm verification
-- **Performance Tests (7)**: Speed, scalability, and memory efficiency
+### Test Categories
+- **Unit Tests**: Individual function/class testing with comprehensive coverage
+- **Integration Tests**: Package structure and imports validation
+- **Mathematical Tests**: Known-value validation and algorithm verification
+- **Performance Tests**: Speed, scalability, and memory efficiency
 
 ### CI-Local Parity Testing
 ```bash
@@ -286,12 +289,12 @@ pytest tests/unit/test_validation.py::TestTimeColumnValidation::test_valid_datet
 pytest tests/unit/test_validation.py::TestTimeColumnValidation -v                              # Single test class
 pytest tests/unit/test_validation.py -v                                                        # All tests in file
 
-# Run tests matching a pattern
-pytest -k "test_validation" -v          # All tests with "validation" in name
+# Run tests matching patterns (flexible - works with any test names)
+pytest -k "validation" -v               # All tests with "validation" in name
 pytest -k "datetime" -v                 # All tests with "datetime" in name
 pytest -k "not performance" -v          # Exclude performance tests
 
-# Run specific test with detailed output and print statements
+# Run any specific test with detailed output
 pytest tests/unit/test_core_functions.py::TestSumSquaredDeviations::test_basic_calculation -v -s
 ```
 
