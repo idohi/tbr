@@ -6,8 +6,14 @@ full compatibility with the functional implementation.
 
 The core modules include:
 - regression: Linear regression model fitting and variance calculations
+- prediction: Counterfactual predictions and uncertainty quantification
 """
 
+from .prediction import (
+    calculate_cumulative_standard_deviation,
+    compute_interval_estimate_and_ci,
+    generate_counterfactual_predictions,
+)
 from .regression import (
     calculate_model_variance,
     calculate_prediction_variance,
@@ -19,6 +25,7 @@ from .regression import (
 )
 
 __all__ = [
+    # Regression functions
     "fit_regression_model",
     "calculate_model_variance",
     "calculate_prediction_variance",
@@ -26,4 +33,8 @@ __all__ = [
     "calculate_sum_squared_deviations",
     "extract_sum_squared_deviations_from_model",
     "convert_to_integer",
+    # Prediction functions
+    "generate_counterfactual_predictions",
+    "calculate_cumulative_standard_deviation",
+    "compute_interval_estimate_and_ci",
 ]
