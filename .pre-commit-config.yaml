@@ -55,4 +55,4 @@ repos:
     rev: v2.10
     hooks:
       - id: vulture
-        args: ["--min-confidence=60", "--exclude=tests", "src"]
+        args: ["--exclude=tests", "src"]

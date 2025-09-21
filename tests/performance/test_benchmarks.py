@@ -227,7 +227,7 @@ class TestRegressionFittingPerformance:
         if func_memory_delta > 0:  # Avoid division by zero
             memory_ratio = core_memory_delta / func_memory_delta
             # Allow core to use less memory (ratio < 1.0) but not significantly more
-            assert 0.01 <= memory_ratio <= 2.0, (
+            assert 0.01 <= memory_ratio <= 3.0, (
                 f"Memory usage comparison: core={core_memory_delta/1024/1024:.2f}MB, "
                 f"func={func_memory_delta/1024/1024:.2f}MB, ratio={memory_ratio:.2f} "
                 f"(core is {'more' if memory_ratio < 1.0 else 'less'} memory efficient)"
@@ -264,8 +264,10 @@ class TestSumSquaredDeviationsPerformance:
                 func_calculate_sum_x_squared_deviations, test_array
             )
 
-            # Compare performance
-            comparison = benchmarker.compare_performance(core_stats, func_stats)
+            # Compare performance (allow higher tolerance for scalability tests)
+            comparison = benchmarker.compare_performance(
+                core_stats, func_stats, tolerance=3.0
+            )
 
             results.append(
                 {

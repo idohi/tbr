@@ -7,8 +7,21 @@ full compatibility with the functional implementation.
 The core modules include:
 - regression: Linear regression model fitting and variance calculations
 - prediction: Counterfactual predictions and uncertainty quantification
+- diagnostics: Model diagnostics and assumption testing
 """
 
+from .diagnostics import (
+    calculate_goodness_of_fit,
+    calculate_information_criteria,
+    calculate_residuals,
+    calculate_standardized_residuals,
+    calculate_studentized_residuals,
+    check_homoscedasticity,
+    check_independence,
+    check_normality,
+    create_diagnostic_summary,
+    validate_model_assumptions,
+)
 from .prediction import (
     calculate_cumulative_standard_deviation,
     compute_interval_estimate_and_ci,
@@ -37,4 +50,15 @@ __all__ = [
     "generate_counterfactual_predictions",
     "calculate_cumulative_standard_deviation",
     "compute_interval_estimate_and_ci",
+    # Diagnostic functions
+    "calculate_residuals",
+    "calculate_standardized_residuals",
+    "calculate_studentized_residuals",
+    "calculate_goodness_of_fit",
+    "calculate_information_criteria",
+    "check_normality",
+    "check_homoscedasticity",
+    "check_independence",
+    "create_diagnostic_summary",
+    "validate_model_assumptions",
 ]

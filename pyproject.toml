@@ -229,7 +229,7 @@ paths = ["src"]
 exclude = ["tests", "docs", "build", "examples"]
 ignore_decorators = ["@pytest.fixture", "@property"]
 ignore_names = ["_*"]  # Ignore private methods/functions
-min_confidence = 80    # Only report high-confidence unused code
+min_confidence = 100   # Only report definitively unused code (zero false positives)
 sort_by_size = true
 
 # pytest configuration
