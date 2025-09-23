@@ -9,6 +9,7 @@ The core modules include:
 - prediction: Counterfactual predictions and uncertainty quantification
 - diagnostics: Model diagnostics and assumption testing
 - effects: Treatment effects, lift calculation, and summary statistics
+- inference: Statistical inference, credible intervals, and hypothesis testing
 
 This module uses lazy loading (SPEC-1) to optimize memory usage and import times.
 Heavy scientific modules (scipy, statsmodels) are only loaded when their
@@ -52,6 +53,13 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "calculate_cumulative_variance",
             "create_tbr_summary",
             "create_incremental_tbr_summaries",
+        ],
+        "inference": [
+            "calculate_t_statistic",
+            "calculate_p_value",
+            "calculate_posterior_probability",
+            "calculate_credible_interval",
+            "calculate_critical_value",
         ],
     },
 )
