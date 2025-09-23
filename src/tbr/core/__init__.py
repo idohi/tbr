@@ -10,6 +10,7 @@ The core modules include:
 - diagnostics: Model diagnostics and assumption testing
 - effects: Treatment effects, lift calculation, and summary statistics
 - inference: Statistical inference, credible intervals, and hypothesis testing
+- posterior: Advanced posterior probability analysis and threshold testing
 
 This module uses lazy loading (SPEC-1) to optimize memory usage and import times.
 Heavy scientific modules (scipy, statsmodels) are only loaded when their
@@ -60,6 +61,14 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "calculate_posterior_probability",
             "calculate_credible_interval",
             "calculate_critical_value",
+        ],
+        "posterior": [
+            "calculate_posterior_variance",
+            "perform_threshold_sensitivity_analysis",
+            "calculate_incremental_posterior_probabilities",
+            "optimize_threshold_selection",
+            "compare_posterior_probabilities",
+            "validate_posterior_assumptions",
         ],
     },
 )
