@@ -575,6 +575,15 @@ def calculate_cumulative_standard_deviation(
     # Vectorized calculation of cumulative variance
     cum_variance = T_values * (sigma**2) + (T_values**2) * v_values
 
+    # Validate mathematical constraint: variance must be non-negative
+    if np.any(cum_variance < 0):
+        raise ValueError(
+            "Negative variance detected in TBR calculation. "
+            "This occurs when the covariance term 2·x̄·Cov(α̂,β̂) is large and negative, "
+            "making the total variance negative. Check regression model conditioning "
+            "and parameter values."
+        )
+
     # Vectorized square root
     return np.sqrt(cum_variance)
 
