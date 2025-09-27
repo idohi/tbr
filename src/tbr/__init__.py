@@ -57,10 +57,11 @@ import lazy_loader as lazy
 # SPEC-1 Lazy Loading Implementation for main package
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["functional", "utils"],
+    submodules=["functional", "utils", "analysis"],
     submod_attrs={
         "functional": ["perform_tbr_analysis"],
         "utils": ["CONTROL_VAL", "TEST_VAL"],
+        "analysis": ["create_tbr_summary", "create_incremental_tbr_summaries"],
     },
 )
 
