@@ -333,6 +333,23 @@ class TestAnalyzeMultipleSubintervals:
         for result in results:
             assert result["precision"] > 0
 
+    def test_input_validation_invalid_ci_level_multiple(self, sample_data):
+        """Test input validation for invalid ci_level in analyze_multiple_subintervals."""
+        tbr_df, tbr_summary = sample_data
+        intervals = [(1, 2)]
+
+        # Test ci_level = 0 (boundary case - line 274)
+        with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
+            analyze_multiple_subintervals(tbr_df, tbr_summary, intervals, ci_level=0.0)
+
+        # Test ci_level = 1 (boundary case - line 274)
+        with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
+            analyze_multiple_subintervals(tbr_df, tbr_summary, intervals, ci_level=1.0)
+
+        # Test ci_level > 1 (line 274)
+        with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
+            analyze_multiple_subintervals(tbr_df, tbr_summary, intervals, ci_level=1.5)
+
 
 class TestCreateSubintervalSummary:
     """Test suite for create_subinterval_summary function."""
@@ -483,11 +500,18 @@ class TestValidateSubintervalParameters:
 
     def test_invalid_dataframe_types(self, valid_data):
         """Test validation with invalid DataFrame types."""
-        _, tbr_summary = valid_data
+        tbr_df, tbr_summary = valid_data
 
+        # Test invalid tbr_df type
         with pytest.raises(TypeError, match="tbr_df must be a pandas DataFrame"):
             validate_subinterval_parameters(
                 "not_a_dataframe", tbr_summary, start_day=1, end_day=3, ci_level=0.80
+            )
+
+        # Test invalid tbr_summary type (line 498)
+        with pytest.raises(TypeError, match="tbr_summary must be a pandas DataFrame"):
+            validate_subinterval_parameters(
+                tbr_df, "not_a_dataframe", start_day=1, end_day=3, ci_level=0.80
             )
 
     def test_missing_required_columns(self, valid_data):
