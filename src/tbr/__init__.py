@@ -61,7 +61,13 @@ __getattr__, __dir__, __all__ = lazy.attach(
     submod_attrs={
         "functional": ["perform_tbr_analysis"],
         "utils": ["CONTROL_VAL", "TEST_VAL"],
-        "analysis": ["create_tbr_summary", "create_incremental_tbr_summaries"],
+        "analysis": [
+            "create_tbr_summary",
+            "create_incremental_tbr_summaries",
+            "compute_interval_estimate_and_ci",
+            "analyze_multiple_subintervals",
+            "create_subinterval_summary",
+        ],
     },
 )
 
