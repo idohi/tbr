@@ -1,29 +1,24 @@
 """
 Unit tests for tbr.analysis.summary module.
 
-This module tests the analysis summary functionality including TBR summary
-creation and incremental summary generation. All tests validate mathematical
-correctness, backward compatibility with functional implementation, and
-proper error handling.
+This module tests the analysis summary functionality for TBR summary
+creation. All tests validate mathematical correctness, backward compatibility
+with functional implementation, and proper error handling.
 
 Test Categories
 ---------------
 1. TBR Summary Creation - create_tbr_summary() function
-2. Incremental Summaries - create_incremental_tbr_summaries() function
-3. Input Validation - Error handling and edge cases
-4. Mathematical Properties - Statistical correctness validation
-5. Backward Compatibility - Cross-validation with functional implementation
-6. Integration Testing - Module imports and workflow integration
+2. Input Validation - Error handling and edge cases
+3. Mathematical Properties - Statistical correctness validation
+4. Backward Compatibility - Cross-validation with functional implementation
+5. Integration Testing - Module imports and workflow integration
 """
 
 
 import pandas as pd
 import pytest
 
-from tbr.analysis.summary import create_incremental_tbr_summaries, create_tbr_summary
-from tbr.functional.tbr_functions import (
-    create_incremental_tbr_summaries as functional_create_incremental_tbr_summaries,
-)
+from tbr.analysis.summary import create_tbr_summary
 from tbr.functional.tbr_functions import (
     create_tbr_summary as functional_create_tbr_summary,
 )
@@ -288,299 +283,29 @@ class TestCreateTbrSummary:
         # With negative estimate and zero threshold, prob should be < 0.5
         assert summary_neg["prob"].iloc[0] < 0.5
 
+    def test_lazy_loading_integration(self):
+        """Test integration with lazy loading system."""
+        # Test direct import from analysis module
+        # Test import from main package
+        from tbr import create_tbr_summary as main_func
+        from tbr.analysis import create_tbr_summary as analysis_func
 
-class TestCreateIncrementalTbrSummaries:
-    """Test cases for create_incremental_tbr_summaries function."""
+        # Should be the same function
+        assert analysis_func is main_func
 
-    def test_basic_incremental_summaries(self):
-        """Test basic incremental summaries creation."""
-        # Create test TBR dataframe with multiple test days
-        tbr_data = {
-            "period": [0, 0, 0, 1, 1, 1, 1, 1],
-            "cumdif": [0, 0, 0, 5.0, 12.0, 18.0, 25.0, 30.0],
-            "cumsd": [0, 0, 0, 3.0, 5.5, 7.2, 8.8, 10.1],
-        }
-        tbr_df = pd.DataFrame(tbr_data)
+        # Test specific module import
+        from tbr.analysis.summary import create_tbr_summary as summary_func
 
-        # Create incremental summaries
-        summaries = create_incremental_tbr_summaries(
-            tbr_dataframe=tbr_df,
-            alpha=50.0,
-            beta=0.95,
-            sigma=20.0,
-            var_alpha=100.0,
-            var_beta=0.001,
-            cov_alpha_beta=-0.05,
-            degrees_freedom=40,
-            level=0.80,
-            threshold=0.0,
-        )
+        # Should be the same function
+        assert summary_func is main_func
 
-        # Validate structure
-        assert isinstance(summaries, pd.DataFrame)
-        assert len(summaries) == 5  # 5 test period rows
-
-        # Validate test_day column exists and is sequential
-        assert "test_day" in summaries.columns
-        expected_days = list(range(1, 6))
-        actual_days = summaries["test_day"].tolist()
-        assert actual_days == expected_days
-
-        # Validate estimates are increasing (cumulative effect)
-        estimates = summaries["estimate"].tolist()
-        assert all(estimates[i] <= estimates[i + 1] for i in range(len(estimates) - 1))
-
-        # Validate final summary matches last row
-        assert summaries["estimate"].iloc[-1] == 30.0
-        assert summaries["se"].iloc[-1] == 10.1
-
-    def test_incremental_mathematical_consistency(self):
-        """Test mathematical consistency of incremental summaries."""
-        # Create test data
-        tbr_data = {
-            "period": [0, 0, 1, 1, 1, 1],
-            "cumdif": [0, 0, 10.0, 25.0, 35.0, 50.0],
-            "cumsd": [0, 0, 5.0, 8.0, 10.0, 12.0],
-        }
-        tbr_df = pd.DataFrame(tbr_data)
-
-        summaries = create_incremental_tbr_summaries(
-            tbr_dataframe=tbr_df,
-            alpha=0.0,
-            beta=1.0,
-            sigma=15.0,
-            var_alpha=10.0,
-            var_beta=0.01,
-            cov_alpha_beta=0.0,
-            degrees_freedom=25,
-            level=0.95,
-            threshold=0.0,
-        )
-
-        # Test mathematical properties for each row
-        for _i, row in summaries.iterrows():
-            # Credible interval should be symmetric
-            estimate = row["estimate"]
-            lower = row["lower"]
-            upper = row["upper"]
-            precision = row["precision"]
-
-            # Interval symmetry
-            assert abs((lower + upper) / 2 - estimate) < 1e-10
-
-            # Precision relationship
-            assert abs(precision - (upper - lower) / 2) < 1e-10
-
-            # Probability bounds
-            assert 0 <= row["prob"] <= 1
-
-    def test_backward_compatibility_incremental(self):
-        """Test backward compatibility with functional implementation."""
+    def test_different_confidence_levels(self):
+        """Test summary with different confidence levels."""
         # Create test data
         tbr_data = {
             "period": [0, 0, 1, 1, 1],
-            "cumdif": [0, 0, 8.5, 17.2, 26.8],
-            "cumsd": [0, 0, 4.1, 6.9, 9.3],
-        }
-        tbr_df = pd.DataFrame(tbr_data)
-
-        params = {
-            "tbr_dataframe": tbr_df,
-            "alpha": 42.3,
-            "beta": 0.88,
-            "sigma": 18.7,
-            "var_alpha": 75.2,
-            "var_beta": 0.0012,
-            "cov_alpha_beta": -0.06,
-            "degrees_freedom": 35,
-            "level": 0.75,
-            "threshold": 5.0,
-        }
-
-        # Create summaries using both implementations
-        analysis_summaries = create_incremental_tbr_summaries(**params)
-        functional_summaries = functional_create_incremental_tbr_summaries(**params)
-
-        # Validate identical results
-        pd.testing.assert_frame_equal(
-            analysis_summaries, functional_summaries, check_dtype=True, check_exact=True
-        )
-
-    def test_incremental_input_validation(self):
-        """Test input validation for incremental summaries."""
-        # Valid parameters
-        valid_params = {
-            "alpha": 50.0,
-            "beta": 1.0,
-            "sigma": 20.0,
-            "var_alpha": 25.0,
-            "var_beta": 0.01,
-            "cov_alpha_beta": 0.0,
-            "degrees_freedom": 30,
-            "level": 0.80,
-            "threshold": 0.0,
-        }
-
-        # Test empty dataframe
-        empty_df = pd.DataFrame()
-        with pytest.raises(ValueError, match="TBR dataframe cannot be empty"):
-            create_incremental_tbr_summaries(tbr_dataframe=empty_df, **valid_params)
-
-        # Test no test period data
-        no_test_df = pd.DataFrame({"period": [0, 0], "cumdif": [0, 5], "cumsd": [0, 2]})
-        with pytest.raises(ValueError, match="No test period data found"):
-            create_incremental_tbr_summaries(tbr_dataframe=no_test_df, **valid_params)
-
-
-class TestAnalysisSummaryIntegration:
-    """Test integration and module-level functionality."""
-
-    def test_module_imports(self):
-        """Test that all functions can be imported correctly."""
-        # Test direct imports
-        # Test main package imports
-
-        # Test module-level imports
-        from tbr.analysis import (
-            create_incremental_tbr_summaries as analysis_create_incremental,
-        )
-        from tbr.analysis import create_tbr_summary as analysis_create_tbr_summary
-        from tbr.analysis.summary import (
-            create_incremental_tbr_summaries,
-            create_tbr_summary,
-        )
-
-        # Validate all imports reference the same functions
-        assert create_tbr_summary == analysis_create_tbr_summary
-        assert create_incremental_tbr_summaries == analysis_create_incremental
-
-    def test_lazy_loading_functionality(self):
-        """Test that lazy loading works correctly."""
-        # This test ensures lazy loading doesn't break functionality
-        import tbr.analysis
-
-        # Create test data
-        tbr_data = {
-            "period": [0, 1, 1],
-            "cumdif": [0, 10.0, 20.0],
-            "cumsd": [0, 5.0, 8.0],
-        }
-        tbr_df = pd.DataFrame(tbr_data)
-
-        # Test lazy-loaded function works
-        summary = tbr.analysis.create_tbr_summary(
-            tbr_dataframe=tbr_df,
-            alpha=50.0,
-            beta=1.0,
-            sigma=20.0,
-            var_alpha=25.0,
-            var_beta=0.01,
-            cov_alpha_beta=0.0,
-            degrees_freedom=30,
-            level=0.80,
-            threshold=0.0,
-        )
-
-        assert isinstance(summary, pd.DataFrame)
-        assert len(summary) == 1
-
-    def test_workflow_integration(self):
-        """Test integration with complete TBR workflow."""
-        # Create realistic test data
-        tbr_data = {
-            "period": [0, 0, 0, 1, 1, 1, 1],
-            "cumdif": [0, 0, 0, 15.2, 28.7, 42.1, 55.8],
-            "cumsd": [0, 0, 0, 6.3, 9.8, 12.5, 15.1],
-        }
-        tbr_df = pd.DataFrame(tbr_data)
-
-        # Model parameters from realistic regression
-        model_params = {
-            "alpha": 48.7,
-            "beta": 0.94,
-            "sigma": 22.3,
-            "var_alpha": 89.2,
-            "var_beta": 0.0018,
-            "cov_alpha_beta": -0.07,
-            "degrees_freedom": 42,
-            "level": 0.80,
-            "threshold": 0.0,
-        }
-
-        # Create both summary types
-        summary = create_tbr_summary(tbr_dataframe=tbr_df, **model_params)
-        incremental = create_incremental_tbr_summaries(
-            tbr_dataframe=tbr_df, **model_params
-        )
-
-        # Validate workflow consistency
-        # Final incremental summary should match overall summary
-        final_incremental = incremental.iloc[-1]
-
-        # Key statistics should match
-        assert abs(summary["estimate"].iloc[0] - final_incremental["estimate"]) < 1e-10
-        assert abs(summary["se"].iloc[0] - final_incremental["se"]) < 1e-10
-        assert abs(summary["prob"].iloc[0] - final_incremental["prob"]) < 1e-10
-
-        # Both should have same model parameters
-        assert summary["alpha"].iloc[0] == final_incremental["alpha"]
-        assert summary["beta"].iloc[0] == final_incremental["beta"]
-        assert summary["sigma"].iloc[0] == final_incremental["sigma"]
-
-
-class TestAnalysisSummaryEdgeCases:
-    """Test edge cases and boundary conditions."""
-
-    def test_single_test_day_summaries(self):
-        """Test summaries with only one test day."""
-        tbr_data = {
-            "period": [0, 0, 1],
-            "cumdif": [0, 0, 25.0],
-            "cumsd": [0, 0, 8.0],
-        }
-        tbr_df = pd.DataFrame(tbr_data)
-
-        # Test both summary types
-        summary = create_tbr_summary(
-            tbr_dataframe=tbr_df,
-            alpha=50.0,
-            beta=1.0,
-            sigma=20.0,
-            var_alpha=25.0,
-            var_beta=0.01,
-            cov_alpha_beta=0.0,
-            degrees_freedom=30,
-            level=0.80,
-            threshold=0.0,
-        )
-
-        incremental = create_incremental_tbr_summaries(
-            tbr_dataframe=tbr_df,
-            alpha=50.0,
-            beta=1.0,
-            sigma=20.0,
-            var_alpha=25.0,
-            var_beta=0.01,
-            cov_alpha_beta=0.0,
-            degrees_freedom=30,
-            level=0.80,
-            threshold=0.0,
-        )
-
-        # Should have single row for both
-        assert len(summary) == 1
-        assert len(incremental) == 1
-
-        # Should have identical results
-        assert summary["estimate"].iloc[0] == incremental["estimate"].iloc[0]
-        assert summary["se"].iloc[0] == incremental["se"].iloc[0]
-
-    def test_extreme_confidence_levels(self):
-        """Test with extreme confidence levels."""
-        tbr_data = {
-            "period": [0, 1, 1],
-            "cumdif": [0, 10.0, 20.0],
-            "cumsd": [0, 5.0, 8.0],
+            "cumdif": [0, 0, 25.0, 50.0, 75.0],
+            "cumsd": [0, 0, 8.0, 12.0, 15.0],
         }
         tbr_df = pd.DataFrame(tbr_data)
 
