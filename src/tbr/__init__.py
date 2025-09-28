@@ -67,6 +67,12 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "compute_interval_estimate_and_ci",
             "analyze_multiple_subintervals",
             "create_subinterval_summary",
+            "validate_tbr_model",
+            "diagnose_tbr_analysis",
+            "check_tbr_assumptions",
+            "analyze_tbr_residuals",
+            "assess_tbr_performance",
+            "create_tbr_diagnostic_report",
         ],
     },
 )

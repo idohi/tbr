@@ -16,7 +16,7 @@ Modules
 summary : TBR summary statistics generation
 incremental : Day-by-day incremental analysis
 subinterval : Custom time window analysis
-diagnostics : Model validation and assumption checking (future)
+diagnostics : Model validation and assumption checking
 
 Functions
 ---------
@@ -25,6 +25,12 @@ create_incremental_tbr_summaries : Create day-by-day incremental summaries
 compute_interval_estimate_and_ci : Compute subinterval effect estimate and credible interval
 analyze_multiple_subintervals : Analyze multiple time windows simultaneously
 create_subinterval_summary : Create comprehensive subinterval analysis summary
+validate_tbr_model : Comprehensive TBR model validation with assumption checking
+diagnose_tbr_analysis : End-to-end diagnostic workflow for TBR analysis
+check_tbr_assumptions : Statistical assumption validation for TBR models
+analyze_tbr_residuals : TBR-specific residual analysis and outlier detection
+assess_tbr_performance : Performance and efficiency diagnostics
+create_tbr_diagnostic_report : Comprehensive diagnostic reporting
 
 Examples
 --------
@@ -57,7 +63,7 @@ import lazy_loader as lazy
 # SPEC-1 Lazy Loading Implementation for analysis module
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["summary", "incremental", "subinterval"],
+    submodules=["summary", "incremental", "subinterval", "diagnostics"],
     submod_attrs={
         "summary": ["create_tbr_summary"],
         "incremental": ["create_incremental_tbr_summaries"],
@@ -66,6 +72,14 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "analyze_multiple_subintervals",
             "create_subinterval_summary",
             "validate_subinterval_parameters",
+        ],
+        "diagnostics": [
+            "validate_tbr_model",
+            "diagnose_tbr_analysis",
+            "check_tbr_assumptions",
+            "analyze_tbr_residuals",
+            "assess_tbr_performance",
+            "create_tbr_diagnostic_report",
         ],
     },
 )
