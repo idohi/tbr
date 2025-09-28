@@ -452,10 +452,10 @@ def diagnose_tbr_analysis(
     if include_performance:
         performance_metrics = assess_tbr_performance(tbr_df, tbr_summary)
 
-        # 4. Generate Recommendations
-        recommendations = _generate_diagnostic_recommendations(
-            model_validation, performance_metrics
-        )
+    # 4. Generate Recommendations
+    recommendations = _generate_diagnostic_recommendations(
+        model_validation, performance_metrics
+    )
 
     return {
         "model_validation": model_validation,
