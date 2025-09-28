@@ -10,6 +10,8 @@ This module tests the complete TBR analysis pipeline, including:
 These tests ensure the complete TBR methodology works correctly.
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -833,3 +835,47 @@ class TestAnalysisEdgeCases:
                 level=0.80,
                 threshold=0.0,
             )
+
+    def test_analysis_negative_variance_error(self):
+        """Test error when negative variance is detected in TBR calculation (line 580)."""
+        # Create simple test data
+        data = pd.DataFrame(
+            {
+                "date": pd.date_range("2023-01-01", periods=30),
+                "control": np.random.normal(1000, 50, 30),
+                "test": np.random.normal(1020, 55, 30),
+            }
+        )
+
+        # Mock the regression fitting to return parameters that will cause negative variance
+        # This directly targets the negative variance check in the TBR calculation
+        with patch("tbr.functional.tbr_functions.fit_tbr_regression_model") as mock_fit:
+            # Set up regression parameters that will cause negative variance
+            # Large negative covariance with large x values will make cum_variance < 0
+            mock_fit.return_value = {
+                "alpha": 50.0,
+                "beta": 0.95,
+                "sigma": 25.0,
+                "var_alpha": 100.0,
+                "var_beta": 1e-6,
+                "cov_alpha_beta": -500.0,  # Very large negative covariance
+                "degrees_freedom": 18,
+                "n_pretest": 20,
+                "x_mean": 1000.0,  # Large mean to amplify covariance effects
+            }
+
+            # This should trigger the negative variance error
+            with pytest.raises(
+                ValueError, match="Negative variance detected in TBR calculation"
+            ):
+                perform_tbr_analysis(
+                    data=data,
+                    time_col="date",
+                    control_col="control",
+                    test_col="test",
+                    pretest_start=pd.Timestamp("2023-01-01"),
+                    test_start=pd.Timestamp("2023-01-15"),
+                    test_end=pd.Timestamp("2023-01-30"),
+                    level=0.80,
+                    threshold=5000.0,  # Very large threshold to amplify covariance effects
+                )

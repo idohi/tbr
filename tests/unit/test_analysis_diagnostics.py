@@ -1115,13 +1115,11 @@ class TestComprehensiveCoverageScenarios:
 
             result = diagnose_tbr_analysis(tbr_df, tbr_summary)
 
-            # Should handle error gracefully
-            assert "diagnostic_summary" in result
-            assert "error" in result["diagnostic_summary"]
-            assert (
-                "diagnostic summary failed"
-                in result["diagnostic_summary"]["error"].lower()
-            )
+        # Should handle error gracefully
+        assert "diagnostic_summary" in result
+        assert (
+            "Diagnostic summary failed" in result["diagnostic_summary"]["warnings"][0]
+        )
 
     def test_performance_assessment_edge_cases_coverage(self):
         """Test performance assessment edge cases (lines 609-613)."""
@@ -1485,7 +1483,7 @@ class TestComprehensiveCoverageScenarios:
         }
 
         recommendations = _generate_diagnostic_recommendations(
-            model_validation_non_dict, {}, {}
+            model_validation_non_dict, {}
         )
 
         # Should still generate recommendations without crashing
@@ -1913,6 +1911,125 @@ class TestComprehensiveCoverageScenarios:
             )
             assert not any(
                 "violations" in finding.lower() for finding in report["key_findings"]
+            )
+
+    def test_100_percent_coverage_missing_lines_779_780_792_794(self):
+        """Test the remaining missing lines for 100% coverage: 779-780, 792->817, 794->800."""
+        np.random.seed(42)
+
+        tbr_df = pd.DataFrame(
+            {
+                "period": [0] * 20 + [1] * 15,
+                "y": np.random.normal(1000, 50, 35),
+                "x": np.random.normal(950, 45, 35),
+                "pred": np.random.normal(950, 45, 35),
+                "predsd": [15] * 35,
+                "dif": np.random.normal(50, 25, 35),
+                "cumdif": np.cumsum(np.random.normal(50, 25, 35)),
+                "cumsd": np.sqrt(np.arange(1, 36) * 25**2),
+                "estsd": [15] * 35,
+            }
+        )
+
+        tbr_summary = pd.DataFrame(
+            {
+                "alpha": [50.0],
+                "beta": [0.95],
+                "sigma": [25.0],
+                "var_alpha": [100.0],
+                "var_beta": [0.001],
+                "alpha_beta_cov": [-0.05],
+                "t_dist_df": [18],
+            }
+        )
+
+        # Test lines 779-780: model_validation is not a dict (else branch)
+        with patch("tbr.analysis.diagnostics.diagnose_tbr_analysis") as mock_diagnose:
+            mock_diagnose.return_value = {
+                "model_validation": "not_a_dict",  # Not a dict - should trigger lines 779-780
+                "performance_metrics": {},
+                "recommendations": [],
+            }
+
+            report = create_tbr_diagnostic_report(
+                tbr_df, tbr_summary, include_detailed_analysis=True
+            )
+
+            # Should handle non-dict model_validation gracefully
+            assert "executive_summary" in report
+            assert "key_findings" in report
+            # Should use default values: model_valid=False, warnings_count=0
+            assert "0 issue(s)" in report["executive_summary"]
+
+        # Test lines 792->817: model_validation is not a dict (negative branch for goodness of fit)
+        with patch("tbr.analysis.diagnostics.diagnose_tbr_analysis") as mock_diagnose:
+            mock_diagnose.return_value = {
+                "model_validation": [],  # Not a dict - should skip goodness of fit processing
+                "performance_metrics": {},
+                "recommendations": [],
+            }
+
+            report = create_tbr_diagnostic_report(
+                tbr_df, tbr_summary, include_detailed_analysis=True
+            )
+
+            # Should NOT include goodness of fit findings due to model_validation not being a dict
+            assert not any(
+                "variance" in finding.lower() for finding in report["key_findings"]
+            )
+            assert not any(
+                "r²" in finding.lower() for finding in report["key_findings"]
+            )
+
+        # Test lines 794->800: gof is not a dict or missing r_squared (negative branch)
+        with patch("tbr.analysis.diagnostics.diagnose_tbr_analysis") as mock_diagnose:
+            # Case 1: gof is not a dict
+            mock_diagnose.return_value = {
+                "model_validation": {
+                    "overall_validity": True,
+                    "warnings": [],
+                    "goodness_of_fit": "not_a_dict",  # Not a dict - should skip r_squared processing
+                },
+                "performance_metrics": {},
+                "recommendations": [],
+            }
+
+            report = create_tbr_diagnostic_report(
+                tbr_df, tbr_summary, include_detailed_analysis=True
+            )
+
+            # Should NOT include r_squared findings due to gof not being a dict
+            assert not any(
+                "variance" in finding.lower() for finding in report["key_findings"]
+            )
+            assert not any(
+                "r²" in finding.lower() for finding in report["key_findings"]
+            )
+
+        # Case 2: gof is a dict but missing r_squared key
+        with patch("tbr.analysis.diagnostics.diagnose_tbr_analysis") as mock_diagnose:
+            mock_diagnose.return_value = {
+                "model_validation": {
+                    "overall_validity": True,
+                    "warnings": [],
+                    "goodness_of_fit": {
+                        "f_statistic": 10.5
+                    },  # Missing r_squared - should skip processing
+                },
+                "performance_metrics": {},
+                "recommendations": [],
+            }
+
+            report = create_tbr_diagnostic_report(
+                tbr_df, tbr_summary, include_detailed_analysis=True
+            )
+
+            # Should NOT include r_squared findings due to missing r_squared key
+            assert not any(
+                "variance" in finding.lower() for finding in report["key_findings"]
+            )
+            assert not any(
+                "r²" in finding.lower() for finding in report["key_findings"]
             )
 
 
