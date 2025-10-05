@@ -291,8 +291,9 @@ class TestCorePredictionFunctionalCrossValidation:
                 alpha=alpha,
                 beta=beta,
                 sigma=sigma,
-                x_mean=x_mean,
+                pretest_x_mean=x_mean,
                 n_pretest=n_pretest,
+                pretest_sum_x_squared_deviations=2500.0,  # Add missing parameter
                 test_period_data=test_period_data,
                 control_col="control",
                 time_col="date",
@@ -303,8 +304,9 @@ class TestCorePredictionFunctionalCrossValidation:
                 alpha=alpha,
                 beta=beta,
                 sigma=sigma,
-                x_mean=x_mean,
+                pretest_x_mean=x_mean,
                 n_pretest=n_pretest,
+                pretest_sum_x_squared_deviations=2500.0,  # Add missing parameter
                 test_period_data=test_period_data,
                 control_col="control",
                 time_col="date",
@@ -457,8 +459,9 @@ class TestIntegratedWorkflowCrossValidation:
             alpha=alpha,
             beta=beta,
             sigma=sigma,
-            x_mean=x_mean,
+            pretest_x_mean=x_mean,
             n_pretest=n_pretest,
+            pretest_sum_x_squared_deviations=2500.0,  # Add missing parameter
             test_period_data=test_period_data,
             control_col="control",
             time_col="date",
@@ -468,8 +471,9 @@ class TestIntegratedWorkflowCrossValidation:
             alpha=alpha,
             beta=beta,
             sigma=sigma,
-            x_mean=x_mean,
+            pretest_x_mean=x_mean,
             n_pretest=n_pretest,
+            pretest_sum_x_squared_deviations=2500.0,  # Add missing parameter
             test_period_data=test_period_data,
             control_col="control",
             time_col="date",

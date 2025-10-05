@@ -202,7 +202,15 @@ class TestCounterfactualPredictions:
         )
 
         result = generate_counterfactual_predictions(
-            alpha, beta, sigma, x_mean, n_pretest, test_data, "control", "date"
+            alpha=alpha,
+            beta=beta,
+            sigma=sigma,
+            pretest_x_mean=x_mean,
+            n_pretest=n_pretest,
+            pretest_sum_x_squared_deviations=2500.0,  # Add missing parameter
+            test_period_data=test_data,
+            control_col="control",
+            time_col="date",
         )
 
         # Check structure
@@ -342,10 +350,12 @@ class TestMathematicalConsistency:
         x_values = np.array([10, 20, 30])
         model_vars = calculate_model_variance(
             x_values,
-            x_mean=20,
+            pretest_x_mean=20,
             sigma=5,
             n_pretest=25,
-            sum_x_squared_deviations=calculate_sum_x_squared_deviations(x_values),
+            pretest_sum_x_squared_deviations=calculate_sum_x_squared_deviations(
+                x_values
+            ),
         )
 
         pred_vars = calculate_prediction_variance(model_vars, sigma=5)

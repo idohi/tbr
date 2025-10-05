@@ -149,10 +149,10 @@ class TestCalculateModelVariance:
 
         model_vars = calculate_model_variance(
             x_values,
-            x_mean=x_mean,
+            pretest_x_mean=x_mean,
             sigma=20.0,
             n_pretest=50,
-            sum_x_squared_deviations=10000.0,
+            pretest_sum_x_squared_deviations=10000.0,
         )
 
         # Variances should be symmetric around x_mean
@@ -270,10 +270,10 @@ class TestCalculateVariances:
 
         model_vars, pred_vars = calculate_variances(
             x_values,
-            x_mean=x_mean,
+            pretest_x_mean=x_mean,
             sigma=20.0,
             n_pretest=50,
-            sum_x_squared_deviations=10000.0,
+            pretest_sum_x_squared_deviations=10000.0,
         )
 
         # Variances should be symmetric around x_mean

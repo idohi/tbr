@@ -59,8 +59,9 @@ def generate_counterfactual_predictions(
     alpha: float,
     beta: float,
     sigma: float,
-    x_mean: float,
+    pretest_x_mean: float,
     n_pretest: int,
+    pretest_sum_x_squared_deviations: float,
     test_period_data: pd.DataFrame,
     control_col: str,
     time_col: str,
@@ -82,11 +83,13 @@ def generate_counterfactual_predictions(
     beta : float
         Regression slope coefficient (β)
     sigma : float
-        Residual standard deviation from the model prediction over the learning set (σ)
-    x_mean : float
-        Mean of control values over the learning set (x̄)
+        Residual standard deviation from the model prediction over the pretest period (σ)
+    pretest_x_mean : float
+        Mean of control values from pretest period (x̄)
     n_pretest : int
-        Number of observations in learning set
+        Number of observations in pretest period
+    pretest_sum_x_squared_deviations : float
+        Sum of squared deviations from pretest period: Σ(xi - x̄)²
     test_period_data : pd.DataFrame
         Test period data containing control values and time column
     control_col : str
@@ -110,7 +113,8 @@ def generate_counterfactual_predictions(
     ...     'control': np.random.normal(1000, 50, 14)
     ... })
     >>> predictions = generate_counterfactual_predictions(
-    ...     alpha=50, beta=0.95, sigma=25, x_mean=1000, n_pretest=45,
+    ...     alpha=50, beta=0.95, sigma=25, pretest_x_mean=1000, n_pretest=45,
+    ...     pretest_sum_x_squared_deviations=2500.0,
     ...     test_period_data=test_data, control_col='control', time_col='date'
     ... )
     >>> print(f"Predictions shape: {predictions.shape}")
@@ -129,8 +133,9 @@ def generate_counterfactual_predictions(
         alpha=alpha,
         beta=beta,
         sigma=sigma,
-        x_mean=x_mean,
+        pretest_x_mean=pretest_x_mean,
         n_pretest=n_pretest,
+        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,
         test_period_data=test_period_data,
         control_col=control_col,
         time_col=time_col,
