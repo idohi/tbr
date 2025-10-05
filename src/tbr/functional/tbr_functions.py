@@ -322,10 +322,10 @@ def fit_tbr_regression_model(
 
 def calculate_model_variance(
     x_values: np.ndarray,
-    x_mean: float,
+    pretest_x_mean: float,
     sigma: float,
     n_pretest: int,
-    sum_x_squared_deviations: float,
+    pretest_sum_x_squared_deviations: float,
 ) -> np.ndarray:
     """
     Calculate model variance for fitted values using TBR formula.
@@ -339,15 +339,15 @@ def calculate_model_variance(
     Parameters
     ----------
     x_values : np.ndarray
-        Control values (predictor variable x) from the learning set
-    x_mean : float
-        Mean of control values over the learning set (x̄)
+        Control values (predictor variable x) from the test period (prediction targets)
+    pretest_x_mean : float
+        Mean of control values from pretest period (x̄)
     sigma : float
-        Residual standard deviation from the model prediction over the learning set (σ)
+        Residual standard deviation from the model prediction over the pretest period (σ)
     n_pretest : int
-        Number of observations in learning set
-    sum_x_squared_deviations : float
-        Sum of squared deviations over the learning set: Σ(xi - x̄)²
+        Number of observations in pretest period
+    pretest_sum_x_squared_deviations : float
+        Sum of squared deviations from pretest period: Σ(xi - x̄)²
 
     Returns
     -------
@@ -361,17 +361,17 @@ def calculate_model_variance(
     >>> x_vals = np.array([100, 110, 120])
     >>> sum_sq_dev = calculate_sum_x_squared_deviations(x_vals)
     >>> variances = calculate_model_variance(
-    ...     x_vals, x_mean=110, sigma=10, n_pretest=30,
-    ...     sum_x_squared_deviations=sum_sq_dev
+    ...     x_vals, pretest_x_mean=110, sigma=10, n_pretest=30,
+    ...     pretest_sum_x_squared_deviations=sum_sq_dev
     ... )
     >>> print(f"Model variances: {variances}")
     """
     # Apply TBR model variance formula (MODEL UNCERTAINTY ONLY)
     # V[ŷ*] = σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
-    x_deviations_squared = (x_values - x_mean) ** 2
+    x_deviations_squared = (x_values - pretest_x_mean) ** 2
 
     model_variances = sigma**2 * (
-        1.0 / n_pretest + x_deviations_squared / sum_x_squared_deviations
+        1.0 / n_pretest + x_deviations_squared / pretest_sum_x_squared_deviations
     )
 
     return model_variances
@@ -425,8 +425,9 @@ def generate_counterfactual_predictions(
     alpha: float,
     beta: float,
     sigma: float,
-    x_mean: float,
+    pretest_x_mean: float,
     n_pretest: int,
+    pretest_sum_x_squared_deviations: float,
     test_period_data: pd.DataFrame,
     control_col: str,
     time_col: str,
@@ -447,11 +448,14 @@ def generate_counterfactual_predictions(
     beta : float
         Regression slope coefficient (β)
     sigma : float
-        Residual standard deviation from the model prediction over the learning set (σ)
-    x_mean : float
-        Mean of control values over the learning set (x̄)
+        Residual standard deviation from the model prediction over the pretest period (σ)
+    pretest_x_mean : float
+        Mean of control values from pretest period (x̄)
     n_pretest : int
-        Number of observations in learning set
+        Number of observations in pretest period
+    pretest_sum_x_squared_deviations : float
+        Sum of squared deviations from pretest period: Σ(xi - x̄)²
+        Must be calculated from the same pretest data used to fit the regression model.
     test_period_data : pd.DataFrame
         Test period data containing control values and time column
     control_col : str
@@ -474,8 +478,12 @@ def generate_counterfactual_predictions(
     ...     'date': pd.date_range('2023-02-15', periods=14),
     ...     'control': np.random.normal(1000, 50, 14)
     ... })
+    >>> # Calculate sum_x_squared_deviations from pretest data
+    >>> pretest_control = np.random.normal(1000, 50, 45)
+    >>> sum_sq_dev = calculate_sum_x_squared_deviations(pretest_control)
     >>> predictions = generate_counterfactual_predictions(
-    ...     alpha=50, beta=0.95, sigma=25, x_mean=1000, n_pretest=45,
+    ...     alpha=50, beta=0.95, sigma=25, pretest_x_mean=1000, n_pretest=45,
+    ...     pretest_sum_x_squared_deviations=sum_sq_dev,
     ...     test_period_data=test_data, control_col='control', time_col='date'
     ... )
     >>> print(f"Predictions shape: {predictions.shape}")
@@ -486,14 +494,12 @@ def generate_counterfactual_predictions(
     # Calculate counterfactual predictions: ŷ* = α + β * x*
     predictions = alpha + beta * X_test
 
-    # Calculate model variances using direct calculation
-    sum_x_squared_deviations = calculate_sum_x_squared_deviations(X_test)
     model_variances = calculate_model_variance(
-        x_values=X_test,
-        x_mean=x_mean,
-        sigma=sigma,
-        n_pretest=int(n_pretest),
-        sum_x_squared_deviations=sum_x_squared_deviations,
+        x_values=X_test,  # Test period values (prediction targets)
+        pretest_x_mean=pretest_x_mean,  # Pretest mean
+        sigma=sigma,  # Pretest residual std
+        n_pretest=int(n_pretest),  # Pretest sample size
+        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,  # Pretest sum sq dev
     )
 
     # Calculate prediction variances
@@ -1311,16 +1317,20 @@ def _create_tbr_dataframe(
     # Calculate fitted values for pretest
     pretest_df["pred"] = model_params["alpha"] + model_params["beta"] * pretest_df["x"]
 
-    # Calculate fitted value standard deviations for pretest
-    sum_x_squared_deviations = calculate_sum_x_squared_deviations(
-        pretest_df["x"].values
+    # Calculate pretest statistics from same data source
+    pretest_control_values = pretest_df["x"].values
+    pretest_x_mean = float(np.mean(pretest_control_values))
+    pretest_sum_x_squared_deviations = calculate_sum_x_squared_deviations(
+        pretest_control_values
     )
+
+    # Calculate fitted value standard deviations for pretest
     fitted_variances = calculate_model_variance(
-        x_values=pretest_df["x"].values,
-        x_mean=model_params["x_mean"],
+        x_values=pretest_control_values,
+        pretest_x_mean=pretest_x_mean,
         sigma=model_params["sigma"],
         n_pretest=safe_int_conversion(model_params["n_pretest"], "n_pretest"),
-        sum_x_squared_deviations=sum_x_squared_deviations,
+        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,
     )
     pretest_df["estsd"] = np.sqrt(fitted_variances)
     pretest_df["predsd"] = 0.0
@@ -1340,8 +1350,9 @@ def _create_tbr_dataframe(
         alpha=model_params["alpha"],
         beta=model_params["beta"],
         sigma=model_params["sigma"],
-        x_mean=model_params["x_mean"],
+        pretest_x_mean=pretest_x_mean,  # Use calculated value from pretest data
         n_pretest=safe_int_conversion(model_params["n_pretest"], "n_pretest"),
+        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,  # Use calculated value from pretest data
         test_period_data=test_df,
         control_col=control_col,
         time_col=time_col,
