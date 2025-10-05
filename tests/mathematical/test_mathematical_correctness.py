@@ -174,7 +174,7 @@ class TestRegressionModelValidation:
             "cov_alpha_beta",
             "degrees_freedom",
             "n_pretest",
-            "x_mean",
+            "pretest_x_mean",
         ]
         for key in required_keys:
             assert key in model_params, f"Missing required parameter: {key}"

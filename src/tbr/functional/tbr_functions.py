@@ -62,23 +62,14 @@ from typing import Dict, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from scipy import stats
 
 from tbr.utils.datetime_utils import sort_dataframe_by_time
-from tbr.utils.preprocessing import (
-    extract_regression_arrays,
-    prepare_regression_arrays,
-    split_time_series_by_periods,
-)
+from tbr.utils.preprocessing import split_time_series_by_periods
 from tbr.utils.validation import (
-    validate_array_not_empty,
-    validate_learning_set,
     validate_metric_columns,
     validate_no_nulls,
     validate_period_data,
     validate_required_columns,
-    validate_sample_size,
     validate_time_boundaries_type,
     validate_time_column_type,
     validate_time_periods,
@@ -105,8 +96,9 @@ def calculate_sum_x_squared_deviations(x: np.ndarray) -> float:
     """
     Calculate sum of squared deviations from the mean.
 
-    Computes Σ(xi - x̄)² where x̄ is the sample mean. Uses the mathematical
-    definition for maximum numerical precision.
+    This function provides a wrapper around the core mathematical implementation
+    for calculating sum of squared deviations, maintaining backward compatibility
+    while following clean architecture principles.
 
     Parameters
     ----------
@@ -125,16 +117,18 @@ def calculate_sum_x_squared_deviations(x: np.ndarray) -> float:
     >>> calculate_sum_x_squared_deviations(x)
     10.0
     """
-    x_mean = np.mean(x)
-    return float(np.sum((x - x_mean) ** 2))
+    from tbr.core.regression import calculate_sum_squared_deviations
+
+    return calculate_sum_squared_deviations(x)
 
 
 def extract_sum_x_squared_deviations(var_beta: float, sigma: float) -> float:
     """
     Extract sum of squared deviations from regression variance parameters.
 
-    Calculates Σ(xi - x̄)² using the relationship: Σ(xi - x̄)² = σ²/var_beta
-    Use this only when original data is not available.
+    This function provides a wrapper around the core mathematical implementation
+    for extracting sum of squared deviations from model parameters, maintaining
+    backward compatibility while following clean architecture principles.
 
     Parameters
     ----------
@@ -148,17 +142,18 @@ def extract_sum_x_squared_deviations(var_beta: float, sigma: float) -> float:
     float
         Sum of squared deviations: Σ(xi - x̄)²
     """
-    return sigma**2 / var_beta
+    from tbr.core.regression import extract_sum_squared_deviations_from_model
+
+    return extract_sum_squared_deviations_from_model(var_beta, sigma)
 
 
 def safe_int_conversion(value: float, param_name: str) -> int:
     """
     Safely convert float to int with validation for statistical parameters.
 
-    This function converts floating-point values that should be integers
-    (like degrees of freedom) to actual integers, with validation to catch
-    potential statistical calculation errors. Uses a 1% tolerance to handle
-    floating-point precision issues.
+    This function provides a wrapper around the core mathematical implementation
+    for safe integer conversion, maintaining backward compatibility while
+    following clean architecture principles.
 
     Parameters
     ----------
@@ -187,16 +182,9 @@ def safe_int_conversion(value: float, param_name: str) -> int:
     Traceback (most recent call last):
     ValueError: degrees_freedom should be an integer, got 43.5...
     """
-    rounded_value = round(value)
+    from tbr.core.regression import convert_to_integer
 
-    # Validate that the original was actually close to an integer
-    if abs(value - rounded_value) > 0.01:  # 1% tolerance
-        raise ValueError(
-            f"{param_name} should be an integer, got {value}. "
-            f"This indicates a potential issue with the statistical calculation."
-        )
-
-    return rounded_value
+    return convert_to_integer(value, param_name)
 
 
 def fit_tbr_regression_model(
@@ -207,11 +195,10 @@ def fit_tbr_regression_model(
     """
     Fit TBR regression model using statsmodels OLS on pretest period.
 
-    This function fits a linear regression model of the form:
-    test = α + β * control + ε
-
-    The model is trained exclusively on the pretest period to avoid
-    contamination from treatment effects.
+    This function provides a wrapper around the core regression implementation,
+    maintaining backward compatibility while following clean architecture principles.
+    The model is trained exclusively on the pretest period to avoid contamination
+    from treatment effects.
 
     Parameters
     ----------
@@ -234,7 +221,7 @@ def fit_tbr_regression_model(
         - 'cov_alpha_beta': Covariance between α and β estimates
         - 'degrees_freedom': Residual degrees of freedom
         - 'n_pretest': Number of pretest observations
-        - 'x_mean': Mean of control values (x̄)
+        - 'pretest_x_mean': Mean of control values from pretest period (x̄)
 
     Raises
     ------
@@ -253,71 +240,9 @@ def fit_tbr_regression_model(
     >>> model = fit_tbr_regression_model(learning_data, 'control', 'test')
     >>> print(f"Beta coefficient: {model['beta']:.3f}")
     """
-    # Validate learning set
-    validate_learning_set(learning_data, control_col, test_col)
+    from tbr.core.regression import fit_regression_model
 
-    # Extract x (control) and y (test) for regression
-    x, y = extract_regression_arrays(learning_data, control_col, test_col)
-    n = len(x)
-
-    # Validation of regression inputs
-    validate_array_not_empty(x, "control values")
-    validate_array_not_empty(y, "test values")
-    validate_sample_size(n, min_size=3, param_name="learning set size")
-
-    # Check for constant control values
-    if np.var(x) == 0:
-        raise ValueError(
-            "Control group values are constant in pretest period - cannot fit regression"
-        )
-
-    # Prepare data for statsmodels (add constant for intercept)
-    X = prepare_regression_arrays(x, add_constant=True)
-
-    # Fit OLS regression using statsmodels
-    model = sm.OLS(y, X).fit()
-
-    # Extract all parameters directly from statsmodels
-    alpha = model.params[0]  # Intercept
-    beta = model.params[1]  # Slope
-
-    # Extract variances from standard errors
-    var_alpha = model.bse[0] ** 2  # Variance of intercept
-    var_beta = model.bse[1] ** 2  # Variance of slope
-
-    # Extract covariance from covariance matrix
-    cov_matrix = model.cov_params()
-    cov_alpha_beta = cov_matrix[0, 1]  # Covariance between intercept and slope
-
-    # Extract other statistics
-    sigma = np.sqrt(model.scale)  # Residual standard deviation
-    degrees_freedom = int(model.df_resid)  # Degrees of freedom
-
-    # Compute additional statistics needed for TBR
-    x_mean = np.mean(x)
-
-    # Validation of computed statistics
-    if not np.isfinite([alpha, beta, sigma, var_alpha, var_beta, cov_alpha_beta]).all():
-        raise ValueError("Computed regression parameters contain invalid values")
-
-    if sigma <= 0:
-        raise ValueError(f"Invalid residual standard deviation: {sigma}")
-
-    if var_alpha <= 0 or var_beta <= 0:
-        raise ValueError("Computed coefficient variances are non-positive")
-
-    # Return all parameters as a simple dictionary
-    return {
-        "alpha": float(alpha),
-        "beta": float(beta),
-        "sigma": float(sigma),
-        "var_alpha": float(var_alpha),
-        "var_beta": float(var_beta),
-        "cov_alpha_beta": float(cov_alpha_beta),
-        "degrees_freedom": int(degrees_freedom),
-        "n_pretest": int(n),
-        "x_mean": float(x_mean),
-    }
+    return fit_regression_model(learning_data, control_col, test_col)
 
 
 def calculate_model_variance(
@@ -366,15 +291,17 @@ def calculate_model_variance(
     ... )
     >>> print(f"Model variances: {variances}")
     """
-    # Apply TBR model variance formula (MODEL UNCERTAINTY ONLY)
-    # V[ŷ*] = σ² · (1/n + (x* - x̄)²/Σ(xi - x̄)²)
-    x_deviations_squared = (x_values - pretest_x_mean) ** 2
-
-    model_variances = sigma**2 * (
-        1.0 / n_pretest + x_deviations_squared / pretest_sum_x_squared_deviations
+    from tbr.core.regression import (
+        calculate_model_variance as _calculate_model_variance,
     )
 
-    return model_variances
+    return _calculate_model_variance(
+        x_values=x_values,
+        pretest_x_mean=pretest_x_mean,
+        sigma=sigma,
+        n_pretest=n_pretest,
+        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,
+    )
 
 
 def calculate_prediction_variance(
@@ -415,10 +342,14 @@ def calculate_prediction_variance(
     >>> pred_vars = calculate_prediction_variance(model_vars, sigma=10)
     >>> print(f"Prediction variances: {pred_vars}")
     """
-    # Add residual variance: V[y*] = σ² + V[ŷ*]
-    prediction_variances = sigma**2 + model_variances
+    from tbr.core.regression import (
+        calculate_prediction_variance as _calculate_prediction_variance,
+    )
 
-    return prediction_variances
+    return _calculate_prediction_variance(
+        model_variances=model_variances,
+        sigma=sigma,
+    )
 
 
 def generate_counterfactual_predictions(
@@ -435,11 +366,10 @@ def generate_counterfactual_predictions(
     """
     Generate counterfactual predictions and prediction uncertainties for TBR test period.
 
+    This function provides a wrapper around the core prediction implementation,
+    maintaining backward compatibility while following clean architecture principles.
     Creates counterfactual predictions using the fitted regression model and calculates
-    their prediction standard deviations. These predictions represent what the test
-    group values would have been without treatment intervention.
-
-    Implements: ŷ* = α + β * x* with prediction variance V[y*] = σ² + V[ŷ*]
+    their prediction standard deviations.
 
     Parameters
     ----------
@@ -488,35 +418,21 @@ def generate_counterfactual_predictions(
     ... )
     >>> print(f"Predictions shape: {predictions.shape}")
     """
-    # Get control values for test period
-    X_test = test_period_data[control_col].values
-
-    # Calculate counterfactual predictions: ŷ* = α + β * x*
-    predictions = alpha + beta * X_test
-
-    model_variances = calculate_model_variance(
-        x_values=X_test,  # Test period values (prediction targets)
-        pretest_x_mean=pretest_x_mean,  # Pretest mean
-        sigma=sigma,  # Pretest residual std
-        n_pretest=int(n_pretest),  # Pretest sample size
-        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,  # Pretest sum sq dev
+    from tbr.core.prediction import (
+        generate_counterfactual_predictions as _generate_counterfactual_predictions,
     )
 
-    # Calculate prediction variances
-    prediction_variances = calculate_prediction_variance(
-        model_variances=model_variances,
+    return _generate_counterfactual_predictions(
+        alpha=alpha,
+        beta=beta,
         sigma=sigma,
+        pretest_x_mean=pretest_x_mean,
+        n_pretest=n_pretest,
+        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,
+        test_period_data=test_period_data,
+        control_col=control_col,
+        time_col=time_col,
     )
-
-    # Calculate prediction standard deviations
-    prediction_std_devs = np.sqrt(prediction_variances)
-
-    # Create result DataFrame
-    result_df = test_period_data[[time_col, control_col]].copy()
-    result_df["pred"] = predictions
-    result_df["predsd"] = prediction_std_devs
-
-    return result_df
 
 
 def calculate_cumulative_standard_deviation(
@@ -564,34 +480,17 @@ def calculate_cumulative_standard_deviation(
     ... )
     >>> print(f"Cumulative std devs: {cumsd}")
     """
-    n = len(test_x_values)
-    T_values = np.arange(1, n + 1)  # [1, 2, 3, ..., n]
-
-    # Calculate cumulative means efficiently using vectorized operations
-    cumsum_x = np.cumsum(test_x_values)
-    x_mean_cumulative = cumsum_x / T_values
-
-    # Vectorized calculation of v for all time points
-    v_values = (
-        var_alpha
-        + 2 * x_mean_cumulative * cov_alpha_beta
-        + (x_mean_cumulative**2) * var_beta
+    from tbr.core.prediction import (
+        calculate_cumulative_standard_deviation as _calculate_cumulative_standard_deviation,
     )
 
-    # Vectorized calculation of cumulative variance
-    cum_variance = T_values * (sigma**2) + (T_values**2) * v_values
-
-    # Validate mathematical constraint: variance must be non-negative
-    if np.any(cum_variance < 0):
-        raise ValueError(
-            "Negative variance detected in TBR calculation. "
-            "This occurs when the covariance term 2·x̄·Cov(α̂,β̂) is large and negative, "
-            "making the total variance negative. Check regression model conditioning "
-            "and parameter values."
-        )
-
-    # Vectorized square root
-    return np.sqrt(cum_variance)
+    return _calculate_cumulative_standard_deviation(
+        test_x_values=test_x_values,
+        sigma=sigma,
+        var_alpha=var_alpha,
+        var_beta=var_beta,
+        cov_alpha_beta=cov_alpha_beta,
+    )
 
 
 def compute_interval_estimate_and_ci(
@@ -639,37 +538,17 @@ def compute_interval_estimate_and_ci(
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
     """
-    # Filter for test period
-    test_df = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
+    from tbr.core.prediction import (
+        compute_interval_estimate_and_ci as _compute_interval_estimate_and_ci,
+    )
 
-    # Slice the subinterval (remember start_day is 1-indexed)
-    interval_df = test_df.iloc[start_day - 1 : end_day]
-
-    # Estimate of cumulative effect (sum of differences)
-    estimate = (interval_df["y"] - interval_df["pred"]).sum()
-
-    # Posterior variance = sum of estsd^2 + n * sigma^2
-    sum_estsd_sq = np.sum(interval_df["estsd"] ** 2)
-    n_days = end_day - start_day + 1
-    sigma = float(tbr_summary.iloc[-1]["sigma"])
-    dof = int(tbr_summary.iloc[-1]["t_dist_df"])
-
-    posterior_variance = sum_estsd_sq + n_days * sigma**2
-    se = np.sqrt(posterior_variance)
-
-    # t-multiplier
-    alpha = 1 - ci_level
-    t_mult = stats.t.ppf(1 - alpha / 2, dof)
-
-    # Precision (half-width)
-    precision = t_mult * se
-
-    return {
-        "estimate": estimate,
-        "precision": precision,
-        "lower": estimate - precision,
-        "upper": estimate + precision,
-    }
+    return _compute_interval_estimate_and_ci(
+        tbr_df=tbr_df,
+        tbr_summary=tbr_summary,
+        start_day=start_day,
+        end_day=end_day,
+        ci_level=ci_level,
+    )
 
 
 def create_tbr_summary(
@@ -739,100 +618,20 @@ def create_tbr_summary(
     ... )
     >>> print(f"Effect estimate: {summary['estimate'].iloc[0]:.2f}")
     """
-    # Input validation
-    if tbr_dataframe.empty:
-        raise ValueError("TBR dataframe cannot be empty")
+    from tbr.core.effects import create_tbr_summary as _create_tbr_summary
 
-    required_cols = ["period", "cumdif", "cumsd"]
-    missing_cols = [col for col in required_cols if col not in tbr_dataframe.columns]
-    if missing_cols:
-        raise ValueError(f"Missing required columns in TBR dataframe: {missing_cols}")
-
-    if not (0 <= level <= 1):
-        raise ValueError(f"Level must be between 0 and 1, got: {level}")
-
-    if degrees_freedom <= 0:
-        raise ValueError(f"Degrees of freedom must be positive, got: {degrees_freedom}")
-
-    if sigma <= 0:
-        raise ValueError(f"Sigma must be positive, got: {sigma}")
-
-    # Extract test period data (period == 1)
-    test_period_data = tbr_dataframe[tbr_dataframe["period"] == 1].copy()
-
-    if test_period_data.empty:
-        raise ValueError("No test period data found (period == 1)")
-
-    # Calculate core summary statistics
-    # estimate: Final cumulative effect from test period
-    estimate = test_period_data["cumdif"].iloc[-1]
-
-    # se: Final cumulative standard deviation from test period
-    se = test_period_data["cumsd"].iloc[-1]
-
-    # Calculate credible interval using t-distribution
-    alpha_level = 1 - level  # Probability outside interval
-    t_critical = stats.t.ppf(1 - alpha_level / 2, df=degrees_freedom)
-
-    # Credible interval bounds
-    margin_of_error = t_critical * se
-    lower = estimate - margin_of_error
-    upper = estimate + margin_of_error
-
-    # precision: Half-width of credible interval
-    precision = margin_of_error
-
-    # prob: Posterior probability that true cumulative effect exceeds threshold
-    t_stat = (threshold - estimate) / se if se > 0 else 0
-    prob = 1 - stats.t.cdf(t_stat, df=degrees_freedom)
-
-    # Ensure probability is between 0 and 1
-    prob = max(0.0, min(1.0, prob))
-
-    # Create summary dictionary
-    summary_data = {
-        "estimate": float(estimate),
-        "precision": float(precision),
-        "lower": float(lower),
-        "upper": float(upper),
-        "se": float(se),
-        "level": float(level),
-        "thres": float(threshold),
-        "prob": float(prob),
-        "alpha": float(alpha),
-        "beta": float(beta),
-        "alpha_beta_cov": float(cov_alpha_beta),
-        "var_alpha": float(var_alpha),
-        "var_beta": float(var_beta),
-        "sigma": float(sigma),
-        "t_dist_df": float(degrees_freedom),
-    }
-
-    # Create single-row DataFrame with specified dtypes
-    summary_df = pd.DataFrame([summary_data])
-
-    # Ensure correct dtypes
-    dtype_mapping = {
-        "estimate": "float64",
-        "precision": "float64",
-        "lower": "float64",
-        "upper": "float64",
-        "se": "float64",
-        "level": "float64",
-        "thres": "float64",
-        "prob": "float64",
-        "alpha": "float64",
-        "beta": "float64",
-        "alpha_beta_cov": "float64",
-        "var_alpha": "float64",
-        "var_beta": "float64",
-        "sigma": "float64",
-        "t_dist_df": "float64",
-    }
-
-    summary_df = summary_df.astype(dtype_mapping)
-
-    return summary_df
+    return _create_tbr_summary(
+        tbr_dataframe=tbr_dataframe,
+        alpha=alpha,
+        beta=beta,
+        sigma=sigma,
+        var_alpha=var_alpha,
+        var_beta=var_beta,
+        cov_alpha_beta=cov_alpha_beta,
+        degrees_freedom=degrees_freedom,
+        level=level,
+        threshold=threshold,
+    )
 
 
 def create_incremental_tbr_summaries(
@@ -903,71 +702,22 @@ def create_incremental_tbr_summaries(
     ... )
     >>> print(f"Day 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
     """
-    # Input validation
-    if tbr_dataframe.empty:
-        raise ValueError("TBR dataframe cannot be empty")
+    from tbr.core.effects import (
+        create_incremental_tbr_summaries as _create_incremental_tbr_summaries,
+    )
 
-    required_cols = ["period", "cumdif", "cumsd"]
-    missing_cols = [col for col in required_cols if col not in tbr_dataframe.columns]
-    if missing_cols:
-        raise ValueError(f"Missing required columns in TBR dataframe: {missing_cols}")
-
-    if not (0 <= level <= 1):
-        raise ValueError(f"Level must be between 0 and 1, got: {level}")
-
-    if degrees_freedom <= 0:
-        raise ValueError(f"Degrees of freedom must be positive, got: {degrees_freedom}")
-
-    if sigma <= 0:
-        raise ValueError(f"Sigma must be positive, got: {sigma}")
-
-    # Extract test period data (period == 1)
-    test_period_data = tbr_dataframe[tbr_dataframe["period"] == 1].copy()
-
-    if test_period_data.empty:
-        raise ValueError("No test period data found (period == 1)")
-
-    # Get pretest data for combining with incremental test periods
-    pretest_data = tbr_dataframe[tbr_dataframe["period"] == 0].copy()
-
-    num_test_days = len(test_period_data)
-    incremental_summaries = []
-
-    # Generate summary for each incremental test period
-    for day_idx in range(num_test_days):
-        # Create subset of test data up to current day (inclusive)
-        test_subset = test_period_data.iloc[: day_idx + 1].copy()
-
-        # Combine pretest data with current test subset
-        incremental_df = pd.concat([pretest_data, test_subset], ignore_index=True)
-
-        # Generate summary for this incremental period
-        summary = create_tbr_summary(
-            tbr_dataframe=incremental_df,
-            alpha=alpha,
-            beta=beta,
-            sigma=sigma,
-            var_alpha=var_alpha,
-            var_beta=var_beta,
-            cov_alpha_beta=cov_alpha_beta,
-            degrees_freedom=degrees_freedom,
-            level=level,
-            threshold=threshold,
-        )
-
-        # Add test day identifier
-        summary["test_day"] = day_idx + 1
-
-        incremental_summaries.append(summary)
-
-    # Combine all incremental summaries
-    result_df = pd.concat(incremental_summaries, ignore_index=True)
-
-    # Reorder columns to put test_day first for clarity
-    cols = ["test_day"] + [col for col in result_df.columns if col != "test_day"]
-    result_df = result_df[cols]
-
-    return result_df
+    return _create_incremental_tbr_summaries(
+        tbr_dataframe=tbr_dataframe,
+        alpha=alpha,
+        beta=beta,
+        sigma=sigma,
+        var_alpha=var_alpha,
+        var_beta=var_beta,
+        cov_alpha_beta=cov_alpha_beta,
+        degrees_freedom=degrees_freedom,
+        level=level,
+        threshold=threshold,
+    )
 
 
 def perform_tbr_analysis(

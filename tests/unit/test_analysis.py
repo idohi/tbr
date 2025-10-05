@@ -861,7 +861,7 @@ class TestAnalysisEdgeCases:
                 "cov_alpha_beta": -500.0,  # Very large negative covariance
                 "degrees_freedom": 18,
                 "n_pretest": 20,
-                "x_mean": 1000.0,  # Large mean to amplify covariance effects
+                "pretest_x_mean": 1000.0,  # Large mean to amplify covariance effects
             }
 
             # This should trigger the negative variance error
