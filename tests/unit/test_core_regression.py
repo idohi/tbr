@@ -51,7 +51,7 @@ class TestFitRegressionModel:
             "cov_alpha_beta",
             "degrees_freedom",
             "n_pretest",
-            "x_mean",
+            "pretest_x_mean",
         ]
         for key in required_keys:
             assert key in params, f"Missing parameter: {key}"
@@ -108,7 +108,7 @@ class TestFitRegressionModel:
 
         # X mean should match actual mean
         expected_x_mean = np.mean(control_vals)
-        assert abs(params["x_mean"] - expected_x_mean) < 1e-10
+        assert abs(params["pretest_x_mean"] - expected_x_mean) < 1e-10
 
 
 class TestCalculateModelVariance:
@@ -449,7 +449,7 @@ class TestCoreRegressionIntegration:
         test_x_values = np.array([950, 1000, 1050])
         model_vars, pred_vars = calculate_variances(
             test_x_values,
-            params["x_mean"],
+            params["pretest_x_mean"],
             params["sigma"],
             params["n_pretest"],
             sum_sq_dev_direct,

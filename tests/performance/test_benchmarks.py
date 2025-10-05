@@ -627,7 +627,7 @@ class TestEndToEndPerformanceBenchmarks:
             test_x = np.array([950, 1000, 1050, 1100])
             model_vars, pred_vars = calculate_variances(
                 test_x,
-                params["x_mean"],
+                params["pretest_x_mean"],
                 params["sigma"],
                 params["n_pretest"],
                 sum_sq_dev,
@@ -650,7 +650,7 @@ class TestEndToEndPerformanceBenchmarks:
             test_x = np.array([950, 1000, 1050, 1100])
             model_vars = func_calculate_model_variance(
                 test_x,
-                params["x_mean"],
+                params["pretest_x_mean"],
                 params["sigma"],
                 params["n_pretest"],
                 sum_sq_dev,

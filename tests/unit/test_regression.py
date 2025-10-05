@@ -35,7 +35,7 @@ class TestRegressionModelFitting:
             "cov_alpha_beta",
             "degrees_freedom",
             "n_pretest",
-            "x_mean",
+            "pretest_x_mean",
         ]
         assert all(key in result for key in required_keys)
 
@@ -312,7 +312,7 @@ class TestRegressionEdgeCases:
         # Should correctly estimate intercept and slope
         assert result["beta"] == pytest.approx(2.0, abs=1e-10)
         assert result["alpha"] == pytest.approx(5.0, abs=1e-10)
-        assert result["x_mean"] == pytest.approx(0.0, abs=1e-10)
+        assert result["pretest_x_mean"] == pytest.approx(0.0, abs=1e-10)
 
     def test_noisy_data(self):
         """Test regression with noisy data."""
@@ -414,8 +414,8 @@ class TestRegressionStatisticalProperties:
         result = fit_tbr_regression_model(learning_data, "control", "test")
 
         expected_mean = np.mean(control_values)
-        assert result["x_mean"] == pytest.approx(expected_mean, rel=1e-10)
-        assert result["x_mean"] == 25.0  # Known result
+        assert result["pretest_x_mean"] == pytest.approx(expected_mean, rel=1e-10)
+        assert result["pretest_x_mean"] == 25.0  # Known result
 
 
 class TestRegressionDefensiveProgramming:

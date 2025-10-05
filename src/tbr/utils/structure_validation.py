@@ -22,7 +22,7 @@ Examples
 ...     'cov_alpha_beta': -0.05,
 ...     'degrees_freedom': 43,
 ...     'n_pretest': 45,
-...     'x_mean': 1000.0
+        ...     'pretest_x_mean': 1000.0
 ... }
 >>> validate_model_parameters_dict(params)  # No error if valid
 """
@@ -68,7 +68,7 @@ def validate_model_parameters_dict(
     ...     'cov_alpha_beta': -0.05,
     ...     'degrees_freedom': 43,
     ...     'n_pretest': 45,
-    ...     'x_mean': 1000.0
+        ...     'pretest_x_mean': 1000.0
     ... }
     >>> validate_model_parameters_dict(params)  # No error
 
@@ -91,7 +91,7 @@ def validate_model_parameters_dict(
             "cov_alpha_beta",
             "degrees_freedom",
             "n_pretest",
-            "x_mean",
+            "pretest_x_mean",
         ]
 
     # Check for missing keys

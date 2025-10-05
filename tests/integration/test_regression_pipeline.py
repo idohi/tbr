@@ -60,7 +60,7 @@ class TestRegressionPipelineIntegration:
         test_x_values = np.array([950, 1000, 1050, 1100])
         core_model_vars, core_pred_vars = calculate_variances(
             test_x_values,
-            core_params["x_mean"],
+            core_params["pretest_x_mean"],
             core_params["sigma"],
             core_params["n_pretest"],
             core_sum_sq_dev,
@@ -68,7 +68,7 @@ class TestRegressionPipelineIntegration:
 
         func_model_vars = func_calculate_model_variance(
             test_x_values,
-            func_params["x_mean"],
+            func_params["pretest_x_mean"],
             func_params["sigma"],
             func_params["n_pretest"],
             func_sum_sq_dev,

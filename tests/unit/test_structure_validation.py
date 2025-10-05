@@ -32,7 +32,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         # Should not raise any error
@@ -72,7 +72,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(TypeError, match="Parameter 'alpha' must be numeric"):
@@ -89,7 +89,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(ValueError, match="Parameter 'alpha' must be finite"):
@@ -106,7 +106,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(ValueError, match="Parameter 'alpha' must be finite"):
@@ -123,7 +123,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(ValueError, match="Parameter 'sigma' must be positive"):
@@ -140,7 +140,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(ValueError, match="Parameter 'var_alpha' must be positive"):
@@ -157,7 +157,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 0,  # Must be positive
             "n_pretest": 45,
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(
@@ -176,7 +176,7 @@ class TestModelParametersValidation:
             "cov_alpha_beta": -0.05,
             "degrees_freedom": 43,
             "n_pretest": 2,  # Must be >= 3
-            "x_mean": 1000.0,
+            "pretest_x_mean": 1000.0,
         }
 
         with pytest.raises(
@@ -508,7 +508,7 @@ class TestStructureValidationIntegration:
             "cov_alpha_beta": -0.045,
             "degrees_freedom": 42,
             "n_pretest": 44,
-            "x_mean": 1005.2,
+            "pretest_x_mean": 1005.2,
         }
 
         # Should validate successfully

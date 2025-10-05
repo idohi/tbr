@@ -303,20 +303,102 @@ def create_tbr_summary(
     ... )
     >>> print(f"Effect estimate: {summary['estimate'].iloc[0]:.2f}")
     """
-    from tbr.functional.tbr_functions import create_tbr_summary as _create_tbr_summary
+    from scipy import stats
 
-    return _create_tbr_summary(
-        tbr_dataframe=tbr_dataframe,
-        alpha=alpha,
-        beta=beta,
-        sigma=sigma,
-        var_alpha=var_alpha,
-        var_beta=var_beta,
-        cov_alpha_beta=cov_alpha_beta,
-        degrees_freedom=degrees_freedom,
-        level=level,
-        threshold=threshold,
-    )
+    # Input validation
+    if tbr_dataframe.empty:
+        raise ValueError("TBR dataframe cannot be empty")
+
+    required_cols = ["period", "cumdif", "cumsd"]
+    missing_cols = [col for col in required_cols if col not in tbr_dataframe.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in TBR dataframe: {missing_cols}")
+
+    if not (0 <= level <= 1):
+        raise ValueError(f"Level must be between 0 and 1, got: {level}")
+
+    if degrees_freedom <= 0:
+        raise ValueError(f"Degrees of freedom must be positive, got: {degrees_freedom}")
+
+    if sigma <= 0:
+        raise ValueError(f"Sigma must be positive, got: {sigma}")
+
+    # Extract test period data (period == 1)
+    test_period_data = tbr_dataframe[tbr_dataframe["period"] == 1].copy()
+
+    if test_period_data.empty:
+        raise ValueError("No test period data found (period == 1)")
+
+    # Calculate core summary statistics
+    # estimate: Final cumulative effect from test period
+    estimate = test_period_data["cumdif"].iloc[-1]
+
+    # se: Final cumulative standard deviation from test period
+    se = test_period_data["cumsd"].iloc[-1]
+
+    # Calculate credible interval using t-distribution
+    alpha_level = 1 - level  # Probability outside interval
+    t_critical = stats.t.ppf(1 - alpha_level / 2, df=degrees_freedom)
+
+    # Credible interval bounds
+    margin_of_error = t_critical * se
+    lower = estimate - margin_of_error
+    upper = estimate + margin_of_error
+
+    # precision: Half-width of credible interval
+    precision = margin_of_error
+
+    # prob: Posterior probability that true cumulative effect exceeds threshold
+    t_stat = (threshold - estimate) / se if se > 0 else 0
+    prob = 1 - stats.t.cdf(t_stat, df=degrees_freedom)
+
+    # Ensure probability is between 0 and 1
+    prob = max(0.0, min(1.0, prob))
+
+    # Create summary dictionary
+    summary_data = {
+        "estimate": float(estimate),
+        "precision": float(precision),
+        "lower": float(lower),
+        "upper": float(upper),
+        "se": float(se),
+        "level": float(level),
+        "thres": float(threshold),
+        "prob": float(prob),
+        "alpha": float(alpha),
+        "beta": float(beta),
+        "alpha_beta_cov": float(cov_alpha_beta),
+        "var_alpha": float(var_alpha),
+        "var_beta": float(var_beta),
+        "sigma": float(sigma),
+        "t_dist_df": float(degrees_freedom),
+    }
+
+    # Create single-row DataFrame with specified dtypes
+    summary_df = pd.DataFrame([summary_data])
+
+    # Ensure correct dtypes
+    dtype_mapping = {
+        "estimate": "float64",
+        "precision": "float64",
+        "lower": "float64",
+        "upper": "float64",
+        "se": "float64",
+        "level": "float64",
+        "thres": "float64",
+        "prob": "float64",
+        "alpha": "float64",
+        "beta": "float64",
+        "alpha_beta_cov": "float64",
+        "var_alpha": "float64",
+        "var_beta": "float64",
+        "sigma": "float64",
+        "t_dist_df": "float64",
+    }
+
+    summary_df = summary_df.astype(dtype_mapping)
+
+    return summary_df
 
 
 def create_incremental_tbr_summaries(
@@ -383,19 +465,68 @@ def create_incremental_tbr_summaries(
     ... )
     >>> print(f"Day 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
     """
-    from tbr.functional.tbr_functions import (
-        create_incremental_tbr_summaries as _create_incremental_tbr_summaries,
-    )
+    # Input validation
+    if tbr_dataframe.empty:
+        raise ValueError("TBR dataframe cannot be empty")
 
-    return _create_incremental_tbr_summaries(
-        tbr_dataframe=tbr_dataframe,
-        alpha=alpha,
-        beta=beta,
-        sigma=sigma,
-        var_alpha=var_alpha,
-        var_beta=var_beta,
-        cov_alpha_beta=cov_alpha_beta,
-        degrees_freedom=degrees_freedom,
-        level=level,
-        threshold=threshold,
-    )
+    required_cols = ["period", "cumdif", "cumsd"]
+    missing_cols = [col for col in required_cols if col not in tbr_dataframe.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in TBR dataframe: {missing_cols}")
+
+    if not (0 <= level <= 1):
+        raise ValueError(f"Level must be between 0 and 1, got: {level}")
+
+    if degrees_freedom <= 0:
+        raise ValueError(f"Degrees of freedom must be positive, got: {degrees_freedom}")
+
+    if sigma <= 0:
+        raise ValueError(f"Sigma must be positive, got: {sigma}")
+
+    # Extract test period data (period == 1)
+    test_period_data = tbr_dataframe[tbr_dataframe["period"] == 1].copy()
+
+    if test_period_data.empty:
+        raise ValueError("No test period data found (period == 1)")
+
+    # Get pretest data for combining with incremental test periods
+    pretest_data = tbr_dataframe[tbr_dataframe["period"] == 0].copy()
+
+    num_test_days = len(test_period_data)
+    incremental_summaries = []
+
+    # Generate summary for each incremental test period
+    for day_idx in range(num_test_days):
+        # Create subset of test data up to current day (inclusive)
+        test_subset = test_period_data.iloc[: day_idx + 1].copy()
+
+        # Combine pretest data with current test subset
+        incremental_df = pd.concat([pretest_data, test_subset], ignore_index=True)
+
+        # Generate summary for this incremental period
+        summary = create_tbr_summary(
+            tbr_dataframe=incremental_df,
+            alpha=alpha,
+            beta=beta,
+            sigma=sigma,
+            var_alpha=var_alpha,
+            var_beta=var_beta,
+            cov_alpha_beta=cov_alpha_beta,
+            degrees_freedom=degrees_freedom,
+            level=level,
+            threshold=threshold,
+        )
+
+        # Add test day identifier
+        summary["test_day"] = day_idx + 1
+
+        incremental_summaries.append(summary)
+
+    # Combine all incremental summaries
+    result_df = pd.concat(incremental_summaries, ignore_index=True)
+
+    # Reorder columns to put test_day first for clarity
+    cols = ["test_day"] + [col for col in result_df.columns if col != "test_day"]
+    result_df = result_df[cols]
+
+    return result_df
