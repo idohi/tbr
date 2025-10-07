@@ -12,6 +12,15 @@ from .exceptions import (
     NumericalInstabilityError,
     TBRError,
 )
+from .performance import (
+    EfficiencyMetrics,
+    EfficiencyReport,
+    PerformanceMetrics,
+    PerformanceMonitor,
+    PerformanceProfiler,
+    benchmark_tbr_functions,
+    profile_tbr_workflow,
+)
 from .preprocessing import (
     assign_period_indicators,
     calculate_basic_statistics,
@@ -92,4 +101,12 @@ __all__ = [
     "validate_tbr_output_structure",
     "validate_analysis_results_tuple",
     "validate_nested_dict_structure",
+    # Performance Diagnostics
+    "PerformanceProfiler",
+    "EfficiencyMetrics",
+    "PerformanceMonitor",
+    "PerformanceMetrics",
+    "EfficiencyReport",
+    "profile_tbr_workflow",
+    "benchmark_tbr_functions",
 ]
