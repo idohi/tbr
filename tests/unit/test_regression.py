@@ -130,7 +130,7 @@ class TestRegressionParameterValidation:
         )
 
         # Mock statsmodels to return NaN parameters
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [np.nan, 1.5]  # alpha=NaN
             mock_model.bse = [0.1, 0.05]
@@ -155,7 +155,7 @@ class TestRegressionParameterValidation:
         )
 
         # Mock statsmodels to return infinite beta
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [5.0, np.inf]  # beta=inf
             mock_model.bse = [0.1, 0.05]
@@ -180,7 +180,7 @@ class TestRegressionParameterValidation:
         )
 
         # Mock statsmodels to return zero scale (sigma = 0)
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [5.0, 2.0]
             mock_model.bse = [0.1, 0.05]
@@ -204,7 +204,7 @@ class TestRegressionParameterValidation:
         )
 
         # Mock statsmodels to return zero standard error (zero variance)
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [5.0, 2.0]
             mock_model.bse = [0.0, 0.05]  # Zero std error for alpha
@@ -238,7 +238,7 @@ class TestRegressionParameterValidation:
         ]
 
         for params, bse, scale, error_pattern in invalid_scenarios:
-            with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+            with patch("tbr.core.regression.sm.OLS") as mock_ols:
                 mock_model = MagicMock()
                 mock_model.params = params
                 mock_model.bse = bse
@@ -444,7 +444,7 @@ class TestRegressionDefensiveProgramming:
             cov_ab,
             scale,
         ) in non_finite_scenarios:
-            with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+            with patch("tbr.core.regression.sm.OLS") as mock_ols:
                 mock_model = MagicMock()
                 mock_model.params = [alpha, beta]
                 mock_model.bse = [np.sqrt(var_alpha), np.sqrt(var_beta)]
@@ -474,7 +474,7 @@ class TestRegressionDefensiveProgramming:
         ]
 
         for scale, expected_sigma in invalid_sigma_scenarios:
-            with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+            with patch("tbr.core.regression.sm.OLS") as mock_ols:
                 mock_model = MagicMock()
                 mock_model.params = [20.0, 5.0]
                 mock_model.bse = [0.1, 0.05]
@@ -506,7 +506,7 @@ class TestRegressionDefensiveProgramming:
         ]
 
         for bse_alpha, bse_beta in non_positive_variance_scenarios:
-            with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+            with patch("tbr.core.regression.sm.OLS") as mock_ols:
                 mock_model = MagicMock()
                 mock_model.params = [25.0, 6.0]
                 mock_model.bse = [bse_alpha, bse_beta]
@@ -532,7 +532,7 @@ class TestRegressionDefensiveProgramming:
         )
 
         # Test scenario 1: Mock to trigger line 682 (non-finite parameters)
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [np.inf, 2.0]  # Infinite alpha
             mock_model.bse = [0.1, 0.05]
@@ -551,7 +551,7 @@ class TestRegressionDefensiveProgramming:
                 fit_tbr_regression_model(df_base, "control", "test")
 
         # Test scenario 2: Mock to trigger line 685 (sigma <= 0)
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [5.0, 2.0]
             mock_model.bse = [0.1, 0.05]
@@ -569,7 +569,7 @@ class TestRegressionDefensiveProgramming:
                 fit_tbr_regression_model(df_base, "control", "test")
 
         # Test scenario 3: Mock to trigger line 688 (non-positive variances)
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [5.0, 2.0]
             mock_model.bse = [0.0, 0.05]  # Zero std error for alpha
@@ -587,7 +587,7 @@ class TestRegressionDefensiveProgramming:
                 fit_tbr_regression_model(df_base, "control", "test")
 
         # Test scenario 4: Mock negative scale to trigger sqrt warning (line 685 alternative)
-        with patch("tbr.functional.tbr_functions.sm.OLS") as mock_ols:
+        with patch("tbr.core.regression.sm.OLS") as mock_ols:
             mock_model = MagicMock()
             mock_model.params = [5.0, 2.0]
             mock_model.bse = [0.1, 0.05]
