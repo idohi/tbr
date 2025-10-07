@@ -17,6 +17,7 @@ summary : TBR summary statistics generation
 incremental : Day-by-day incremental analysis
 subinterval : Custom time window analysis
 diagnostics : Model validation and assumption checking
+performance : Performance diagnostics and computational efficiency metrics
 
 Functions
 ---------
@@ -31,6 +32,9 @@ check_tbr_assumptions : Statistical assumption validation for TBR models
 analyze_tbr_residuals : TBR-specific residual analysis and outlier detection
 assess_tbr_performance : Performance and efficiency diagnostics
 create_tbr_diagnostic_report : Comprehensive diagnostic reporting
+TBRPerformanceAnalyzer : Specialized performance analyzer for TBR workflows
+quick_performance_check : Quick performance analysis of TBR workflows
+optimize_tbr_data_size : Find optimal data size for target performance
 
 Examples
 --------
@@ -63,7 +67,7 @@ import lazy_loader as lazy
 # SPEC-1 Lazy Loading Implementation for analysis module
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["summary", "incremental", "subinterval", "diagnostics"],
+    submodules=["summary", "incremental", "subinterval", "diagnostics", "performance"],
     submod_attrs={
         "summary": ["create_tbr_summary"],
         "incremental": ["create_incremental_tbr_summaries"],
@@ -80,6 +84,11 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "analyze_tbr_residuals",
             "assess_tbr_performance",
             "create_tbr_diagnostic_report",
+        ],
+        "performance": [
+            "TBRPerformanceAnalyzer",
+            "quick_performance_check",
+            "optimize_tbr_data_size",
         ],
     },
 )
