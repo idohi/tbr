@@ -5,6 +5,7 @@ organizing the functionality into clean, focused modules while maintaining
 full compatibility with the functional implementation.
 
 The core modules include:
+- model: Object-oriented API with TBRAnalysis class
 - regression: Linear regression model fitting and variance calculations
 - prediction: Counterfactual predictions and uncertainty quantification
 - diagnostics: Model diagnostics and assumption testing
@@ -24,6 +25,9 @@ __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
     submodules=[],  # Don't expose submodules in __all__
     submod_attrs={
+        "model": [
+            "TBRAnalysis",
+        ],
         "regression": [
             "fit_regression_model",
             "calculate_model_variance",
