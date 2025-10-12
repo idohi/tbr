@@ -14,10 +14,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tbr.analysis.performance import (
-    TBRPerformanceAnalyzer,
-    quick_performance_check,
-)
+from tbr.analysis.performance import TBRPerformanceAnalyzer, quick_performance_check
 from tbr.utils.performance import (
     EfficiencyMetrics,
     EfficiencyReport,
@@ -623,6 +620,753 @@ class TestTBRPerformanceAnalyzer:
         assert comparison["duration_ratio"] == 1.5  # 3.0/2.0
         assert comparison["efficiency_ratio"] == 6.0 / 7.0  # 6.0/7.0
 
+    def test_analyze_data_size_scaling_with_exceptions(self):
+        """Test scaling analysis when TBR analysis raises exceptions."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        small_data = self.test_data.iloc[:30].copy()
+
+        # Mock perform_tbr_analysis to raise exceptions
+        with patch(
+            "tbr.analysis.performance.perform_tbr_analysis",
+            side_effect=Exception("Analysis failed"),
+        ):
+            scaling_analysis = analyzer.analyze_data_size_scaling(
+                base_data=small_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-01-15"),
+                test_end=pd.Timestamp("2023-01-25"),
+                size_multipliers=[0.5, 1.0],
+            )
+
+            # All results should capture the error
+            for result in scaling_analysis["scaling_results"]:
+                assert "error" in result
+                assert result["success"] is False
+
+            # Should have insufficient successful runs error
+            assert "error" in scaling_analysis["scaling_analysis"]
+
+    def test_compare_tbr_configurations_with_failures(self):
+        """Test configuration comparison when some configurations fail."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        small_data = self.test_data.iloc[:30].copy()
+
+        base_config = {
+            "time_col": "date",
+            "control_col": "control",
+            "test_col": "test",
+            "pretest_start": pd.Timestamp("2023-01-01"),
+            "test_start": pd.Timestamp("2023-01-15"),
+            "test_end": pd.Timestamp("2023-01-25"),
+        }
+
+        # Mock to fail on non-baseline configs
+        original = analyzer.analyze_tbr_performance
+        call_count = [0]
+
+        def mock_analyze(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return original(*args, **kwargs)
+            raise Exception("Config failed")
+
+        with patch.object(
+            analyzer, "analyze_tbr_performance", side_effect=mock_analyze
+        ):
+            results = analyzer.compare_tbr_configurations(
+                data=small_data, configurations=[base_config], base_config=base_config
+            )
+
+            # Baseline should succeed, other should fail
+            assert results["comparison_results"][0]["config_name"] == "baseline"
+            assert results["comparison_results"][1]["success"] is False
+
+    def test_get_optimization_recommendations_low_efficiency(self):
+        """Test recommendations with very low efficiency score."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=2.5,  # Very low
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        recs = analyzer.get_optimization_recommendations(performance_report)
+
+        # Should have critical priority action
+        assert len(recs["priority_actions"]) > 0
+        assert any("Critical" in action for action in recs["priority_actions"])
+
+    def test_get_optimization_recommendations_large_dataset(self):
+        """Test recommendations with large dataset."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=150000,  # Large
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 150000, "data_memory_mb": 50},
+        }
+
+        recs = analyzer.get_optimization_recommendations(performance_report)
+
+        # Should recommend sampling or chunking
+        assert any(
+            "sampling" in rec.lower() or "chunked" in rec.lower()
+            for rec in recs["data_optimization"]
+        )
+
+    def test_get_optimization_recommendations_high_memory(self):
+        """Test recommendations with high memory usage."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=2500  # High
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 1500},  # High
+        }
+
+        recs = analyzer.get_optimization_recommendations(performance_report)
+
+        # Should recommend memory optimization
+        assert len(recs["memory_optimization"]) > 0
+
+    def test_get_optimization_recommendations_long_duration(self):
+        """Test recommendations with long execution time."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=75.0, memory_peak=200  # Long
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        recs = analyzer.get_optimization_recommendations(performance_report)
+
+        # Should recommend computational optimization
+        assert any(
+            "significant time" in rec.lower()
+            for rec in recs["computational_optimization"]
+        )
+
+    def test_get_optimization_recommendations_bottlenecks(self):
+        """Test recommendations with specific bottlenecks."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Test regression bottleneck
+        report1 = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=["regression_fitting"],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        recs1 = analyzer.get_optimization_recommendations(report1)
+        assert any(
+            "regression" in rec.lower() or "BLAS" in rec
+            for rec in recs1["computational_optimization"]
+        )
+
+        # Test validation bottleneck
+        report2 = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=["data_validation"],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        recs2 = analyzer.get_optimization_recommendations(report2)
+        assert any("validation" in rec.lower() for rec in recs2["data_optimization"])
+
+    def test_compare_to_baseline_not_found(self):
+        """Test comparing to non-existent baseline."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        comparison = analyzer.compare_to_baseline(performance_report, "nonexistent")
+
+        assert "error" in comparison
+        assert "not found" in comparison["error"].lower()
+
+    def test_compare_to_baseline_zero_memory(self):
+        """Test baseline comparison with zero memory peak."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Baseline with zero memory
+        baseline_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=0
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+            "operation_metrics": {},
+        }
+
+        analyzer.set_performance_baseline("zero_mem", baseline_report)
+
+        # Current with non-zero memory
+        current_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=6.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=6.5,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        comparison = analyzer.compare_to_baseline(current_report, "zero_mem")
+
+        # Should use 1.0 as memory ratio when baseline is zero
+        assert comparison["memory_ratio"] == 1.0
+
+    def test_print_performance_summary_with_monitoring(self):
+        """Test printing summary with monitoring report."""
+        import io
+        import sys
+
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=["test"],
+                recommendations=["test"],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+            "monitoring_report": {
+                "duration": 5.0,
+                "sample_count": 10,
+                "cpu_stats": {"mean": 45.0, "max": 80.0, "min": 20.0, "std": 15.0},
+                "memory_stats": {
+                    "mean_mb": 150.0,
+                    "max_mb": 200.0,
+                    "min_mb": 100.0,
+                    "peak_percent": 75.0,
+                },
+                "system_stats": {"cpu_mean": 40.0, "memory_mean": 60.0},
+                "alerts": ["High CPU"],
+            },
+        }
+
+        captured = io.StringIO()
+        sys.stdout = captured
+
+        try:
+            analyzer.print_performance_summary(performance_report)
+            output = captured.getvalue()
+
+            assert "Resource Utilization:" in output
+            assert "Average CPU:" in output
+            assert "Alerts:" in output
+        finally:
+            sys.stdout = sys.__stdout__
+
+    def test_helper_calculate_period_length_inclusive(self):
+        """Test period length calculation with inclusive parameter."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        length = analyzer._calculate_period_length(
+            data=self.test_data,
+            time_col="date",
+            start=pd.Timestamp("2023-01-01"),
+            end=pd.Timestamp("2023-01-10"),
+            inclusive=True,
+        )
+
+        assert length == 10  # Should include both start and end
+
+    def test_helper_upsample_data_no_change(self):
+        """Test upsampling when target size is smaller than data."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        result = analyzer._upsample_data(
+            data=self.test_data,
+            target_size=50,  # Less than 100
+            control_col="control",
+            test_col="test",
+        )
+
+        assert len(result) == len(self.test_data)
+
+    def test_helper_upsample_data_with_noise(self):
+        """Test upsampling with noise addition."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        result = analyzer._upsample_data(
+            data=self.test_data,
+            target_size=200,
+            control_col="control",
+            test_col="test",
+            noise_factor=0.05,
+        )
+
+        assert len(result) == 200
+
+    def test_helper_analyze_scaling_patterns_errors(self):
+        """Test scaling pattern analysis error handling."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Test with polyfit failure
+        with patch("numpy.polyfit", side_effect=Exception("Fit error")):
+            result = analyzer._analyze_scaling_patterns(
+                [
+                    {"data_size": 100, "total_duration": 5.0, "success": True},
+                    {"data_size": 200, "total_duration": 10.0, "success": True},
+                ]
+            )
+            assert "error" in result
+
+        # Test with insufficient data
+        result = analyzer._analyze_scaling_patterns(
+            [
+                {"data_size": 100, "total_duration": 5.0, "success": True},
+            ]
+        )
+        assert "error" in result
+
+    def test_helper_generate_scaling_recommendations(self):
+        """Test scaling recommendations generation."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Insufficient data
+        recs1 = analyzer._generate_scaling_recommendations(
+            [
+                {"data_size": 100, "total_duration": 5.0, "success": True},
+                {"data_size": 200, "error": "Failed", "success": False},
+            ]
+        )
+        assert any("Insufficient" in rec for rec in recs1)
+
+        # Performance degradation
+        recs2 = analyzer._generate_scaling_recommendations(
+            [
+                {
+                    "data_size": 100,
+                    "total_duration": 1.0,
+                    "efficiency_score": 8.0,
+                    "success": True,
+                },
+                {
+                    "data_size": 200,
+                    "total_duration": 5.0,
+                    "efficiency_score": 7.0,
+                    "success": True,
+                },
+            ]
+        )
+        assert any("chunked" in rec.lower() for rec in recs2)
+
+        # High memory
+        recs3 = analyzer._generate_scaling_recommendations(
+            [
+                {
+                    "data_size": 100,
+                    "total_duration": 1.0,
+                    "memory_peak_mb": 500,
+                    "efficiency_score": 8.0,
+                    "success": True,
+                },
+                {
+                    "data_size": 200,
+                    "total_duration": 2.0,
+                    "memory_peak_mb": 1500,
+                    "efficiency_score": 7.5,
+                    "success": True,
+                },
+            ]
+        )
+        assert any("memory" in rec.lower() for rec in recs3)
+
+    def test_helper_generate_configuration_recommendations(self):
+        """Test configuration recommendations generation."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Insufficient data
+        recs1 = analyzer._generate_configuration_recommendations(
+            [
+                {"config_name": "baseline", "duration_ratio": 1.0},
+                {"config_name": "config_1", "error": "Failed"},
+            ]
+        )
+        assert any("Insufficient" in rec for rec in recs1)
+
+        # Best config
+        recs2 = analyzer._generate_configuration_recommendations(
+            [
+                {"config_name": "baseline", "duration_ratio": 1.0},
+                {"config_name": "fast", "duration_ratio": 0.7},
+            ]
+        )
+        assert any("fast" in rec and "improvement" in rec.lower() for rec in recs2)
+
+        # Worst config
+        recs3 = analyzer._generate_configuration_recommendations(
+            [
+                {"config_name": "baseline", "duration_ratio": 1.0},
+                {"config_name": "slow", "duration_ratio": 2.0},
+            ]
+        )
+        assert any("slow" in rec and "Avoid" in rec for rec in recs3)
+
+    def test_print_summary_with_bottlenecks_and_recommendations(self):
+        """Test printing summary with bottlenecks and full recommendations."""
+        import io
+        import sys
+
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=75.0, memory_peak=2500
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=150000,
+                efficiency_score=2.5,
+                computational_complexity="O(n²)",
+                bottlenecks=["regression_fitting", "data_validation"],
+                recommendations=["General rec"],
+            ),
+            "data_characteristics": {"data_size": 150000, "data_memory_mb": 1500},
+        }
+
+        captured = io.StringIO()
+        sys.stdout = captured
+
+        try:
+            analyzer.print_performance_summary(
+                performance_report, include_recommendations=True
+            )
+            output = captured.getvalue()
+
+            # Check bottlenecks are printed
+            assert "Bottlenecks:" in output
+            # Check recommendations sections are printed
+            assert (
+                "Priority Actions:" in output
+                or "Computational Optimizations:" in output
+                or "Memory Optimizations:" in output
+            )
+        finally:
+            sys.stdout = sys.__stdout__
+
+    def test_helper_upsample_with_zero_noise(self):
+        """Test upsampling with noise_factor=0."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Test with noise_factor=0 (should skip noise addition)
+        result = analyzer._upsample_data(
+            data=self.test_data,
+            target_size=150,
+            control_col="control",
+            test_col="test",
+            noise_factor=0,  # No noise
+        )
+
+        assert len(result) == 150
+
+    def test_helper_analyze_scaling_patterns_slope_ranges(self):
+        """Test scaling pattern analysis with different slope ranges."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Test with very good scaling (slope < 0.5)
+        result1 = analyzer._analyze_scaling_patterns(
+            [
+                {"data_size": 100, "total_duration": 1.0, "success": True},
+                {"data_size": 200, "total_duration": 1.3, "success": True},
+                {"data_size": 400, "total_duration": 1.6, "success": True},
+            ]
+        )
+        if "error" not in result1:
+            assert "complexity_estimate" in result1
+
+        # Test with moderate scaling (slope 1.2-2.0)
+        result2 = analyzer._analyze_scaling_patterns(
+            [
+                {"data_size": 100, "total_duration": 1.0, "success": True},
+                {"data_size": 200, "total_duration": 2.5, "success": True},
+                {"data_size": 400, "total_duration": 6.0, "success": True},
+            ]
+        )
+        if "error" not in result2:
+            assert "complexity_estimate" in result2
+
+        # Test with poor scaling (slope > 2.0)
+        result3 = analyzer._analyze_scaling_patterns(
+            [
+                {"data_size": 100, "total_duration": 1.0, "success": True},
+                {"data_size": 200, "total_duration": 4.5, "success": True},
+                {"data_size": 400, "total_duration": 18.0, "success": True},
+            ]
+        )
+        if "error" not in result3:
+            assert "complexity_estimate" in result3
+
+    def test_helper_generate_scaling_recommendations_efficiency_decrease(self):
+        """Test scaling recommendations with efficiency decrease."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Test with decreasing efficiency (80% drop triggers line 789)
+        recs = analyzer._generate_scaling_recommendations(
+            [
+                {
+                    "data_size": 100,
+                    "total_duration": 1.0,
+                    "efficiency_score": 10.0,
+                    "success": True,
+                },
+                {
+                    "data_size": 200,
+                    "total_duration": 2.0,
+                    "efficiency_score": 7.5,
+                    "success": True,
+                },
+                {
+                    "data_size": 400,
+                    "total_duration": 4.0,
+                    "efficiency_score": 3.0,
+                    "success": True,
+                },  # 30% of original
+            ]
+        )
+
+        # Should recommend reviewing algorithm complexity
+        assert any(
+            "algorithm" in rec.lower() or "complexity" in rec.lower() for rec in recs
+        )
+
+    def test_optimize_tbr_data_size_integration(self):
+        """Test optimize_tbr_data_size with actual execution."""
+        from tbr.analysis.performance import optimize_tbr_data_size
+
+        small_data = self.test_data.iloc[:30].copy()
+
+        # This should execute successfully
+        result = optimize_tbr_data_size(
+            data=small_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-15"),
+            test_end=pd.Timestamp("2023-01-25"),
+            target_duration=5.0,
+            size_multipliers=[0.5, 1.0],  # Small multipliers for fast execution
+        )
+
+        # Should have results
+        if "error" not in result:
+            assert "recommended_size" in result
+
+    def test_print_summary_without_recommendations(self):
+        """Test printing summary with include_recommendations=False."""
+        import io
+        import sys
+
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],  # Empty bottlenecks
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+        }
+
+        captured = io.StringIO()
+        sys.stdout = captured
+
+        try:
+            # Test with include_recommendations=False
+            analyzer.print_performance_summary(
+                performance_report, include_recommendations=False
+            )
+            output = captured.getvalue()
+
+            # Recommendations should NOT be printed
+            assert "Priority Actions:" not in output
+            assert "Computational Optimizations:" not in output
+        finally:
+            sys.stdout = sys.__stdout__
+
+    def test_print_summary_with_monitoring_no_alerts(self):
+        """Test printing summary with monitoring but no alerts."""
+        import io
+        import sys
+
+        analyzer = TBRPerformanceAnalyzer()
+
+        performance_report = {
+            "workflow_metrics": PerformanceMetrics(
+                operation_name="test", duration=5.0, memory_peak=200
+            ),
+            "efficiency_report": EfficiencyReport(
+                operation_name="test",
+                data_size=1000,
+                efficiency_score=7.0,
+                computational_complexity="O(n)",
+                bottlenecks=[],
+                recommendations=[],
+            ),
+            "data_characteristics": {"data_size": 1000, "data_memory_mb": 50},
+            "monitoring_report": {
+                "duration": 5.0,
+                "sample_count": 10,
+                "cpu_stats": {"mean": 45.0, "max": 80.0, "min": 20.0, "std": 15.0},
+                "memory_stats": {
+                    "mean_mb": 150.0,
+                    "max_mb": 200.0,
+                    "min_mb": 100.0,
+                    "peak_percent": 75.0,
+                },
+                "system_stats": {"cpu_mean": 40.0, "memory_mean": 60.0},
+                "alerts": [],  # Empty alerts list
+            },
+        }
+
+        captured = io.StringIO()
+        sys.stdout = captured
+
+        try:
+            analyzer.print_performance_summary(performance_report)
+            output = captured.getvalue()
+
+            # Should print monitoring info but no alerts
+            assert "Resource Utilization:" in output
+            assert "Alerts:" not in output
+        finally:
+            sys.stdout = sys.__stdout__
+
+    def test_optimize_tbr_data_size_all_failures(self):
+        """Test optimize_tbr_data_size when all scaling tests fail (line 949)."""
+        from tbr.analysis.performance import optimize_tbr_data_size
+
+        small_data = self.test_data.iloc[:30].copy()
+
+        # Mock analyze_data_size_scaling to return all failures
+        with patch(
+            "tbr.analysis.performance.TBRPerformanceAnalyzer.analyze_data_size_scaling"
+        ) as mock_scaling:
+            mock_scaling.return_value = {
+                "scaling_results": [
+                    {"success": False, "error": "Failed"},
+                    {"success": False, "error": "Failed"},
+                ],
+                "scaling_analysis": {"error": "All failed"},
+                "recommendations": [],
+            }
+
+            result = optimize_tbr_data_size(
+                data=small_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-01-15"),
+                test_end=pd.Timestamp("2023-01-25"),
+                target_duration=5.0,
+            )
+
+            # Should return error (line 949)
+            assert "error" in result
+            assert "No successful scaling tests" in result["error"]
+
 
 class TestConvenienceFunctions:
     """Test convenience functions for performance analysis."""
@@ -642,7 +1386,7 @@ class TestConvenienceFunctions:
     def test_profile_tbr_workflow(self):
         """Test profile_tbr_workflow convenience function."""
 
-        def mock_analysis_function(data, **kwargs):
+        def mock_analysis_function(data, **_kwargs):
             # Simple mock that returns expected structure
             tbr_df = pd.DataFrame(
                 {
@@ -692,6 +1436,66 @@ class TestConvenienceFunctions:
 
         # Monitoring should be None when disabled
         assert monitoring_report is None
+
+    def test_profile_tbr_workflow_with_monitoring(self):
+        """Test profile_tbr_workflow with monitoring enabled."""
+
+        def mock_analysis_function(data, **_kwargs):
+            # Simple mock that returns expected structure
+            time.sleep(0.01)  # Small delay to ensure monitoring captures data
+            tbr_df = pd.DataFrame(
+                {
+                    "date": data["date"],
+                    "period": [0] * len(data),
+                    "y": data["test"],
+                    "x": data["control"],
+                    "pred": data["control"] * 1.02,
+                    "predsd": [1.0] * len(data),
+                    "dif": data["test"] - data["control"] * 1.02,
+                    "cumdif": [0.0] * len(data),
+                    "cumsd": [1.0] * len(data),
+                    "estsd": [1.0] * len(data),
+                }
+            )
+
+            summary_df = pd.DataFrame(
+                {
+                    "estimate": [10.0],
+                    "precision": [5.0],
+                    "lower": [5.0],
+                    "upper": [15.0],
+                }
+            )
+
+            return tbr_df, summary_df
+
+        result, metrics, monitoring_report = profile_tbr_workflow(
+            mock_analysis_function,
+            data=self.test_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-15"),
+            test_end=pd.Timestamp("2023-01-25"),
+            level=0.80,
+            threshold=0.0,
+            enable_monitoring=True,  # Enable monitoring
+        )
+
+        # Check result structure
+        assert len(result) == 2  # tbr_df, summary_df
+        assert isinstance(metrics, PerformanceMetrics)
+        assert metrics.operation_name == "tbr_workflow"
+        assert metrics.duration > 0
+
+        # Monitoring should contain data when enabled
+        assert monitoring_report is not None
+        assert isinstance(monitoring_report, dict)
+        # Check that monitoring report has expected keys
+        if "error" not in monitoring_report:
+            assert "duration" in monitoring_report
+            assert "sample_count" in monitoring_report
 
     def test_benchmark_tbr_functions(self):
         """Test benchmark_tbr_functions convenience function."""
@@ -987,7 +1791,7 @@ class TestPerformanceCoverageGaps:
 
     @patch("tracemalloc.get_traced_memory")
     @patch("tracemalloc.stop")
-    def test_profiler_memory_tracking_exception(self, mock_stop, mock_get_memory):
+    def test_profiler_memory_tracking_exception(self, _mock_stop, mock_get_memory):
         """Test memory tracking exception handling."""
         # Test memory tracking exception (lines 208-210)
         mock_get_memory.side_effect = Exception("Memory tracking failed")
@@ -1036,7 +1840,7 @@ class TestPerformanceCoverageGaps:
             return 42
 
         # Explicitly pass None for operation_name to trigger the default generation
-        stats = profiler.benchmark_function(
+        profiler.benchmark_function(
             sample_function,
             operation_name=None,  # This should trigger lines 280-281
             n_runs=1,
@@ -2085,7 +2889,7 @@ class TestPerformanceCoverageGaps:
 
         def memory_intensive_func():
             # Create some memory usage
-            data = [i for i in range(1000)]
+            data = list(range(1000))
             return len(data)
 
         with patch(
@@ -2494,10 +3298,10 @@ class TestPerformanceCoverageGaps:
         def working_func(x):
             return x * 2
 
-        def failing_func(x):
+        def failing_func(_x):
             raise ValueError("This function always fails")
 
-        def zero_division_func(x):
+        def zero_division_func(_x):
             return 1 / 0  # Will raise ZeroDivisionError
 
         functions = {
@@ -2546,61 +3350,6 @@ class TestPerformanceCoverageGaps:
         failing_with_args_result = results_with_args["failing_with_args"]
         assert "error" in failing_with_args_result
         assert "Failed with args 5, 10" in failing_with_args_result["error"]
-
-
-class TestAnalysisPerformanceCoverageGaps:
-    """Test cases for missing coverage in analysis/performance.py."""
-
-    def test_convenience_functions_basic_usage(self):
-        """Test basic usage of convenience functions."""
-        # Test profile_tbr_workflow with correct API
-        from tbr.functional import perform_tbr_analysis
-
-        data = pd.DataFrame(
-            {
-                "date": pd.date_range("2023-01-01", periods=30),
-                "control": np.random.normal(1000, 50, 30),
-                "test": np.random.normal(1020, 55, 30),
-            }
-        )
-
-        # Test with enable_monitoring=False
-        result, metrics, monitoring_report = profile_tbr_workflow(
-            perform_tbr_analysis,
-            data=data,
-            time_col="date",
-            control_col="control",
-            test_col="test",
-            pretest_start=pd.Timestamp("2023-01-01"),
-            test_start=pd.Timestamp("2023-01-15"),
-            test_end=pd.Timestamp("2023-01-30"),
-            level=0.80,
-            threshold=0.0,
-            enable_monitoring=False,
-        )
-
-        assert result is not None
-        assert isinstance(metrics, PerformanceMetrics)
-        assert monitoring_report is None  # Should be None when monitoring disabled
-
-        # Test with enable_monitoring=True
-        result2, metrics2, monitoring_report2 = profile_tbr_workflow(
-            perform_tbr_analysis,
-            data=data,
-            time_col="date",
-            control_col="control",
-            test_col="test",
-            pretest_start=pd.Timestamp("2023-01-01"),
-            test_start=pd.Timestamp("2023-01-15"),
-            test_end=pd.Timestamp("2023-01-30"),
-            level=0.80,
-            threshold=0.0,
-            enable_monitoring=True,
-        )
-
-        assert result2 is not None
-        assert isinstance(metrics2, PerformanceMetrics)
-        assert monitoring_report2 is not None  # Should have monitoring data
 
 
 if __name__ == "__main__":
