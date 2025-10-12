@@ -317,6 +317,79 @@ class TestEfficiencyMetrics:
         assert baseline["peak_memory"] == 75.0  # max of 50.0, 75.0
         assert baseline["operation_count"] == 2
 
+    def test_time_complexity_estimation_linear(self):
+        """Test time complexity estimation for O(n) linear operations."""
+        efficiency = EfficiencyMetrics()
+
+        # Create metrics with linear time complexity
+        # duration = 0.05 seconds for 1000 elements → 50 microseconds per element
+        # This should be classified as O(n) - Linear
+        operation_metrics = {
+            "linear_op": PerformanceMetrics(
+                operation_name="linear_op",
+                duration=0.05,
+                memory_peak=100.0,
+            )
+        }
+
+        report = efficiency.analyze_workflow_efficiency(
+            data_size=1000, operation_metrics=operation_metrics
+        )
+
+        assert isinstance(report, EfficiencyReport)
+        assert "Linear" in report.computational_complexity
+
+    def test_memory_efficiency_scoring_low_usage(self):
+        """Test memory efficiency scoring for low memory per element."""
+        efficiency = EfficiencyMetrics()
+
+        # Create metrics with very low memory per element (< 1KB per element)
+        # 0.5 MB for 1000 elements = 0.0005 MB per element < 0.001 MB (1KB)
+        # This should contribute memory_score of 3.0 to the efficiency_score
+        operation_metrics = {
+            "memory_efficient_op": PerformanceMetrics(
+                operation_name="memory_efficient_op",
+                duration=0.1,
+                memory_peak=0.5,
+            )
+        }
+
+        report = efficiency.analyze_workflow_efficiency(
+            data_size=1000, operation_metrics=operation_metrics
+        )
+
+        # Verify the report is created and memory_per_element < 1KB path is exercised
+        assert isinstance(report, EfficiencyReport)
+        assert report.efficiency_score >= 0
+        # With low memory usage, we should get high memory score contribution
+        assert report.efficiency_score >= 3.0  # At least memory_score of 3.0
+
+    def test_memory_efficiency_scoring_medium_usage(self):
+        """Test memory efficiency scoring for medium memory per element."""
+        efficiency = EfficiencyMetrics()
+
+        # Create metrics with medium memory per element (1-10 KB per element)
+        # 5 MB for 1000 elements = 0.005 MB per element (~5KB per element)
+        # This should contribute memory_score of 2.0 to the efficiency_score
+        operation_metrics = {
+            "medium_memory_op": PerformanceMetrics(
+                operation_name="medium_memory_op",
+                duration=0.1,
+                memory_peak=5.0,
+            )
+        }
+
+        report = efficiency.analyze_workflow_efficiency(
+            data_size=1000, operation_metrics=operation_metrics
+        )
+
+        # Verify the report is created and memory_per_element 1-10KB path is exercised
+        assert isinstance(report, EfficiencyReport)
+        assert report.efficiency_score >= 0
+        # With medium memory usage (1-10KB per element), efficiency should be lower than low usage
+        # but still get at least memory_score of 2.0
+        assert report.efficiency_score >= 2.0
+
 
 class TestPerformanceMonitor:
     """Test PerformanceMonitor class."""
@@ -1366,6 +1439,125 @@ class TestTBRPerformanceAnalyzer:
             # Should return error (line 949)
             assert "error" in result
             assert "No successful scaling tests" in result["error"]
+
+    def test_data_size_scaling_with_upsampling(self):
+        """Test data size scaling analysis with upsampling for larger datasets."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Use small dataset and test upsampling (multipliers > 1.0)
+        small_data = self.test_data.iloc[:20].copy()
+
+        scaling_analysis = analyzer.analyze_data_size_scaling(
+            base_data=small_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-10"),
+            test_end=pd.Timestamp("2023-01-15"),
+            size_multipliers=[1.5, 2.0],  # Test upsampling path
+            level=0.80,
+            threshold=0.0,
+        )
+
+        assert "scaling_results" in scaling_analysis
+        scaling_results = scaling_analysis["scaling_results"]
+        assert len(scaling_results) == 2
+
+        # Verify upsampled data sizes are larger than base
+        for result in scaling_results:
+            if result["success"]:
+                assert result["data_size"] > len(small_data)
+
+    def test_compare_tbr_configurations_multiple(self):
+        """Test performance comparison across multiple TBR configurations."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Use small dataset for fast testing
+        small_data = self.test_data.iloc[:30].copy()
+
+        # Define base configuration
+        base_config = {
+            "time_col": "date",
+            "control_col": "control",
+            "test_col": "test",
+            "pretest_start": pd.Timestamp("2023-01-01"),
+            "test_start": pd.Timestamp("2023-01-20"),
+            "test_end": pd.Timestamp("2023-01-25"),
+            "level": 0.90,
+            "threshold": 0.0,
+        }
+
+        # Define alternative configurations with different confidence levels
+        configurations = [
+            {
+                "time_col": "date",
+                "control_col": "control",
+                "test_col": "test",
+                "pretest_start": pd.Timestamp("2023-01-01"),
+                "test_start": pd.Timestamp("2023-01-20"),
+                "test_end": pd.Timestamp("2023-01-25"),
+                "level": 0.80,
+                "threshold": 0.0,
+            },
+            {
+                "time_col": "date",
+                "control_col": "control",
+                "test_col": "test",
+                "pretest_start": pd.Timestamp("2023-01-01"),
+                "test_start": pd.Timestamp("2023-01-20"),
+                "test_end": pd.Timestamp("2023-01-25"),
+                "level": 0.95,
+                "threshold": 0.0,
+            },
+        ]
+
+        comparison_results = analyzer.compare_tbr_configurations(
+            data=small_data, configurations=configurations, base_config=base_config
+        )
+
+        assert "comparison_results" in comparison_results
+        assert "comparison_summary" in comparison_results
+        assert len(comparison_results["comparison_results"]) >= 2
+
+        # Verify comparison summary includes best and worst configs
+        summary = comparison_results["comparison_summary"]
+        assert "best_config" in summary
+        assert "best_speedup" in summary
+        assert "worst_config" in summary
+        assert "worst_slowdown" in summary
+
+    def test_scaling_patterns_linear_complexity_estimation(self):
+        """Test scaling pattern analysis correctly identifies linear complexity."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Create scaling results with approximately linear complexity (slope ~1.0)
+        scaling_results = [
+            {
+                "size_multiplier": 1.0,
+                "data_size": 100,
+                "total_duration": 1.0,
+                "success": True,
+            },
+            {
+                "size_multiplier": 2.0,
+                "data_size": 200,
+                "total_duration": 2.1,  # ~2x slower for 2x data
+                "success": True,
+            },
+            {
+                "size_multiplier": 3.0,
+                "data_size": 300,
+                "total_duration": 3.2,  # ~3x slower for 3x data
+                "success": True,
+            },
+        ]
+
+        patterns = analyzer._analyze_scaling_patterns(scaling_results)
+
+        assert "complexity_estimate" in patterns
+        # Should estimate approximately linear complexity
+        assert "linear" in patterns["complexity_estimate"].lower()
 
 
 class TestConvenienceFunctions:
