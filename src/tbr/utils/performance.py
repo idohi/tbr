@@ -41,7 +41,7 @@ import tracemalloc
 import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -148,12 +148,14 @@ class PerformanceProfiler:
                 self.process = psutil.Process(os.getpid())
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 self.enable_cpu_tracking = False
-                warnings.warn("CPU tracking disabled due to system limitations")
+                warnings.warn(
+                    "CPU tracking disabled due to system limitations", stacklevel=2
+                )
 
     @contextmanager
     def profile_context(
         self, operation_name: str, metadata: Optional[Dict[str, Any]] = None
-    ):
+    ) -> Generator[PerformanceMetrics, None, None]:
         """
         Context manager for profiling code blocks.
 
@@ -223,7 +225,7 @@ class PerformanceProfiler:
 
     def profile_function(self, func: Callable) -> Callable:
         """
-        Decorator for profiling function execution.
+        Decorate a function to enable execution profiling.
 
         Parameters
         ----------
@@ -236,7 +238,7 @@ class PerformanceProfiler:
             Wrapped function with profiling enabled
         """
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             operation_name = f"{func.__module__}.{func.__name__}"
             with self.profile_context(operation_name) as metrics:
                 metrics.function_calls = 1
@@ -250,11 +252,11 @@ class PerformanceProfiler:
     def benchmark_function(
         self,
         func: Callable,
-        *args,
+        *args: Any,
         n_runs: int = 5,
         warmup_runs: int = 2,
         operation_name: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Dict[str, float]:
         """
         Benchmark a function with statistical analysis.
@@ -324,7 +326,7 @@ class PerformanceProfiler:
 
     def get_metrics(
         self, operation_name: Optional[str] = None
-    ) -> Union[PerformanceMetrics, Dict[str, PerformanceMetrics]]:
+    ) -> Union[Optional[PerformanceMetrics], Dict[str, PerformanceMetrics]]:
         """
         Retrieve performance metrics.
 
@@ -355,10 +357,11 @@ class PerformanceProfiler:
         operation_name : str, optional
             Specific operation to print summary for. If None, prints all operations.
         """
+        metrics_dict: Dict[str, Optional[PerformanceMetrics]]
         if operation_name is not None:
             metrics_dict = {operation_name: self.metrics.get(operation_name)}
         else:
-            metrics_dict = self.metrics
+            metrics_dict = dict(self.metrics.items())
 
         print("\n" + "=" * 60)
         print("PERFORMANCE PROFILING SUMMARY")
@@ -413,7 +416,7 @@ class EfficiencyMetrics:
     ... )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the efficiency metrics analyzer."""
         self.baseline_metrics: Dict[str, Dict[str, float]] = {}
         self.profiler = PerformanceProfiler()
@@ -482,7 +485,7 @@ class EfficiencyMetrics:
         )
 
     def analyze_scaling_behavior(
-        self, function: Callable, data_sizes: List[int], *args, **kwargs
+        self, function: Callable, data_sizes: List[int], *args: Any, **kwargs: Any
     ) -> Dict[str, Any]:
         """
         Analyze how a function's performance scales with data size.
@@ -645,7 +648,7 @@ class EfficiencyMetrics:
         self, operation_metrics: Dict[str, PerformanceMetrics]
     ) -> List[str]:
         """Identify performance bottlenecks in the workflow."""
-        bottlenecks = []
+        bottlenecks: List[str] = []
 
         if not operation_metrics:
             return bottlenecks
@@ -766,7 +769,7 @@ class EfficiencyMetrics:
                 (times - np.mean(times)) ** 2
             )
             models["linear"] = {"r2": linear_r2, "coefficients": linear_coeff}
-        except:
+        except Exception:
             models["linear"] = {"r2": 0, "coefficients": [0, 0]}
 
         # Quadratic model: O(n²)
@@ -777,7 +780,7 @@ class EfficiencyMetrics:
                 (times - np.mean(times)) ** 2
             )
             models["quadratic"] = {"r2": quad_r2, "coefficients": quad_coeff}
-        except:
+        except Exception:
             models["quadratic"] = {"r2": 0, "coefficients": [0, 0, 0]}
 
         # Logarithmic model: O(log n)
@@ -789,7 +792,7 @@ class EfficiencyMetrics:
                 (times - np.mean(times)) ** 2
             )
             models["logarithmic"] = {"r2": log_r2, "coefficients": log_coeff}
-        except:
+        except Exception:
             models["logarithmic"] = {"r2": 0, "coefficients": [0, 0]}
 
         # Find best fit
@@ -814,19 +817,19 @@ class EfficiencyMetrics:
 
         # Ideal scaling would have time_ratio = size_ratio (linear)
         efficiency_ratios = size_ratios / time_ratios
-        mean_efficiency = np.mean(efficiency_ratios)
+        mean_efficiency = float(np.mean(efficiency_ratios))
 
         # Convert to 0-10 scale (1.0 = perfect linear scaling = 10 points)
         if mean_efficiency >= 1.0:
             return 10.0  # Better than linear
         elif mean_efficiency >= 0.8:
-            return 8.0 + 2.0 * (mean_efficiency - 0.8) / 0.2
+            return float(8.0 + 2.0 * (mean_efficiency - 0.8) / 0.2)
         elif mean_efficiency >= 0.5:
-            return 5.0 + 3.0 * (mean_efficiency - 0.5) / 0.3
+            return float(5.0 + 3.0 * (mean_efficiency - 0.5) / 0.3)
         elif mean_efficiency >= 0.2:
-            return 2.0 + 3.0 * (mean_efficiency - 0.2) / 0.3
+            return float(2.0 + 3.0 * (mean_efficiency - 0.2) / 0.3)
         else:
-            return max(0.0, 2.0 * mean_efficiency / 0.2)
+            return float(max(0.0, 2.0 * mean_efficiency / 0.2))
 
 
 class PerformanceMonitor:
@@ -868,12 +871,16 @@ class PerformanceMonitor:
             self.process = psutil.Process(os.getpid())
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             self.process = None
-            warnings.warn("System monitoring disabled due to access limitations")
+            warnings.warn(
+                "System monitoring disabled due to access limitations", stacklevel=2
+            )
 
     def start_monitoring(self) -> None:
         """Start real-time performance monitoring."""
         if self.process is None:
-            warnings.warn("Cannot start monitoring: system access unavailable")
+            warnings.warn(
+                "Cannot start monitoring: system access unavailable", stacklevel=2
+            )
             return
 
         self.monitoring = True
@@ -970,7 +977,10 @@ class PerformanceMonitor:
 
 
 def profile_tbr_workflow(
-    analysis_function: Callable, *args, enable_monitoring: bool = True, **kwargs
+    analysis_function: Callable,
+    *args: Any,
+    enable_monitoring: bool = True,
+    **kwargs: Any,
 ) -> Tuple[Any, PerformanceMetrics, Optional[Dict[str, Any]]]:
     """
     Profile a complete TBR analysis workflow.
@@ -1011,7 +1021,7 @@ def profile_tbr_workflow(
 
 def benchmark_tbr_functions(
     functions: Dict[str, Callable], test_data: Any, n_runs: int = 5
-) -> Dict[str, Dict[str, float]]:
+) -> Dict[str, Dict[str, Union[float, str]]]:
     """
     Benchmark multiple TBR functions for performance comparison.
 
@@ -1026,23 +1036,26 @@ def benchmark_tbr_functions(
 
     Returns
     -------
-    Dict[str, Dict[str, float]]
-        Benchmark results for each function
+    Dict[str, Dict[str, Union[float, str]]]
+        Benchmark results for each function. Dict values are floats for successful
+        benchmarks, or a dict with an 'error' key containing the error message string
+        for failed benchmarks
     """
     profiler = PerformanceProfiler()
-    results = {}
+    results: Dict[str, Dict[str, Union[float, str]]] = {}
 
     for name, func in functions.items():
         try:
             if isinstance(test_data, (list, tuple)):
-                benchmark_stats = profiler.benchmark_function(
+                benchmark_stats: Dict[str, float] = profiler.benchmark_function(
                     func, *test_data, n_runs=n_runs
                 )
             else:
                 benchmark_stats = profiler.benchmark_function(
                     func, test_data, n_runs=n_runs
                 )
-            results[name] = benchmark_stats
+            # Convert Dict[str, float] to Dict[str, Union[float, str]]
+            results[name] = dict(benchmark_stats.items())
         except Exception as e:
             results[name] = {"error": str(e)}
 
