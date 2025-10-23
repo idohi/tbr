@@ -509,12 +509,15 @@ def validate_confidence_level(
     level: float, param_name: str = "confidence level"
 ) -> None:
     """
-    Validate confidence level parameter for statistical inference.
+    Validate credibility/confidence level parameter for statistical inference.
+
+    Generic validator for probability levels used in interval estimation.
+    In TBR context, this validates credibility levels for Bayesian credible intervals.
 
     Parameters
     ----------
     level : float
-        Confidence level to validate (should be between 0 and 1)
+        Credibility/confidence level to validate (should be between 0 and 1 exclusive)
     param_name : str, default "confidence level"
         Parameter name for error messages
 
@@ -529,6 +532,13 @@ def validate_confidence_level(
     >>> validate_confidence_level(0.95, "credibility level")  # No error
     >>> validate_confidence_level(1.2)  # Raises ValueError
     >>> validate_confidence_level(-0.1)  # Raises ValueError
+
+    Notes
+    -----
+    In TBR analysis, the level parameter represents the credibility level for
+    Bayesian credible intervals of the treatment effect. The function name uses
+    "confidence" for historical reasons and general applicability, but in TBR
+    context it validates credibility levels.
     """
     if not (0 < level < 1):
         raise ValueError(

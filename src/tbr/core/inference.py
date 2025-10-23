@@ -13,7 +13,7 @@ Key Features
 ------------
 - T-statistic calculation for hypothesis testing
 - P-value computation using t-distribution
-- Credible interval estimation with configurable confidence levels
+- Credible interval estimation with configurable credibility levels
 - Posterior probability calculation for threshold exceedance
 - Critical value computation for statistical testing
 - Professional input validation and error handling
@@ -340,9 +340,9 @@ def calculate_credible_interval(
     """
     Calculate credible interval using t-distribution.
 
-    Computes the credible interval (confidence interval) for a parameter estimate
-    using the t-distribution. This provides a range of plausible values for the
-    true parameter given the observed data and specified confidence level.
+    Computes the credible interval for a parameter estimate using the t-distribution.
+    This provides a range of plausible values for the true parameter given the
+    observed data and specified credibility level.
 
     Parameters
     ----------
@@ -353,7 +353,7 @@ def calculate_credible_interval(
     degrees_freedom : int
         Degrees of freedom for the t-distribution
     confidence_level : float, default=0.95
-        Confidence level between 0 and 1 (e.g., 0.95 for 95% interval)
+        Credibility level between 0 and 1 (e.g., 0.95 for 95% credible interval)
 
     Returns
     -------
@@ -398,9 +398,9 @@ def calculate_credible_interval(
     Notes
     -----
     The credible interval represents the range of values that are consistent
-    with the observed data at the specified confidence level. Under frequentist
-    interpretation, if the experiment were repeated many times, the interval
-    would contain the true parameter value in the specified proportion of cases.
+    with the observed data at the specified credibility level. In the Bayesian
+    interpretation used by TBR, there is a 95% posterior probability that the
+    true parameter value lies within the 95% credible interval.
     """
     # Lazy import to minimize overhead
     from scipy import stats
@@ -457,15 +457,15 @@ def calculate_critical_value(
     Calculate critical value from t-distribution.
 
     Computes the critical value (quantile) from the t-distribution for a given
-    confidence level and degrees of freedom. This is used for constructing
-    confidence intervals and conducting hypothesis tests.
+    credibility level and degrees of freedom. This is used for constructing
+    credible intervals and conducting hypothesis tests.
 
     Parameters
     ----------
     degrees_freedom : int
         Degrees of freedom for the t-distribution
     confidence_level : float, default=0.95
-        Confidence level between 0 and 1
+        Credibility level between 0 and 1
     two_tailed : bool, default=True
         Whether to compute two-tailed (True) or one-tailed (False) critical value
 
@@ -503,8 +503,8 @@ def calculate_critical_value(
     Notes
     -----
     Critical values are used to determine rejection regions in hypothesis testing
-    and to construct confidence intervals. The two-tailed version is most common
-    for confidence intervals, while one-tailed is used for directional tests.
+    and to construct credible intervals. The two-tailed version is most common
+    for credible intervals, while one-tailed is used for directional tests.
     """
     # Lazy import to minimize overhead
     from scipy import stats
