@@ -568,6 +568,42 @@ class TestTBRPerformanceAnalyzer:
                 assert "total_duration" in result
                 assert "efficiency_score" in result
 
+    def test_analyze_data_size_scaling_default_multipliers(self):
+        """Test data size scaling with default size_multipliers parameter."""
+        analyzer = TBRPerformanceAnalyzer()
+
+        # Use very small dataset for fast testing
+        small_data = self.test_data.iloc[:20].copy()
+
+        # Call without size_multipliers to test default [0.5, 1.0, 2.0, 5.0]
+        scaling_analysis = analyzer.analyze_data_size_scaling(
+            base_data=small_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-10"),
+            test_end=pd.Timestamp("2023-01-15"),
+            # size_multipliers not provided - should use default
+            level=0.80,
+            threshold=0.0,
+        )
+
+        assert "scaling_results" in scaling_analysis
+        assert "scaling_analysis" in scaling_analysis
+        assert "recommendations" in scaling_analysis
+
+        scaling_results = scaling_analysis["scaling_results"]
+        # Default size_multipliers are [0.5, 1.0, 2.0, 5.0] - 4 values
+        assert len(scaling_results) == 4
+
+        # Verify all multipliers are present
+        multipliers_found = [r["size_multiplier"] for r in scaling_results]
+        assert 0.5 in multipliers_found
+        assert 1.0 in multipliers_found
+        assert 2.0 in multipliers_found
+        assert 5.0 in multipliers_found
+
     def test_get_optimization_recommendations(self):
         """Test optimization recommendations generation."""
         analyzer = TBRPerformanceAnalyzer()
