@@ -36,7 +36,7 @@ Examples
 >>> print(recommendations.summary())
 """
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,7 @@ class TBRPerformanceAnalyzer:
     >>> analyzer.print_performance_summary(report)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the TBR performance analyzer."""
         self.profiler = PerformanceProfiler()
         self.efficiency_metrics = EfficiencyMetrics()
@@ -113,7 +113,7 @@ class TBRPerformanceAnalyzer:
         test_end : Union[pd.Timestamp, int, float]
             End of test period
         level : float, default 0.80
-            Confidence level for analysis
+            Credibility level for analysis
         threshold : float, default 0.0
             Threshold for significance testing
         test_end_inclusive : bool, default False
@@ -177,7 +177,7 @@ class TBRPerformanceAnalyzer:
         # Analyze efficiency
         efficiency_report = self.efficiency_metrics.analyze_workflow_efficiency(
             data_size=data_size,
-            operation_metrics=all_metrics,
+            operation_metrics=all_metrics,  # type: ignore[arg-type]
             operation_name="tbr_workflow",
         )
 
@@ -214,8 +214,8 @@ class TBRPerformanceAnalyzer:
         pretest_start: Union[pd.Timestamp, int, float],
         test_start: Union[pd.Timestamp, int, float],
         test_end: Union[pd.Timestamp, int, float],
-        size_multipliers: List[float] = [0.5, 1.0, 2.0, 5.0],
-        **kwargs,
+        size_multipliers: Optional[List[float]] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Analyze how TBR performance scales with different data sizes.
@@ -246,6 +246,9 @@ class TBRPerformanceAnalyzer:
         Dict[str, Any]
             Scaling analysis results with performance characteristics
         """
+        if size_multipliers is None:
+            size_multipliers = [0.5, 1.0, 2.0, 5.0]
+
         scaling_results = []
 
         for multiplier in size_multipliers:
@@ -388,16 +391,19 @@ class TBRPerformanceAnalyzer:
         # Generate comparison summary
         successful_configs = [r for r in comparison_results if "error" not in r]
         if len(successful_configs) > 1:
-            best_config = min(successful_configs, key=lambda x: x["duration_ratio"])
-            worst_config = max(successful_configs, key=lambda x: x["duration_ratio"])
+            best_config = min(successful_configs, key=lambda x: float(x["duration_ratio"]))  # type: ignore[arg-type]
+            worst_config = max(successful_configs, key=lambda x: float(x["duration_ratio"]))  # type: ignore[arg-type]
+
+            # Type cast the dict values to float (we know they exist from min/max keys)
+            best_ratio = float(best_config["duration_ratio"])  # type: ignore[arg-type]
+            worst_ratio = float(worst_config["duration_ratio"])  # type: ignore[arg-type]
 
             comparison_summary = {
                 "best_config": best_config["config_name"],
-                "best_speedup": 1.0 / best_config["duration_ratio"],
+                "best_speedup": 1.0 / best_ratio,
                 "worst_config": worst_config["config_name"],
-                "worst_slowdown": worst_config["duration_ratio"],
-                "performance_range": worst_config["duration_ratio"]
-                / best_config["duration_ratio"],
+                "worst_slowdown": worst_ratio,
+                "performance_range": worst_ratio / best_ratio,
             }
         else:
             comparison_summary = {
@@ -428,7 +434,7 @@ class TBRPerformanceAnalyzer:
         Dict[str, Any]
             Optimization recommendations with specific actions
         """
-        recommendations = {
+        recommendations: Dict[str, List[str]] = {
             "priority_actions": [],
             "data_optimization": [],
             "computational_optimization": [],
@@ -741,7 +747,7 @@ class TBRPerformanceAnalyzer:
                     "complexity_estimate": complexity_estimate,
                     "scaling_efficiency": max(0, 2.0 - slope),  # 0-2 scale
                 }
-            except:
+            except Exception:
                 return {"error": "Could not fit scaling model"}
 
         return {"error": "Insufficient data for scaling analysis"}
@@ -841,7 +847,7 @@ def quick_performance_check(
     pretest_start: Union[pd.Timestamp, int, float],
     test_start: Union[pd.Timestamp, int, float],
     test_end: Union[pd.Timestamp, int, float],
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """
     Perform a quick performance check of TBR analysis.
@@ -891,7 +897,7 @@ def optimize_tbr_data_size(
     test_start: Union[pd.Timestamp, int, float],
     test_end: Union[pd.Timestamp, int, float],
     target_duration: float = 30.0,
-    **kwargs,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Find optimal data size for TBR analysis based on target duration.

@@ -80,7 +80,7 @@ def create_tbr_summary(
     degrees_freedom : int
         Residual degrees of freedom from regression model. Must be positive.
     level : float
-        Credibility level for confidence intervals. Must be between 0 and 1.
+        Credibility level for credible intervals. Must be between 0 and 1.
         E.g., 0.80 for 80% credible intervals.
     threshold : float
         Threshold value for posterior probability calculation.

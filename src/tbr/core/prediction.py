@@ -9,7 +9,7 @@ that other modules build upon.
 The module focuses on:
 - Counterfactual prediction generation with uncertainty quantification
 - Cumulative effect standard deviation calculations
-- Interval estimation and confidence intervals for subinterval analysis
+- Interval estimation and credible intervals for subinterval analysis
 - Core mathematical utilities for TBR prediction methodology
 
 All functions are independent implementations that do not depend on other TBR modules,
@@ -19,7 +19,7 @@ Functions
 ---------
 generate_counterfactual_predictions : Generate counterfactual predictions with uncertainties
 calculate_cumulative_standard_deviation : Calculate cumulative effect uncertainty
-compute_interval_estimate_and_ci : Compute interval estimates and confidence intervals
+compute_interval_estimate_and_ci : Compute interval estimates and credible intervals
 
 Examples
 --------

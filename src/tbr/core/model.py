@@ -58,7 +58,7 @@ class TBRAnalysis:
     Parameters
     ----------
     level : float, default=0.80
-        Credibility level for confidence intervals (e.g., 0.80 for 80% CI).
+        Credibility level for credible intervals (e.g., 0.80 for 80% credible interval).
         Must be between 0 and 1 exclusive.
     threshold : float, default=0.0
         Threshold for probability calculation. Typically 0.0 for testing
@@ -72,7 +72,7 @@ class TBRAnalysis:
     Attributes
     ----------
     level : float
-        Credibility level for confidence intervals.
+        Credibility level for credible intervals.
     threshold : float
         Threshold for probability calculation.
     test_end_inclusive : bool
@@ -131,7 +131,7 @@ class TBRAnalysis:
         Parameters
         ----------
         level : float, default=0.80
-            Credibility level for confidence intervals.
+            Credibility level for credible intervals.
         threshold : float, default=0.0
             Threshold for probability calculation.
         test_end_inclusive : bool, default=False
@@ -213,6 +213,8 @@ class TBRAnalysis:
 
         Raises
         ------
+        TypeError
+            If input types are invalid.
         ValueError
             If input validation fails or insufficient data for analysis.
 
@@ -242,9 +244,59 @@ class TBRAnalysis:
         from initialization. Call fit() to perform analysis before accessing
         results_, summaries_, or params_ properties.
         """
-        # Lazy import to minimize loading overhead
+        # Lazy imports to minimize loading overhead
         from tbr.functional import perform_tbr_analysis
         from tbr.utils.preprocessing import split_time_series_by_periods
+        from tbr.utils.validation import (
+            validate_dataframe_not_empty,
+            validate_metric_columns,
+            validate_no_nulls,
+            validate_required_columns,
+            validate_time_boundaries_type,
+            validate_time_column_type,
+            validate_time_periods,
+        )
+
+        # ===== Input Validation =====
+        # Validate DataFrame type and not empty
+        if not isinstance(data, pd.DataFrame):
+            raise TypeError(
+                f"data must be a pandas DataFrame, got {type(data).__name__}"
+            )
+
+        validate_dataframe_not_empty(data, "data")
+
+        # Validate column name types
+        if not isinstance(time_col, str):
+            raise TypeError(f"time_col must be a string, got {type(time_col).__name__}")
+        if not isinstance(control_col, str):
+            raise TypeError(
+                f"control_col must be a string, got {type(control_col).__name__}"
+            )
+        if not isinstance(test_col, str):
+            raise TypeError(f"test_col must be a string, got {type(test_col).__name__}")
+
+        # Validate required columns exist
+        validate_required_columns(data, [time_col, control_col, test_col], "data")
+
+        # Validate time column type
+        validate_time_column_type(data, time_col, "data")
+
+        # Validate metric columns are numeric
+        validate_metric_columns(data, control_col, test_col)
+
+        # Validate no nulls in required columns
+        validate_no_nulls(data, [time_col, control_col, test_col], "data")
+
+        # Validate time boundaries type consistency
+        validate_time_boundaries_type(
+            pretest_start, test_start, test_end, data[time_col].dtype
+        )
+
+        # Validate time periods ordering
+        validate_time_periods(
+            pretest_start, test_start, test_end, self.test_end_inclusive
+        )
 
         # Perform TBR analysis using functional API with stored configuration
         tbr_dataframe, daily_summaries = perform_tbr_analysis(
@@ -327,9 +379,10 @@ class TBRAnalysis:
 
         Parameters
         ----------
-        control_values : Union[pd.Series, np.ndarray], optional
+        control_values : Union[pd.Series, np.ndarray, list], optional
             Control group values to generate predictions for. If None (default),
             uses control values from the test period of the fitted data.
+            Can be a numpy array, pandas Series, or Python list.
 
         Returns
         -------
@@ -342,8 +395,10 @@ class TBRAnalysis:
         ------
         AttributeError
             If the model has not been fitted yet.
+        TypeError
+            If control_values has invalid type.
         ValueError
-            If control_values has invalid shape or contains non-finite values.
+            If control_values has invalid shape, is empty, or contains non-finite values.
 
         Examples
         --------
@@ -358,6 +413,10 @@ class TBRAnalysis:
 
         >>> new_control = np.array([1000, 1050, 1100])
         >>> predictions = model.predict(control_values=new_control)
+
+        Predict using a Python list:
+
+        >>> predictions = model.predict(control_values=[1000, 1050, 1100])
 
         Notes
         -----
@@ -384,22 +443,43 @@ class TBRAnalysis:
         if control_values is None:
             test_period = self._results[self._results["period"] == 1]
             control_values = test_period["x"].values
+        else:
+            # Convert to numpy array if needed
+            if isinstance(control_values, pd.Series):
+                control_values = control_values.values
+            elif isinstance(control_values, list):
+                control_values = np.array(control_values)
+            elif not isinstance(control_values, np.ndarray):
+                try:
+                    control_values = np.array(control_values)
+                except (ValueError, TypeError) as e:
+                    raise TypeError(
+                        f"control_values must be array-like (numpy array, pandas Series, or list), "
+                        f"got {type(control_values).__name__}"
+                    ) from e
 
-        # Convert to numpy array if needed
-        if isinstance(control_values, pd.Series):
-            control_values = control_values.values
-
-        # Validate control values
-        if not isinstance(control_values, np.ndarray):
-            control_values = np.array(control_values)
+        # Validate control values type and dimensions
+        if not np.issubdtype(control_values.dtype, np.number):
+            raise TypeError(
+                f"control_values must contain numeric values, "
+                f"got dtype '{control_values.dtype}'"
+            )
 
         if control_values.ndim != 1:
             raise ValueError(
-                f"control_values must be 1-dimensional, got shape {control_values.shape}"
+                f"control_values must be 1-dimensional, got {control_values.ndim}-dimensional "
+                f"array with shape {control_values.shape}"
             )
 
+        if len(control_values) == 0:
+            raise ValueError("control_values cannot be empty")
+
         if not np.all(np.isfinite(control_values)):
-            raise ValueError("control_values must contain only finite values")
+            n_invalid = np.sum(~np.isfinite(control_values))
+            raise ValueError(
+                f"control_values must contain only finite values, "
+                f"found {n_invalid} non-finite value(s)"
+            )
 
         # Create test period DataFrame for predictions
         assert self._fit_info is not None
@@ -516,8 +596,8 @@ class TBRAnalysis:
         end_day : int
             Ending day of the subinterval (1-indexed, inclusive).
         ci_level : float, optional
-            Credibility level for confidence interval. If None, uses the
-            level specified during initialization.
+            Credibility level for credible interval (must be between 0 and 1).
+            If None, uses the level specified during initialization.
 
         Returns
         -------
@@ -536,8 +616,11 @@ class TBRAnalysis:
         ------
         AttributeError
             If the model has not been fitted yet.
+        TypeError
+            If start_day, end_day, or ci_level have invalid types.
         ValueError
-            If start_day or end_day are invalid, or if start_day > end_day.
+            If start_day or end_day are invalid, start_day > end_day, days exceed
+            test period, or ci_level is not between 0 and 1.
 
         Examples
         --------
@@ -568,30 +651,60 @@ class TBRAnalysis:
 
         # Lazy imports
         from tbr.analysis.subinterval import compute_interval_estimate_and_ci
+        from tbr.utils.validation import validate_confidence_level
 
         assert self._results is not None
         assert self._params is not None
 
-        # Use model's level if not provided
-        if ci_level is None:
-            ci_level = self.level
+        # Validate day parameter types
+        if not isinstance(start_day, (int, np.integer)):
+            raise TypeError(
+                f"start_day must be an integer, got {type(start_day).__name__}"
+            )
 
-        # Validate day parameters
-        if not isinstance(start_day, int) or start_day < 1:
-            raise ValueError(f"start_day must be a positive integer, got {start_day}")
+        if not isinstance(end_day, (int, np.integer)):
+            raise TypeError(f"end_day must be an integer, got {type(end_day).__name__}")
 
-        if not isinstance(end_day, int) or end_day < 1:
-            raise ValueError(f"end_day must be a positive integer, got {end_day}")
+        # Convert numpy integers to Python int
+        start_day = int(start_day)
+        end_day = int(end_day)
+
+        # Validate day parameter values
+        if start_day < 1:
+            raise ValueError(
+                f"start_day must be a positive integer (>= 1), got {start_day}"
+            )
+
+        if end_day < 1:
+            raise ValueError(
+                f"end_day must be a positive integer (>= 1), got {end_day}"
+            )
 
         if start_day > end_day:
             raise ValueError(f"start_day ({start_day}) must be <= end_day ({end_day})")
 
         # Check if days are within test period
         n_test_days = len(self._results[self._results["period"] == 1])
+
+        if start_day > n_test_days:
+            raise ValueError(
+                f"start_day ({start_day}) exceeds test period length ({n_test_days} days)"
+            )
+
         if end_day > n_test_days:
             raise ValueError(
                 f"end_day ({end_day}) exceeds test period length ({n_test_days} days)"
             )
+
+        # Use model's level if not provided, otherwise validate ci_level
+        if ci_level is None:
+            ci_level = self.level
+        else:
+            if not isinstance(ci_level, (int, float)):
+                raise TypeError(
+                    f"ci_level must be numeric, got {type(ci_level).__name__}"
+                )
+            validate_confidence_level(ci_level, "ci_level")
 
         # Compute subinterval estimate
         result = compute_interval_estimate_and_ci(

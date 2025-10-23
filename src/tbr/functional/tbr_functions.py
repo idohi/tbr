@@ -44,7 +44,7 @@ Examples
 ...     threshold=0.0
 ... )
 >>>
->>> # Get treatment effect and confidence interval
+>>> # Get treatment effect and credible interval
 >>> final_summary = summaries.iloc[-1]
 >>> print(f"Effect: {final_summary['estimate']:.2f}")
 >>> print(f"80% CI: [{final_summary['lower']:.2f}, {final_summary['upper']:.2f}]")
@@ -589,7 +589,7 @@ def create_tbr_summary(
     degrees_freedom : int
         Residual degrees of freedom from regression
     level : float
-        Credibility level for confidence intervals
+        Credibility level for credible intervals
     threshold : float
         Threshold for probability calculation
 
@@ -677,7 +677,7 @@ def create_incremental_tbr_summaries(
     degrees_freedom : int
         Residual degrees of freedom from regression
     level : float
-        Credibility level for confidence intervals
+        Credibility level for credible intervals
     threshold : float
         Threshold for probability calculation
 
@@ -777,7 +777,7 @@ def perform_tbr_analysis(
         Note: This parameter works consistently across all time column types
         (datetime64[ns], int64, float64).
     level : float
-        Credibility level for confidence intervals (e.g., 0.80 for 80% CI)
+        Credibility level for credible intervals (e.g., 0.80 for 80% credible interval)
     threshold : float
         Threshold for probability calculation (typically 0.0 for positive effect testing)
     test_end_inclusive : bool, default False

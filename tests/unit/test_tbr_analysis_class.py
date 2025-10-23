@@ -1079,5 +1079,509 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         assert abs(result["estimate"] - final_summary.iloc[0]["estimate"]) < 0.01
 
 
+class TestTBRAnalysisFitValidation:
+    """Comprehensive validation tests for fit() method input validation."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample time series data for testing."""
+        np.random.seed(42)
+        dates = pd.date_range("2023-01-01", periods=90)
+        data = pd.DataFrame(
+            {
+                "date": dates,
+                "control": np.random.normal(1000, 50, 90),
+                "test": np.random.normal(1020, 55, 90),
+            }
+        )
+        return data
+
+    def test_fit_non_dataframe_type_error(self):
+        """Test fit() raises TypeError for non-DataFrame input."""
+        model = TBRAnalysis()
+
+        with pytest.raises(TypeError, match="data must be a pandas DataFrame"):
+            model.fit(
+                data="not a dataframe",
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_empty_dataframe_error(self):
+        """Test fit() raises ValueError for empty DataFrame."""
+        model = TBRAnalysis()
+
+        with pytest.raises(ValueError, match="data cannot be empty"):
+            model.fit(
+                data=pd.DataFrame(),
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_time_col_not_string_error(self, sample_data):
+        """Test fit() raises TypeError when time_col is not a string."""
+        model = TBRAnalysis()
+
+        with pytest.raises(TypeError, match="time_col must be a string"):
+            model.fit(
+                data=sample_data,
+                time_col=123,
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_control_col_not_string_error(self, sample_data):
+        """Test fit() raises TypeError when control_col is not a string."""
+        model = TBRAnalysis()
+
+        with pytest.raises(TypeError, match="control_col must be a string"):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col=["control"],
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_test_col_not_string_error(self, sample_data):
+        """Test fit() raises TypeError when test_col is not a string."""
+        model = TBRAnalysis()
+
+        with pytest.raises(TypeError, match="test_col must be a string"):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col="control",
+                test_col={"test": "value"},
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_missing_time_column_error(self, sample_data):
+        """Test fit() raises ValueError when time column is missing."""
+        model = TBRAnalysis()
+
+        with pytest.raises(ValueError, match="Missing required columns"):
+            model.fit(
+                data=sample_data,
+                time_col="nonexistent_col",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_missing_control_column_error(self, sample_data):
+        """Test fit() raises ValueError when control column is missing."""
+        model = TBRAnalysis()
+
+        with pytest.raises(ValueError, match="Missing required columns"):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col="missing_control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_missing_test_column_error(self, sample_data):
+        """Test fit() raises ValueError when test column is missing."""
+        model = TBRAnalysis()
+
+        with pytest.raises(ValueError, match="Missing required columns"):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col="control",
+                test_col="missing_test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_invalid_time_column_dtype_error(self, sample_data):
+        """Test fit() raises ValueError for unsupported time column dtype."""
+        model = TBRAnalysis()
+
+        # Create data with object dtype time column
+        bad_data = sample_data.copy()
+        bad_data["date"] = bad_data["date"].astype(str)
+
+        with pytest.raises(ValueError, match="Unsupported dtype"):
+            model.fit(
+                data=bad_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start="2023-01-01",
+                test_start="2023-02-15",
+                test_end="2023-03-01",
+            )
+
+    def test_fit_non_numeric_control_column_error(self, sample_data):
+        """Test fit() raises ValueError when control column is not numeric."""
+        model = TBRAnalysis()
+
+        # Create data with non-numeric control
+        bad_data = sample_data.copy()
+        bad_data["control"] = ["low", "medium", "high"] * 30
+
+        with pytest.raises(ValueError, match="Control column.*must be numeric"):
+            model.fit(
+                data=bad_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_non_numeric_test_column_error(self, sample_data):
+        """Test fit() raises ValueError when test column is not numeric."""
+        model = TBRAnalysis()
+
+        # Create data with non-numeric test
+        bad_data = sample_data.copy()
+        bad_data["test"] = ["small", "medium", "large"] * 30
+
+        with pytest.raises(ValueError, match="Test column.*must be numeric"):
+            model.fit(
+                data=bad_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_null_values_in_time_column_error(self, sample_data):
+        """Test fit() raises ValueError when time column contains nulls."""
+        model = TBRAnalysis()
+
+        # Create data with null time values
+        bad_data = sample_data.copy()
+        bad_data.loc[5, "date"] = pd.NaT
+
+        with pytest.raises(ValueError, match="Null values found"):
+            model.fit(
+                data=bad_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_null_values_in_control_column_error(self, sample_data):
+        """Test fit() raises ValueError when control column contains nulls."""
+        model = TBRAnalysis()
+
+        # Create data with null control values
+        bad_data = sample_data.copy()
+        bad_data.loc[10, "control"] = np.nan
+
+        with pytest.raises(ValueError, match="Null values found"):
+            model.fit(
+                data=bad_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_null_values_in_test_column_error(self, sample_data):
+        """Test fit() raises ValueError when test column contains nulls."""
+        model = TBRAnalysis()
+
+        # Create data with null test values
+        bad_data = sample_data.copy()
+        bad_data.loc[15, "test"] = np.nan
+
+        with pytest.raises(ValueError, match="Null values found"):
+            model.fit(
+                data=bad_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_mixed_boundary_types_error(self, sample_data):
+        """Test fit() raises ValueError when boundary types are mixed."""
+        model = TBRAnalysis()
+
+        # Mix pd.Timestamp and int
+        with pytest.raises(
+            ValueError, match="All time boundaries must have the same type"
+        ):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=1,  # Wrong type
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_boundary_type_mismatch_error(self):
+        """Test fit() raises ValueError when boundary types don't match column dtype."""
+        model = TBRAnalysis()
+
+        # Integer time column with Timestamp boundaries
+        int_data = pd.DataFrame(
+            {
+                "time": list(range(1, 91)),
+                "control": np.random.normal(1000, 50, 90),
+                "test": np.random.normal(1020, 55, 90),
+            }
+        )
+
+        with pytest.raises(ValueError, match="Use int for integer time columns"):
+            model.fit(
+                data=int_data,
+                time_col="time",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),  # Wrong type
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_pretest_after_test_start_error(self, sample_data):
+        """Test fit() raises ValueError when pretest_start >= test_start."""
+        model = TBRAnalysis()
+
+        with pytest.raises(ValueError, match="pretest_start must be before test_start"):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-02-15"),
+                test_start=pd.Timestamp("2023-02-15"),  # Same as pretest_start
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+
+    def test_fit_test_start_after_test_end_exclusive_error(self, sample_data):
+        """Test fit() raises ValueError when test_start >= test_end (exclusive)."""
+        model = TBRAnalysis(test_end_inclusive=False)
+
+        with pytest.raises(ValueError, match="test_start must be < test_end"):
+            model.fit(
+                data=sample_data,
+                time_col="date",
+                control_col="control",
+                test_col="test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-03-01"),
+                test_end=pd.Timestamp("2023-03-01"),  # Same as test_start
+            )
+
+    def test_fit_test_start_after_test_end_inclusive_valid(self, sample_data):
+        """Test fit() allows test_start == test_end when test_end_inclusive=True."""
+        model = TBRAnalysis(test_end_inclusive=True)
+
+        # Should not raise error
+        model.fit(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-02-15"),  # Same-day analysis
+        )
+
+        assert model.fitted_ is True
+
+
+class TestTBRAnalysisPredictValidation:
+    """Comprehensive validation tests for predict() method input validation."""
+
+    @pytest.fixture
+    def fitted_model(self, sample_data):
+        """Create a fitted TBRAnalysis model for testing."""
+        model = TBRAnalysis(level=0.80, threshold=0.0)
+        model.fit(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-01"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+        return model
+
+    def test_predict_empty_control_values_error(self, fitted_model):
+        """Test predict() raises ValueError for empty control values array."""
+        with pytest.raises(ValueError, match="control_values cannot be empty"):
+            fitted_model.predict(control_values=np.array([]))
+
+    def test_predict_empty_list_error(self, fitted_model):
+        """Test predict() raises ValueError for empty list."""
+        with pytest.raises(ValueError, match="control_values cannot be empty"):
+            fitted_model.predict(control_values=[])
+
+    def test_predict_invalid_type_error(self, fitted_model):
+        """Test predict() raises TypeError for non-numeric control values."""
+        with pytest.raises(
+            TypeError, match="control_values must contain numeric values"
+        ):
+            fitted_model.predict(control_values="not an array")
+
+    def test_predict_with_inf_values_error(self, fitted_model):
+        """Test predict() raises ValueError for infinite values."""
+        with pytest.raises(ValueError, match="must contain only finite values"):
+            fitted_model.predict(control_values=np.array([1000.0, np.inf, 1200.0]))
+
+    def test_predict_with_nan_values_error(self, fitted_model):
+        """Test predict() raises ValueError for NaN values."""
+        with pytest.raises(ValueError, match="must contain only finite values"):
+            fitted_model.predict(control_values=np.array([1000.0, np.nan, 1200.0]))
+
+    def test_predict_2d_array_error(self, fitted_model):
+        """Test predict() raises ValueError for 2D array."""
+        with pytest.raises(ValueError, match="must be 1-dimensional"):
+            fitted_model.predict(control_values=np.array([[1000], [1100]]))
+
+    def test_predict_3d_array_error(self, fitted_model):
+        """Test predict() raises ValueError for 3D array."""
+        with pytest.raises(ValueError, match="must be 1-dimensional"):
+            fitted_model.predict(control_values=np.array([[[1000]]]))
+
+    def test_predict_unconvertible_object_error(self, fitted_model):
+        """Test predict() raises TypeError for completely unconvertible objects."""
+
+        # Create an object that raises TypeError when np.array() tries to convert it
+        class UnconvertibleObject:
+            def __array__(self):
+                raise TypeError("Cannot convert to array")
+
+        with pytest.raises(TypeError, match="control_values must be array-like"):
+            fitted_model.predict(control_values=UnconvertibleObject())
+
+
+class TestTBRAnalysisAnalyzeSubintervalValidation:
+    """Comprehensive validation tests for analyze_subinterval() method input validation."""
+
+    @pytest.fixture
+    def fitted_model(self, sample_data):
+        """Create a fitted TBRAnalysis model for testing."""
+        model = TBRAnalysis(level=0.80, threshold=0.0)
+        model.fit(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-01"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+        return model
+
+    def test_analyze_subinterval_start_day_not_int_error(self, fitted_model):
+        """Test analyze_subinterval() raises TypeError when start_day is not int."""
+        with pytest.raises(TypeError, match="start_day must be an integer"):
+            fitted_model.analyze_subinterval(start_day=1.5, end_day=7)
+
+    def test_analyze_subinterval_end_day_not_int_error(self, fitted_model):
+        """Test analyze_subinterval() raises TypeError when end_day is not int."""
+        with pytest.raises(TypeError, match="end_day must be an integer"):
+            fitted_model.analyze_subinterval(start_day=1, end_day="7")
+
+    def test_analyze_subinterval_start_day_zero_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for start_day=0."""
+        with pytest.raises(ValueError, match="start_day must be a positive integer"):
+            fitted_model.analyze_subinterval(start_day=0, end_day=7)
+
+    def test_analyze_subinterval_start_day_negative_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for negative start_day."""
+        with pytest.raises(ValueError, match="start_day must be a positive integer"):
+            fitted_model.analyze_subinterval(start_day=-5, end_day=7)
+
+    def test_analyze_subinterval_end_day_zero_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for end_day=0."""
+        with pytest.raises(ValueError, match="end_day must be a positive integer"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=0)
+
+    def test_analyze_subinterval_end_day_negative_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for negative end_day."""
+        with pytest.raises(ValueError, match="end_day must be a positive integer"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=-3)
+
+    def test_analyze_subinterval_start_exceeds_period_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError when start_day exceeds test period."""
+        with pytest.raises(ValueError, match="start_day.*exceeds test period length"):
+            fitted_model.analyze_subinterval(start_day=999, end_day=1000)
+
+    def test_analyze_subinterval_end_exceeds_period_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError when end_day exceeds test period."""
+        with pytest.raises(ValueError, match="end_day.*exceeds test period length"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=999)
+
+    def test_analyze_subinterval_invalid_ci_level_type_error(self, fitted_model):
+        """Test analyze_subinterval() raises TypeError for non-numeric ci_level."""
+        with pytest.raises(TypeError, match="ci_level must be numeric"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level="0.95")
+
+    def test_analyze_subinterval_ci_level_too_low_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for ci_level <= 0."""
+        with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.0)
+
+    def test_analyze_subinterval_ci_level_too_high_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for ci_level >= 1."""
+        with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=1.0)
+
+    def test_analyze_subinterval_ci_level_negative_error(self, fitted_model):
+        """Test analyze_subinterval() raises ValueError for negative ci_level."""
+        with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
+            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=-0.5)
+
+    def test_analyze_subinterval_numpy_integers_accepted(self, fitted_model):
+        """Test analyze_subinterval() accepts numpy integer types."""
+        # Should not raise error
+        result = fitted_model.analyze_subinterval(
+            start_day=np.int64(1), end_day=np.int64(7)
+        )
+
+        assert result["start_day"] == 1
+        assert result["end_day"] == 7
+
+    def test_analyze_subinterval_valid_ci_level(self, fitted_model):
+        """Test analyze_subinterval() accepts valid ci_level."""
+        # Should not raise error
+        result = fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.95)
+
+        assert result["ci_level"] == 0.95
+
+
 if __name__ == "__main__":
     pytest.main([__file__])

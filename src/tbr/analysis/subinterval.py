@@ -159,7 +159,7 @@ def compute_interval_estimate_and_ci(
     ... )
     >>> print(f"Day 7 effect: {day_7_result['estimate']:.2f}")
 
-    Compare different confidence levels:
+    Compare different credibility levels:
 
     >>> result_80 = compute_interval_estimate_and_ci(
     ...     tbr_results, tbr_summary, start_day=1, end_day=14, ci_level=0.80
@@ -475,7 +475,7 @@ def validate_subinterval_parameters(
     The validation checks include:
     - DataFrame structure and required columns
     - Day range validity and logical consistency
-    - Confidence level bounds
+    - Credibility level bounds
     - Test period data availability
 
     Examples
@@ -533,7 +533,7 @@ def validate_subinterval_parameters(
             f"end_day ({end_day}) exceeds available test days ({max_test_day})"
         )
 
-    # Validate confidence level
+    # Validate credibility level
     if not isinstance(ci_level, (int, float)):
         raise TypeError("ci_level must be a number")
 

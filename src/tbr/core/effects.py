@@ -279,7 +279,7 @@ def create_tbr_summary(
     degrees_freedom : int
         Residual degrees of freedom from regression
     level : float
-        Credibility level for confidence intervals
+        Credibility level for credible intervals
     threshold : float
         Threshold for probability calculation
 
@@ -444,7 +444,7 @@ def create_incremental_tbr_summaries(
     degrees_freedom : int
         Residual degrees of freedom from regression
     level : float
-        Credibility level for confidence intervals
+        Credibility level for credible intervals
     threshold : float
         Threshold for probability calculation
 
