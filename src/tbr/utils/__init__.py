@@ -37,13 +37,13 @@ from .structure_validation import (
 from .validation import (
     validate_array_not_empty,
     validate_column_types,
-    validate_confidence_level,
     validate_dataframe_not_empty,
     validate_degrees_freedom,
     validate_learning_set,
     validate_metric_columns,
     validate_no_nulls,
     validate_period_data,
+    validate_probability_level,
     validate_required_columns,
     validate_sample_size,
     validate_threshold_parameter,
@@ -78,7 +78,7 @@ __all__ = [
     "validate_period_data",
     "validate_learning_set",
     # Statistical Parameter Validation
-    "validate_confidence_level",
+    "validate_probability_level",
     "validate_threshold_parameter",
     "validate_degrees_freedom",
     "validate_variance_parameters",

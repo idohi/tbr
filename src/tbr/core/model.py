@@ -651,7 +651,7 @@ class TBRAnalysis:
 
         # Lazy imports
         from tbr.analysis.subinterval import compute_interval_estimate_and_ci
-        from tbr.utils.validation import validate_confidence_level
+        from tbr.utils.validation import validate_probability_level
 
         assert self._results is not None
         assert self._params is not None
@@ -704,7 +704,7 @@ class TBRAnalysis:
                 raise TypeError(
                     f"ci_level must be numeric, got {type(ci_level).__name__}"
                 )
-            validate_confidence_level(ci_level, "ci_level")
+            validate_probability_level(ci_level, "ci_level")
 
         # Compute subinterval estimate
         result = compute_interval_estimate_and_ci(
