@@ -505,11 +505,11 @@ def validate_learning_set(
 # =============================================================================
 
 
-def validate_confidence_level(
-    level: float, param_name: str = "confidence level"
+def validate_probability_level(
+    level: float, param_name: str = "probability level"
 ) -> None:
     """
-    Validate credibility/confidence level parameter for statistical inference.
+    Validate probability level parameter for statistical inference.
 
     Generic validator for probability levels used in interval estimation.
     In TBR context, this validates credibility levels for Bayesian credible intervals.
@@ -517,8 +517,8 @@ def validate_confidence_level(
     Parameters
     ----------
     level : float
-        Credibility/confidence level to validate (should be between 0 and 1 exclusive)
-    param_name : str, default "confidence level"
+        Probability level to validate (should be between 0 and 1 exclusive)
+    param_name : str, default "probability level"
         Parameter name for error messages
 
     Raises
@@ -528,17 +528,15 @@ def validate_confidence_level(
 
     Examples
     --------
-    >>> validate_confidence_level(0.80)  # No error
-    >>> validate_confidence_level(0.95, "credibility level")  # No error
-    >>> validate_confidence_level(1.2)  # Raises ValueError
-    >>> validate_confidence_level(-0.1)  # Raises ValueError
+    >>> validate_probability_level(0.80)  # No error
+    >>> validate_probability_level(0.95, "probability level")  # No error
+    >>> validate_probability_level(1.2)  # Raises ValueError
+    >>> validate_probability_level(-0.1)  # Raises ValueError
 
     Notes
     -----
-    In TBR analysis, the level parameter represents the credibility level for
-    Bayesian credible intervals of the treatment effect. The function name uses
-    "confidence" for historical reasons and general applicability, but in TBR
-    context it validates credibility levels.
+    This function provides a statistically neutral validation that works for
+    any probability parameter requiring values in (0, 1).
     """
     if not (0 < level < 1):
         raise ValueError(

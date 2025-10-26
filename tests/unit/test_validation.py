@@ -12,13 +12,13 @@ import pytest
 from tbr.utils.validation import (
     validate_array_not_empty,
     validate_column_types,
-    validate_confidence_level,
     validate_dataframe_not_empty,
     validate_degrees_freedom,
     validate_learning_set,
     validate_metric_columns,
     validate_no_nulls,
     validate_period_data,
+    validate_probability_level,
     validate_required_columns,
     validate_sample_size,
     validate_threshold_parameter,
@@ -355,25 +355,25 @@ class TestUtilityValidation:
 class TestStatisticalParameterValidation:
     """Test statistical parameter validation functions."""
 
-    def test_validate_confidence_level_valid(self):
-        """Test validation of valid confidence levels."""
-        validate_confidence_level(0.80)
-        validate_confidence_level(0.95)
-        validate_confidence_level(0.99, "credibility level")
+    def test_validate_probability_level_valid(self):
+        """Test validation of valid probability levels."""
+        validate_probability_level(0.80)
+        validate_probability_level(0.95)
+        validate_probability_level(0.99, "credibility level")
 
-    def test_validate_confidence_level_invalid_bounds(self):
-        """Test error for confidence levels outside (0,1)."""
+    def test_validate_probability_level_invalid_bounds(self):
+        """Test error for probability levels outside (0,1)."""
         with pytest.raises(ValueError, match="must be between 0 and 1"):
-            validate_confidence_level(0.0)
-
-        with pytest.raises(ValueError, match="must be between 0 and 1"):
-            validate_confidence_level(1.0)
+            validate_probability_level(0.0)
 
         with pytest.raises(ValueError, match="must be between 0 and 1"):
-            validate_confidence_level(1.2)
+            validate_probability_level(1.0)
 
         with pytest.raises(ValueError, match="must be between 0 and 1"):
-            validate_confidence_level(-0.1)
+            validate_probability_level(1.2)
+
+        with pytest.raises(ValueError, match="must be between 0 and 1"):
+            validate_probability_level(-0.1)
 
     def test_validate_threshold_parameter_valid(self):
         """Test validation of valid threshold parameters."""
