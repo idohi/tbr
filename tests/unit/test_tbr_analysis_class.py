@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from tbr.core.model import TBRAnalysis
+from tbr.core.results import TBRPredictionResult, TBRSubintervalResult, TBRSummaryResult
 
 
 @pytest.fixture
@@ -673,16 +674,16 @@ class TestTBRAnalysisPredictMethod:
         )
 
         # Predict using test period data
-        predictions = model.predict()
+        result = model.predict()
 
-        # Check structure
-        assert isinstance(predictions, pd.DataFrame)
-        assert "pred" in predictions.columns
-        assert "predsd" in predictions.columns
-        assert (
-            len(predictions) == 28
-        )  # 28 days in test period (Feb 1 - Mar 1 exclusive)
-        assert all(predictions["predsd"] > 0)
+        # Check result object structure
+        assert isinstance(result, TBRPredictionResult)
+        assert isinstance(result.predictions, pd.DataFrame)
+        assert "pred" in result.predictions.columns
+        assert "predsd" in result.predictions.columns
+        assert result.n_predictions == 28  # 28 days in test period
+        assert len(result.predictions) == 28
+        assert all(result.predictions["predsd"] > 0)
 
     def test_predict_with_custom_control_values(self, sample_data):
         """Test predict with custom control values."""
@@ -700,11 +701,13 @@ class TestTBRAnalysisPredictMethod:
 
         # Predict for custom values
         custom_control = np.array([1000.0, 1100.0, 1200.0])
-        predictions = model.predict(control_values=custom_control)
+        result = model.predict(control_values=custom_control)
 
-        assert len(predictions) == 3
-        assert all(predictions["pred"] > 0)
-        assert all(predictions["predsd"] > 0)
+        assert isinstance(result, TBRPredictionResult)
+        assert result.n_predictions == 3
+        assert len(result.predictions) == 3
+        assert all(result.predictions["pred"] > 0)
+        assert all(result.predictions["predsd"] > 0)
 
     def test_predict_with_series_input(self, sample_data):
         """Test predict accepts pandas Series as input."""
@@ -722,10 +725,11 @@ class TestTBRAnalysisPredictMethod:
 
         # Use pandas Series
         custom_control = pd.Series([1000.0, 1100.0, 1200.0])
-        predictions = model.predict(control_values=custom_control)
+        result = model.predict(control_values=custom_control)
 
-        assert len(predictions) == 3
-        assert isinstance(predictions, pd.DataFrame)
+        assert isinstance(result, TBRPredictionResult)
+        assert result.n_predictions == 3
+        assert len(result.predictions) == 3
 
     def test_predict_with_list_input(self, sample_data):
         """Test predict accepts Python list as input."""
@@ -743,10 +747,11 @@ class TestTBRAnalysisPredictMethod:
 
         # Use Python list
         custom_control = [1000.0, 1100.0, 1200.0]
-        predictions = model.predict(control_values=custom_control)
+        result = model.predict(control_values=custom_control)
 
-        assert len(predictions) == 3
-        assert isinstance(predictions, pd.DataFrame)
+        assert isinstance(result, TBRPredictionResult)
+        assert result.n_predictions == 3
+        assert len(result.predictions) == 3
 
     def test_predict_not_fitted_error(self):
         """Test predict raises error when model not fitted."""
@@ -811,16 +816,21 @@ class TestTBRAnalysisSummarizeMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        summary = model.summarize()
+        result = model.summarize()
 
-        # Should be single row
-        assert len(summary) == 1
-        assert isinstance(summary, pd.DataFrame)
+        # Should be TBRSummaryResult object
+        assert isinstance(result, TBRSummaryResult)
 
-        # Check expected columns
-        expected_cols = ["estimate", "lower", "upper", "se", "prob", "level", "thres"]
-        for col in expected_cols:
-            assert col in summary.columns
+        # Check expected attributes
+        assert hasattr(result, "estimate")
+        assert hasattr(result, "lower")
+        assert hasattr(result, "upper")
+        assert hasattr(result, "se")
+        assert hasattr(result, "prob")
+        assert hasattr(result, "level")
+        assert hasattr(result, "threshold")
+        assert result.level == 0.80
+        assert result.threshold == 0.0
 
     def test_summarize_incremental(self, sample_data):
         """Test summarize with incremental=True returns all summaries."""
@@ -850,7 +860,7 @@ class TestTBRAnalysisSummarizeMethod:
             model.summarize()
 
     def test_summarize_returns_copy(self, sample_data):
-        """Test summarize returns a copy, not original data."""
+        """Test summarize returns immutable result object."""
         model = TBRAnalysis(level=0.80)
         data = sample_data
         model.fit(
@@ -863,15 +873,16 @@ class TestTBRAnalysisSummarizeMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        summary = model.summarize()
-        original_value = summary.iloc[0]["estimate"]
+        result = model.summarize()
+        original_estimate = result.estimate
 
-        # Modify summary
-        summary.iloc[0, summary.columns.get_loc("estimate")] = 999999.0
+        # Result objects are immutable (frozen dataclass)
+        with pytest.raises(AttributeError):
+            result.estimate = 999999.0
 
-        # Original should not be affected
-        new_summary = model.summarize()
-        assert new_summary.iloc[0]["estimate"] == original_value
+        # Calling summarize again should return same values
+        new_result = model.summarize()
+        assert new_result.estimate == original_estimate
 
     def test_summarize_final_matches_last_incremental(self, sample_data):
         """Test final summary matches last row of incremental summaries."""
@@ -887,13 +898,15 @@ class TestTBRAnalysisSummarizeMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        final = model.summarize(incremental=False)
-        incremental = model.summarize(incremental=True)
+        final_result = model.summarize(incremental=False)
+        incremental_df = model.summarize(incremental=True)
 
-        # Final should equal last row of incremental
-        assert final.iloc[0]["estimate"] == incremental.iloc[-1]["estimate"]
-        assert final.iloc[0]["lower"] == incremental.iloc[-1]["lower"]
-        assert final.iloc[0]["upper"] == incremental.iloc[-1]["upper"]
+        # Final result should match last row of incremental DataFrame
+        assert isinstance(final_result, TBRSummaryResult)
+        assert isinstance(incremental_df, pd.DataFrame)
+        assert final_result.estimate == incremental_df.iloc[-1]["estimate"]
+        assert final_result.lower == incremental_df.iloc[-1]["lower"]
+        assert final_result.upper == incremental_df.iloc[-1]["upper"]
 
 
 class TestTBRAnalysisAnalyzeSubintervalMethod:
@@ -917,22 +930,22 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         result = model.analyze_subinterval(start_day=1, end_day=7)
 
         # Check structure
-        assert isinstance(result, dict)
-        assert "estimate" in result
-        assert "lower" in result
-        assert "upper" in result
-        assert "se" in result
-        assert "ci_level" in result
-        assert "start_day" in result
-        assert "end_day" in result
-        assert "n_days" in result
+        assert isinstance(result, TBRSubintervalResult)
+        assert hasattr(result, "estimate")
+        assert hasattr(result, "lower")
+        assert hasattr(result, "upper")
+        assert hasattr(result, "se")
+        assert hasattr(result, "ci_level")
+        assert hasattr(result, "start_day")
+        assert hasattr(result, "end_day")
+        assert hasattr(result, "n_days")
 
         # Check values
-        assert result["start_day"] == 1
-        assert result["end_day"] == 7
-        assert result["n_days"] == 7
-        assert result["ci_level"] == 0.80
-        assert isinstance(result["estimate"], float)
+        assert result.start_day == 1
+        assert result.end_day == 7
+        assert result.n_days == 7
+        assert result.ci_level == 0.80
+        assert isinstance(result.estimate, float)
 
     def test_analyze_subinterval_custom_ci_level(self, sample_data):
         """Test subinterval analysis with custom CI level."""
@@ -950,12 +963,11 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
 
         result = model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.95)
 
-        assert result["ci_level"] == 0.95
+        assert isinstance(result, TBRSubintervalResult)
+        assert result.ci_level == 0.95
         # 95% CI should be wider than 80% CI
         result_80 = model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.80)
-        assert (result["upper"] - result["lower"]) > (
-            result_80["upper"] - result_80["lower"]
-        )
+        assert (result.upper - result.lower) > (result_80.upper - result_80.lower)
 
     def test_analyze_subinterval_single_day(self, sample_data):
         """Test subinterval analysis for a single day."""
@@ -973,9 +985,10 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
 
         result = model.analyze_subinterval(start_day=5, end_day=5)
 
-        assert result["n_days"] == 1
-        assert result["start_day"] == 5
-        assert result["end_day"] == 5
+        assert isinstance(result, TBRSubintervalResult)
+        assert result.n_days == 1
+        assert result.start_day == 5
+        assert result.end_day == 5
 
     def test_analyze_subinterval_not_fitted_error(self):
         """Test analyze_subinterval raises error when model not fitted."""
@@ -1076,7 +1089,9 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         final_summary = model.summarize(incremental=False)
 
         # Should be very close to final summary estimate
-        assert abs(result["estimate"] - final_summary.iloc[0]["estimate"]) < 0.01
+        assert isinstance(result, TBRSubintervalResult)
+        assert isinstance(final_summary, TBRSummaryResult)
+        assert abs(result.estimate - final_summary.estimate) < 0.01
 
 
 class TestTBRAnalysisFitValidation:
@@ -1572,15 +1587,17 @@ class TestTBRAnalysisAnalyzeSubintervalValidation:
             start_day=np.int64(1), end_day=np.int64(7)
         )
 
-        assert result["start_day"] == 1
-        assert result["end_day"] == 7
+        assert isinstance(result, TBRSubintervalResult)
+        assert result.start_day == 1
+        assert result.end_day == 7
 
     def test_analyze_subinterval_valid_ci_level(self, fitted_model):
         """Test analyze_subinterval() accepts valid ci_level."""
         # Should not raise error
         result = fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.95)
 
-        assert result["ci_level"] == 0.95
+        assert isinstance(result, TBRSubintervalResult)
+        assert result.ci_level == 0.95
 
 
 if __name__ == "__main__":
