@@ -47,6 +47,8 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import pandas as pd
 
+from tbr.core.results import TBRPredictionResult, TBRSubintervalResult, TBRSummaryResult
+
 
 class TBRAnalysis:
     """
@@ -370,7 +372,7 @@ class TBRAnalysis:
     def predict(
         self,
         control_values: Optional[Union[pd.Series, np.ndarray]] = None,
-    ) -> pd.DataFrame:
+    ) -> TBRPredictionResult:
         """
         Generate counterfactual predictions using the fitted TBR model.
 
@@ -386,10 +388,12 @@ class TBRAnalysis:
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with columns:
-            - pred: Predicted values (counterfactual)
-            - predsd: Prediction standard deviations (uncertainty)
+        TBRPredictionResult
+            Result object containing:
+            - predictions: DataFrame with pred and predsd columns
+            - n_predictions: Number of predictions generated
+            - model_params: Model parameters used
+            - control_values: Control values used for predictions
 
         Raises
         ------
@@ -406,17 +410,20 @@ class TBRAnalysis:
 
         >>> model = TBRAnalysis(level=0.80)
         >>> model.fit(data, 'date', 'control', 'test', ...)
-        >>> predictions = model.predict()
-        >>> print(predictions[['pred', 'predsd']].head())
+        >>> result = model.predict()
+        >>> print(result.predictions.head())
+        >>> print(f"Generated {result.n_predictions} predictions")
 
         Predict for new control values:
 
         >>> new_control = np.array([1000, 1050, 1100])
-        >>> predictions = model.predict(control_values=new_control)
+        >>> result = model.predict(control_values=new_control)
+        >>> print(f"Mean prediction: {result.predictions['pred'].mean():.2f}")
 
-        Predict using a Python list:
+        Access underlying data:
 
-        >>> predictions = model.predict(control_values=[1000, 1050, 1100])
+        >>> predictions_df = result.predictions
+        >>> result_dict = result.to_dict()
 
         Notes
         -----
@@ -505,34 +512,39 @@ class TBRAnalysis:
             time_col=self._fit_info["time_col"],
         )
 
-        # Return only pred and predsd columns
-        return predictions[["pred", "predsd"]].copy()
+        # Create and return TBRPredictionResult
+        return TBRPredictionResult(
+            predictions=predictions[["pred", "predsd"]].copy(),
+            n_predictions=len(control_values),
+            model_params=dict(self._params),
+            control_values=control_values.copy(),
+        )
 
-    def summarize(self, incremental: bool = False) -> pd.DataFrame:
+    def summarize(
+        self, incremental: bool = False
+    ) -> Union[TBRSummaryResult, pd.DataFrame]:
         """
         Get summary statistics from the TBR analysis.
 
-        Returns either the final cumulative summary or incremental day-by-day
-        summaries for the test period.
+        Returns either the final cumulative summary as a result object or
+        incremental day-by-day summaries as a DataFrame.
 
         Parameters
         ----------
         incremental : bool, default=False
-            If False (default), returns single-row final summary.
-            If True, returns day-by-day incremental summaries.
+            If False (default), returns TBRSummaryResult with final summary.
+            If True, returns DataFrame with day-by-day incremental summaries.
 
         Returns
         -------
-        pd.DataFrame
-            Summary statistics DataFrame containing:
-            - estimate: Treatment effect estimate
-            - lower, upper: Credible interval bounds
-            - se: Standard error
-            - prob: Posterior probability of exceeding threshold
-            - precision: Precision (inverse variance)
-            - level: Credibility level used
-            - thres: Threshold used
-            - Additional model parameters (alpha, beta, sigma, etc.)
+        TBRSummaryResult or pd.DataFrame
+            If incremental=False: TBRSummaryResult object containing:
+            - estimate, lower, upper: Effect estimate and credible interval
+            - se, prob, precision: Standard error, probability, precision
+            - level, threshold: Configuration parameters
+            - Model parameters (alpha, beta, sigma, variances, etc.)
+
+            If incremental=True: DataFrame with day-by-day summaries
 
         Raises
         ------
@@ -545,14 +557,20 @@ class TBRAnalysis:
 
         >>> model = TBRAnalysis(level=0.80, threshold=0.0)
         >>> model.fit(data, 'date', 'control', 'test', ...)
-        >>> summary = model.summarize()
-        >>> print(f"Effect: {summary['estimate'].iloc[0]:.2f}")
-        >>> print(f"CI: [{summary['lower'].iloc[0]:.2f}, {summary['upper'].iloc[0]:.2f}]")
+        >>> result = model.summarize()
+        >>> print(f"Effect: {result.estimate:.2f}")
+        >>> print(f"CI: [{result.lower:.2f}, {result.upper:.2f}]")
+        >>> print(f"Significant: {result.is_significant()}")
 
         Get incremental summaries:
 
         >>> incremental_summaries = model.summarize(incremental=True)
         >>> print(incremental_summaries[['estimate', 'lower', 'upper']])
+
+        Access summary as DataFrame or dict:
+
+        >>> summary_df = result.to_dataframe()
+        >>> summary_dict = result.to_dict()
 
         Notes
         -----
@@ -573,15 +591,36 @@ class TBRAnalysis:
         if incremental:
             return self._summaries.copy()
         else:
-            # Return only the final summary (last row)
-            return self._summaries.iloc[[-1]].copy()
+            # Extract final summary (last row) as TBRSummaryResult
+            final_row = self._summaries.iloc[-1]
+            return TBRSummaryResult(
+                estimate=float(final_row["estimate"]),
+                lower=float(final_row["lower"]),
+                upper=float(final_row["upper"]),
+                se=float(final_row["se"]),
+                prob=float(final_row["prob"]),
+                precision=float(final_row["precision"]),
+                level=float(final_row["level"]),
+                threshold=float(final_row["thres"]),
+                alpha=float(final_row["alpha"]),
+                beta=float(final_row["beta"]),
+                sigma=float(final_row["sigma"]),
+                var_alpha=float(final_row["var_alpha"]),
+                var_beta=float(final_row["var_beta"]),
+                cov_alpha_beta=float(
+                    final_row["alpha_beta_cov"]
+                ),  # DataFrame column is alpha_beta_cov
+                degrees_freedom=int(
+                    final_row["t_dist_df"]
+                ),  # DataFrame column is t_dist_df
+            )
 
     def analyze_subinterval(
         self,
         start_day: int,
         end_day: int,
         ci_level: Optional[float] = None,
-    ) -> Dict[str, float]:
+    ) -> TBRSubintervalResult:
         """
         Analyze treatment effect for a custom subinterval of the test period.
 
@@ -601,16 +640,13 @@ class TBRAnalysis:
 
         Returns
         -------
-        dict
-            Dictionary containing:
+        TBRSubintervalResult
+            Result object containing:
             - estimate: Treatment effect for the subinterval
-            - lower: Lower bound of credible interval
-            - upper: Upper bound of credible interval
+            - lower, upper: Credible interval bounds
             - se: Standard error of the estimate
             - ci_level: Credibility level used
-            - start_day: Starting day (as provided)
-            - end_day: Ending day (as provided)
-            - n_days: Number of days in the subinterval
+            - start_day, end_day, n_days: Interval specification
 
         Raises
         ------
@@ -628,13 +664,20 @@ class TBRAnalysis:
 
         >>> model = TBRAnalysis(level=0.80)
         >>> model.fit(data, 'date', 'control', 'test', ...)
-        >>> week1_effect = model.analyze_subinterval(start_day=1, end_day=7)
-        >>> print(f"Week 1 effect: {week1_effect['estimate']:.2f}")
-        >>> print(f"Week 1 CI: [{week1_effect['lower']:.2f}, {week1_effect['upper']:.2f}]")
+        >>> result = model.analyze_subinterval(start_day=1, end_day=7)
+        >>> print(f"Week 1 effect: {result.estimate:.2f}")
+        >>> print(f"Week 1 CI: [{result.lower:.2f}, {result.upper:.2f}]")
+        >>> print(f"Significant: {result.is_positive()}")
 
         Analyze with custom credibility level:
 
-        >>> week2_effect = model.analyze_subinterval(start_day=8, end_day=14, ci_level=0.95)
+        >>> result = model.analyze_subinterval(start_day=8, end_day=14, ci_level=0.95)
+        >>> if result.contains_zero():
+        ...     print("Effect not significant")
+
+        Access underlying data:
+
+        >>> result_dict = result.to_dict()
 
         Notes
         -----
@@ -718,17 +761,17 @@ class TBRAnalysis:
         # Calculate standard error from precision (half-width of CI)
         se = result["precision"]
 
-        # Return results as dictionary
-        return {
-            "estimate": result["estimate"],
-            "lower": result["lower"],
-            "upper": result["upper"],
-            "se": se,
-            "ci_level": ci_level,
-            "start_day": start_day,
-            "end_day": end_day,
-            "n_days": end_day - start_day + 1,
-        }
+        # Create and return TBRSubintervalResult
+        return TBRSubintervalResult(
+            estimate=result["estimate"],
+            lower=result["lower"],
+            upper=result["upper"],
+            se=se,
+            ci_level=ci_level,
+            start_day=start_day,
+            end_day=end_day,
+            n_days=end_day - start_day + 1,
+        )
 
     @property
     def fitted_(self) -> bool:
