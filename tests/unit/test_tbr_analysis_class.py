@@ -846,7 +846,7 @@ class TestTBRAnalysisSummarizeMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        summaries = model.summarize(incremental=True)
+        summaries = model.summarize_incremental()
 
         # Should have multiple rows (one per test day)
         assert len(summaries) == 28  # 28 days in test period
@@ -898,8 +898,8 @@ class TestTBRAnalysisSummarizeMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        final_result = model.summarize(incremental=False)
-        incremental_df = model.summarize(incremental=True)
+        final_result = model.summarize()
+        incremental_df = model.summarize_incremental()
 
         # Final result should match last row of incremental DataFrame
         assert isinstance(final_result, TBRSummaryResult)
@@ -907,6 +907,40 @@ class TestTBRAnalysisSummarizeMethod:
         assert final_result.estimate == incremental_df.iloc[-1]["estimate"]
         assert final_result.lower == incremental_df.iloc[-1]["lower"]
         assert final_result.upper == incremental_df.iloc[-1]["upper"]
+
+    def test_summarize_incremental_returns_dataframe(self, sample_data):
+        """Test summarize_incremental() returns DataFrame with proper structure."""
+        model = TBRAnalysis()
+        data = sample_data
+        model.fit(
+            data=data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-01"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        incremental = model.summarize_incremental()
+
+        # Should return DataFrame
+        assert isinstance(incremental, pd.DataFrame)
+
+        # Should have multiple rows (one per test day)
+        assert len(incremental) == 28  # 28 days in test period
+
+        # Should have expected columns
+        expected_cols = ["test_day", "estimate", "lower", "upper", "se", "prob"]
+        for col in expected_cols:
+            assert col in incremental.columns
+
+    def test_summarize_incremental_not_fitted_error(self):
+        """Test summarize_incremental() raises error when model not fitted."""
+        model = TBRAnalysis()
+
+        with pytest.raises(AttributeError, match="not fitted yet"):
+            model.summarize_incremental()
 
 
 class TestTBRAnalysisAnalyzeSubintervalMethod:
@@ -1086,7 +1120,7 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
 
         # Full test period is 28 days
         result = model.analyze_subinterval(start_day=1, end_day=28)
-        final_summary = model.summarize(incremental=False)
+        final_summary = model.summarize()
 
         # Should be very close to final summary estimate
         assert isinstance(result, TBRSubintervalResult)
@@ -1598,6 +1632,132 @@ class TestTBRAnalysisAnalyzeSubintervalValidation:
 
         assert isinstance(result, TBRSubintervalResult)
         assert result.ci_level == 0.95
+
+
+class TestTBRAnalysisConvenienceMethods:
+    """Test convenience methods and properties added for API usability."""
+
+    @pytest.fixture
+    def fitted_model(self, sample_data):
+        """Create a fitted TBRAnalysis model for testing."""
+        model = TBRAnalysis(level=0.80, threshold=0.0)
+        model.fit(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-01"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+        return model
+
+    def test_fit_predict_basic_functionality(self, sample_data):
+        """Test fit_predict() combines fit and predict in one call."""
+        model = TBRAnalysis(level=0.80)
+
+        predictions = model.fit_predict(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-01"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Should return TBRPredictionResult
+        assert isinstance(predictions, TBRPredictionResult)
+        assert predictions.n_predictions > 0
+
+        # Model should be fitted
+        assert model.fitted_
+
+    def test_fit_predict_with_custom_control_values(self, sample_data):
+        """Test fit_predict() with custom control values."""
+        model = TBRAnalysis()
+        custom_control = np.array([1000, 1050, 1100])
+
+        predictions = model.fit_predict(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-01"),
+            test_end=pd.Timestamp("2023-03-01"),
+            control_values=custom_control,
+        )
+
+        assert isinstance(predictions, TBRPredictionResult)
+        assert predictions.n_predictions == len(custom_control)
+        assert np.array_equal(predictions.control_values, custom_control)
+
+    def test_final_summary_property(self, fitted_model):
+        """Test final_summary convenience property."""
+        summary = fitted_model.final_summary
+
+        # Should return TBRSummaryResult
+        assert isinstance(summary, TBRSummaryResult)
+
+        # Should be equivalent to summarize()
+        summary_from_method = fitted_model.summarize()
+        assert summary.estimate == summary_from_method.estimate
+        assert summary.lower == summary_from_method.lower
+        assert summary.upper == summary_from_method.upper
+
+    def test_final_effect_property(self, fitted_model):
+        """Test final_effect convenience property."""
+        effect = fitted_model.final_effect
+
+        # Should return float
+        assert isinstance(effect, float)
+
+        # Should match final_summary.estimate
+        assert effect == fitted_model.final_summary.estimate
+
+        # Should match last row of summaries
+        final_summary_estimate = fitted_model.summaries_.iloc[-1]["estimate"]
+        assert abs(effect - final_summary_estimate) < 1e-10
+
+    def test_final_summary_not_fitted_error(self):
+        """Test final_summary raises error when not fitted."""
+        model = TBRAnalysis()
+
+        with pytest.raises(AttributeError, match="not fitted yet"):
+            _ = model.final_summary
+
+    def test_final_effect_not_fitted_error(self):
+        """Test final_effect raises error when not fitted."""
+        model = TBRAnalysis()
+
+        with pytest.raises(AttributeError, match="not fitted yet"):
+            _ = model.final_effect
+
+    def test_prediction_result_mean_pred_property(self, fitted_model):
+        """Test TBRPredictionResult.mean_pred property."""
+        predictions = fitted_model.predict()
+
+        # mean_pred should be a float
+        assert isinstance(predictions.mean_pred, float)
+
+        # Should match manual calculation
+        expected_mean = predictions.predictions["pred"].mean()
+        assert abs(predictions.mean_pred - expected_mean) < 1e-10
+
+    def test_prediction_result_mean_uncertainty_property(self, fitted_model):
+        """Test TBRPredictionResult.mean_uncertainty property."""
+        predictions = fitted_model.predict()
+
+        # mean_uncertainty should be a float
+        assert isinstance(predictions.mean_uncertainty, float)
+
+        # Should match manual calculation
+        expected_mean = predictions.predictions["predsd"].mean()
+        assert abs(predictions.mean_uncertainty - expected_mean) < 1e-10
+
+        # Should be positive
+        assert predictions.mean_uncertainty > 0
 
 
 if __name__ == "__main__":

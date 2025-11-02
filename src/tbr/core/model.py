@@ -369,6 +369,71 @@ class TBRAnalysis:
         # Return self for method chaining
         return self
 
+    def fit_predict(
+        self,
+        data: pd.DataFrame,
+        time_col: str,
+        control_col: str,
+        test_col: str,
+        pretest_start: Union[pd.Timestamp, int, float],
+        test_start: Union[pd.Timestamp, int, float],
+        test_end: Union[pd.Timestamp, int, float],
+        control_values: Optional[Union[pd.Series, np.ndarray]] = None,
+    ) -> TBRPredictionResult:
+        """
+        Fit model and immediately return predictions (convenience method).
+
+        Combines fit() and predict() into a single method call for streamlined
+        workflows. This is particularly useful for quick analysis without needing
+        to store the model state.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Time series data with time, control, and test columns.
+        time_col : str
+            Name of the time column.
+        control_col : str
+            Name of control group metric column.
+        test_col : str
+            Name of test group metric column.
+        pretest_start : Union[pd.Timestamp, int, float]
+            Start time of pretest period (inclusive).
+        test_start : Union[pd.Timestamp, int, float]
+            Start time of test period (inclusive).
+        test_end : Union[pd.Timestamp, int, float]
+            End time of test period (inclusive/exclusive based on test_end_inclusive).
+        control_values : Union[pd.Series, np.ndarray, list], optional
+            Control group values to generate predictions for. If None, uses
+            control values from the test period.
+
+        Returns
+        -------
+        TBRPredictionResult
+            Prediction result object with predictions and metadata.
+
+        Examples
+        --------
+        One-line prediction without storing model:
+
+        >>> predictions = TBRAnalysis().fit_predict(
+        ...     data, 'date', 'control', 'test',
+        ...     pretest_start='2023-01-01',
+        ...     test_start='2023-02-15',
+        ...     test_end='2023-03-01'
+        ... )
+        >>> print(f"Mean prediction: {predictions.mean_pred:.2f}")
+
+        Notes
+        -----
+        This is equivalent to calling `fit()` followed by `predict()`, but
+        more concise for workflows where only predictions are needed.
+        """
+        self.fit(
+            data, time_col, control_col, test_col, pretest_start, test_start, test_end
+        )
+        return self.predict(control_values)
+
     def predict(
         self,
         control_values: Optional[Union[pd.Series, np.ndarray]] = None,
@@ -520,31 +585,21 @@ class TBRAnalysis:
             control_values=control_values.copy(),
         )
 
-    def summarize(
-        self, incremental: bool = False
-    ) -> Union[TBRSummaryResult, pd.DataFrame]:
+    def summarize(self) -> TBRSummaryResult:
         """
-        Get summary statistics from the TBR analysis.
+        Get final cumulative summary statistics from the TBR analysis.
 
-        Returns either the final cumulative summary as a result object or
-        incremental day-by-day summaries as a DataFrame.
-
-        Parameters
-        ----------
-        incremental : bool, default=False
-            If False (default), returns TBRSummaryResult with final summary.
-            If True, returns DataFrame with day-by-day incremental summaries.
+        Returns the final (cumulative) treatment effect summary with credible
+        intervals, posterior probabilities, and model parameters.
 
         Returns
         -------
-        TBRSummaryResult or pd.DataFrame
-            If incremental=False: TBRSummaryResult object containing:
+        TBRSummaryResult
+            Result object containing:
             - estimate, lower, upper: Effect estimate and credible interval
             - se, prob, precision: Standard error, probability, precision
             - level, threshold: Configuration parameters
             - Model parameters (alpha, beta, sigma, variances, etc.)
-
-            If incremental=True: DataFrame with day-by-day summaries
 
         Raises
         ------
@@ -562,21 +617,20 @@ class TBRAnalysis:
         >>> print(f"CI: [{result.lower:.2f}, {result.upper:.2f}]")
         >>> print(f"Significant: {result.is_significant()}")
 
-        Get incremental summaries:
-
-        >>> incremental_summaries = model.summarize(incremental=True)
-        >>> print(incremental_summaries[['estimate', 'lower', 'upper']])
-
         Access summary as DataFrame or dict:
 
         >>> summary_df = result.to_dataframe()
         >>> summary_dict = result.to_dict()
 
+        See Also
+        --------
+        summarize_incremental : Get day-by-day incremental summaries
+
         Notes
         -----
         The summary statistics are computed from the incremental summaries
-        stored during fit(). The final summary is the last row of the
-        incremental summaries.
+        stored during fit(). This returns the last row of the incremental
+        summaries as a structured result object.
         """
         # Check if model is fitted
         if not self._fitted:
@@ -587,33 +641,92 @@ class TBRAnalysis:
 
         assert self._summaries is not None
 
-        # Return incremental or final summary
-        if incremental:
-            return self._summaries.copy()
-        else:
-            # Extract final summary (last row) as TBRSummaryResult
-            final_row = self._summaries.iloc[-1]
-            return TBRSummaryResult(
-                estimate=float(final_row["estimate"]),
-                lower=float(final_row["lower"]),
-                upper=float(final_row["upper"]),
-                se=float(final_row["se"]),
-                prob=float(final_row["prob"]),
-                precision=float(final_row["precision"]),
-                level=float(final_row["level"]),
-                threshold=float(final_row["thres"]),
-                alpha=float(final_row["alpha"]),
-                beta=float(final_row["beta"]),
-                sigma=float(final_row["sigma"]),
-                var_alpha=float(final_row["var_alpha"]),
-                var_beta=float(final_row["var_beta"]),
-                cov_alpha_beta=float(
-                    final_row["alpha_beta_cov"]
-                ),  # DataFrame column is alpha_beta_cov
-                degrees_freedom=int(
-                    final_row["t_dist_df"]
-                ),  # DataFrame column is t_dist_df
+        # Extract final summary (last row) as TBRSummaryResult
+        final_row = self._summaries.iloc[-1]
+        return TBRSummaryResult(
+            estimate=float(final_row["estimate"]),
+            lower=float(final_row["lower"]),
+            upper=float(final_row["upper"]),
+            se=float(final_row["se"]),
+            prob=float(final_row["prob"]),
+            precision=float(final_row["precision"]),
+            level=float(final_row["level"]),
+            threshold=float(final_row["thres"]),
+            alpha=float(final_row["alpha"]),
+            beta=float(final_row["beta"]),
+            sigma=float(final_row["sigma"]),
+            var_alpha=float(final_row["var_alpha"]),
+            var_beta=float(final_row["var_beta"]),
+            cov_alpha_beta=float(
+                final_row["alpha_beta_cov"]
+            ),  # DataFrame column is alpha_beta_cov
+            degrees_freedom=int(
+                final_row["t_dist_df"]
+            ),  # DataFrame column is t_dist_df
+        )
+
+    def summarize_incremental(self) -> pd.DataFrame:
+        """
+        Get day-by-day incremental summaries for the test period.
+
+        Returns incremental summaries showing the progression of cumulative
+        treatment effects as each day of the test period is added.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns:
+            - test_day: Day number in test period
+            - estimate: Cumulative treatment effect
+            - precision: 1/variance of the estimate
+            - lower, upper: Credible interval bounds
+            - se: Standard error of the estimate
+            - level: Credibility level used
+            - thres: Threshold used for probability calculation
+            - prob: Posterior probability of exceeding threshold
+            - Model parameters (alpha, beta, sigma, variances, covariances)
+
+        Raises
+        ------
+        AttributeError
+            If the model has not been fitted yet.
+
+        Examples
+        --------
+        Get incremental summaries:
+
+        >>> model = TBRAnalysis(level=0.90, threshold=0.0)
+        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> incremental = model.summarize_incremental()
+        >>> print(incremental[['test_day', 'estimate', 'lower', 'upper']])
+
+        Plot progression over time:
+
+        >>> import matplotlib.pyplot as plt
+        >>> plt.plot(incremental['test_day'], incremental['estimate'])
+        >>> plt.fill_between(incremental['test_day'],
+        ...                  incremental['lower'], incremental['upper'], alpha=0.3)
+
+        See Also
+        --------
+        summarize : Get final cumulative summary as result object
+
+        Notes
+        -----
+        Each row represents the cumulative effect from the start of the test
+        period through that day. The last row matches the final summary
+        returned by summarize().
+        """
+        # Check if model is fitted
+        if not self._fitted:
+            raise AttributeError(
+                "This TBRAnalysis instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using summarize_incremental()."
             )
+
+        assert self._summaries is not None
+
+        return self._summaries.copy()
 
     def analyze_subinterval(
         self,
@@ -772,6 +885,55 @@ class TBRAnalysis:
             end_day=end_day,
             n_days=end_day - start_day + 1,
         )
+
+    @property
+    def final_summary(self) -> TBRSummaryResult:
+        """
+        Get final summary as a result object (convenience property).
+
+        Equivalent to `summarize()` but more concise.
+
+        Returns
+        -------
+        TBRSummaryResult
+            Final cumulative summary with all statistics.
+
+        Raises
+        ------
+        AttributeError
+            If the model has not been fitted yet.
+
+        Examples
+        --------
+        >>> model = TBRAnalysis()
+        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> summary = model.final_summary
+        >>> print(f"Effect: {summary.estimate:.2f}")
+        """
+        return self.summarize()
+
+    @property
+    def final_effect(self) -> float:
+        """
+        Get final cumulative treatment effect estimate (convenience property).
+
+        Returns
+        -------
+        float
+            Final cumulative treatment effect.
+
+        Raises
+        ------
+        AttributeError
+            If the model has not been fitted yet.
+
+        Examples
+        --------
+        >>> model = TBRAnalysis()
+        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> print(f"Treatment effect: {model.final_effect:.2f}")
+        """
+        return self.final_summary.estimate
 
     @property
     def fitted_(self) -> bool:

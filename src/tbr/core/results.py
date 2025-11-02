@@ -95,13 +95,37 @@ class TBRPredictionResult:
             "control_values": self.control_values,
         }
 
+    @property
+    def mean_pred(self) -> float:
+        """
+        Mean of predicted values.
+
+        Returns
+        -------
+        float
+            Average of counterfactual predictions
+        """
+        return float(self.predictions["pred"].mean())
+
+    @property
+    def mean_uncertainty(self) -> float:
+        """
+        Mean prediction uncertainty.
+
+        Returns
+        -------
+        float
+            Average of prediction standard deviations
+        """
+        return float(self.predictions["predsd"].mean())
+
     def __repr__(self) -> str:
         """Generate professional string representation."""
         return (
             f"TBRPredictionResult(\n"
             f"  n_predictions={self.n_predictions},\n"
-            f"  mean_pred={self.predictions['pred'].mean():.3f},\n"
-            f"  mean_uncertainty={self.predictions['predsd'].mean():.3f}\n"
+            f"  mean_pred={self.mean_pred:.3f},\n"
+            f"  mean_uncertainty={self.mean_uncertainty:.3f}\n"
             f")"
         )
 
