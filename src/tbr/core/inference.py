@@ -6,8 +6,8 @@ including t-statistics, p-values, credible intervals, and posterior probability 
 All functions are designed to work with TBR model outputs and provide rigorous statistical
 conclusions for treatment effect analysis.
 
-The implementation follows professional scientific standards for statistical inference,
-with proper error handling, numerical stability, and comprehensive documentation.
+The implementation provides proper error handling, numerical stability,
+and comprehensive documentation.
 
 Key Features
 ------------
@@ -16,7 +16,7 @@ Key Features
 - Credible interval estimation with configurable credibility levels
 - Posterior probability calculation for threshold exceedance
 - Critical value computation for statistical testing
-- Professional input validation and error handling
+- Input validation and error handling
 
 Examples
 --------

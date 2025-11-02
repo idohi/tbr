@@ -3,8 +3,6 @@ TBR Incremental Analysis Module.
 
 This module provides specialized functionality for incremental TBR analysis,
 enabling day-by-day progression analysis of treatment effects during test periods.
-It follows the professional patterns established by top scientific PyPI packages
-like SciPy, Pandas, and Statsmodels for modular analysis functionality.
 
 The incremental analysis approach allows researchers to:
 - Track treatment effect evolution over time

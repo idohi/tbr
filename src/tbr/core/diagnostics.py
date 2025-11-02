@@ -39,8 +39,8 @@ Examples
 
 Notes
 -----
-All diagnostic functions follow scientific standards and provide comprehensive
-statistical information for model validation and assumption checking.
+All diagnostic functions provide comprehensive statistical information
+for model validation and assumption checking.
 """
 
 from typing import Dict, List, TypedDict, Union
@@ -52,7 +52,7 @@ from tbr.utils.preprocessing import extract_regression_arrays, prepare_regressio
 from tbr.utils.validation import validate_array_not_empty, validate_sample_size
 
 
-# Professional TypedDict definitions for return types
+# TypedDict definitions for return types
 class NormalityTestResult(TypedDict):
     """Result of normality test."""
 

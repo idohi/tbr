@@ -13,7 +13,7 @@ The module focuses on:
 - Core mathematical utilities for TBR methodology
 
 All functions are independent implementations that do not depend on other TBR modules,
-following clean architecture principles for professional scientific packages.
+following clean architecture principles.
 
 Examples
 --------

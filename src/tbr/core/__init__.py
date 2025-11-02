@@ -6,7 +6,7 @@ full compatibility with the functional implementation.
 
 The core modules include:
 - model: Object-oriented API with TBRAnalysis class
-- results: Professional result object structures for TBR outputs
+- results: Result object structures for TBR outputs
 - regression: Linear regression model fitting and variance calculations
 - prediction: Counterfactual predictions and uncertainty quantification
 - diagnostics: Model diagnostics and assumption testing

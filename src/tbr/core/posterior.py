@@ -21,7 +21,7 @@ Key Features
 - Time-series posterior probability evolution
 - Bayesian decision theory implementations
 - Posterior distribution characterization
-- Professional statistical validation
+- Statistical validation
 
 Examples
 --------

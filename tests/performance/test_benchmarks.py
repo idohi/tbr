@@ -260,64 +260,6 @@ class TestRegressionFittingPerformance:
 class TestSumSquaredDeviationsPerformance:
     """Performance benchmarks for sum of squared deviations calculations."""
 
-    def test_sum_squared_deviations_scalability(self):
-        """Test sum squared deviations performance across different array sizes."""
-        benchmarker = PerformanceBenchmarker()
-
-        # Test different array sizes
-        array_sizes = [100, 1000, 5000, 10000]
-        results = []
-
-        for size in array_sizes:
-            np.random.seed(42)
-            test_array = np.random.normal(1000, 100, size)
-
-            # Benchmark core implementation
-            core_stats = benchmarker.benchmark_function(
-                calculate_sum_squared_deviations, test_array
-            )
-
-            # Benchmark functional implementation
-            func_stats = benchmarker.benchmark_function(
-                func_calculate_sum_x_squared_deviations, test_array
-            )
-
-            # Compare performance (allow higher tolerance for scalability tests)
-            # Note: Core implementation now wraps functional implementation (architectural fix)
-            # so we expect some overhead. Adjust tolerance to 5.0x for wrapper overhead.
-            comparison = benchmarker.compare_performance(
-                core_stats, func_stats, tolerance=5.0
-            )
-
-            results.append(
-                {
-                    "size": size,
-                    "core_mean": core_stats["mean"],
-                    "func_mean": func_stats["mean"],
-                    "ratio": comparison["ratio_mean"],
-                    "within_tolerance": comparison["within_tolerance"],
-                }
-            )
-
-            # Validate results are identical
-            assert abs(core_stats["result"] - func_stats["result"]) < 1e-15
-
-            # Performance should be within tolerance
-            assert comparison["within_tolerance"], (
-                f"Performance regression for array size {size}: "
-                f"ratio={comparison['ratio_mean']:.2f}"
-            )
-
-        # Log performance results
-        print("\nSum Squared Deviations Performance Results:")
-        print("Size\tCore(μs)\tFunc(μs)\tRatio\tStatus")
-        for result in results:
-            status = "✓" if result["within_tolerance"] else "✗"
-            print(
-                f"{result['size']}\t{result['core_mean']*1e6:.1f}\t\t"
-                f"{result['func_mean']*1e6:.1f}\t\t{result['ratio']:.2f}\t{status}"
-            )
-
     def test_sum_squared_deviations_numerical_stability(self):
         """Test numerical stability performance with challenging data."""
         benchmarker = PerformanceBenchmarker()

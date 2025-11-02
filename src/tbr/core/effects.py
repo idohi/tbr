@@ -2,7 +2,7 @@
 
 This module provides clean interfaces for calculating treatment effects and lift
 in Time-Based Regression (TBR) analysis. It wraps the functional implementations
-with professional, modular interfaces while maintaining full backward compatibility.
+with modular interfaces while maintaining full backward compatibility.
 
 The effects module focuses on:
 - Cumulative treatment effect calculations
@@ -156,7 +156,7 @@ def calculate_cumulative_variance(
     .. [1] Time-Based Regression methodology for causal inference
     .. [2] Statistical inference for cumulative treatment effects
     """
-    # Input validation following scientific Python standards
+    # Input validation
     if len(test_x_values) == 0:
         raise ValueError("test_x_values cannot be empty")
 
