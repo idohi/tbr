@@ -3,9 +3,7 @@ TBR Subinterval Analysis Module.
 
 This module provides specialized functionality for custom time window analysis
 in Time-Based Regression (TBR), enabling flexible analysis of treatment effects
-over specific subintervals within the test period. It follows the professional
-patterns established by top scientific PyPI packages like SciPy, Pandas, and
-Statsmodels for modular analysis functionality.
+over specific subintervals within the test period.
 
 The subinterval analysis approach allows researchers to:
 - Analyze treatment effects for specific time ranges
@@ -444,7 +442,7 @@ def validate_subinterval_parameters(
     This function performs comprehensive validation of input parameters for
     subinterval analysis, ensuring that all inputs are valid and consistent
     before performing the analysis. It provides clear error messages for
-    invalid inputs, following professional error handling standards.
+    invalid inputs.
 
     Parameters
     ----------

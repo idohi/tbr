@@ -2,8 +2,8 @@
 TBR Analysis Summary Module.
 
 This module provides clean, modular interfaces for creating TBR summary statistics.
-It wraps the proven functional implementations with professional object-oriented
-interfaces while maintaining 100% mathematical compatibility and performance.
+It wraps the proven functional implementations with object-oriented interfaces
+while maintaining 100% mathematical compatibility and performance.
 
 The module follows SPEC-1 lazy loading patterns for optimal performance and
 provides comprehensive input validation leveraging the existing validation

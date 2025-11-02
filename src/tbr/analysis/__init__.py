@@ -8,8 +8,6 @@ with the proven functional implementation while providing clean, modular interfa
 
 The module follows SPEC-1 lazy loading patterns for optimal performance and
 integrates seamlessly with the existing validation and core module infrastructure.
-The modular design follows patterns established by top scientific PyPI packages
-like SciPy, Pandas, and Statsmodels.
 
 Modules
 -------

@@ -1,8 +1,7 @@
 """
-Professional result object structures for TBR analysis outputs.
+Result object structures for TBR analysis outputs.
 
-This module provides structured result containers for TBR analysis methods,
-following professional scientific PyPI package standards (SciPy, Statsmodels).
+This module provides structured result containers for TBR analysis methods.
 
 Result objects provide:
 - Type-safe attribute access
@@ -35,7 +34,6 @@ Examples
 Notes
 -----
 All result objects are frozen dataclasses, providing immutability and type safety.
-They follow patterns from scipy.stats and statsmodels for professional consistency.
 """
 
 from dataclasses import dataclass
@@ -120,7 +118,7 @@ class TBRPredictionResult:
         return float(self.predictions["predsd"].mean())
 
     def __repr__(self) -> str:
-        """Generate professional string representation."""
+        """Generate string representation."""
         return (
             f"TBRPredictionResult(\n"
             f"  n_predictions={self.n_predictions},\n"
@@ -250,7 +248,7 @@ class TBRSummaryResult:
         return self.prob >= probability_threshold
 
     def __repr__(self) -> str:
-        """Generate professional string representation."""
+        """Generate string representation."""
         return (
             f"TBRSummaryResult(\n"
             f"  estimate={self.estimate:.3f},\n"
@@ -361,7 +359,7 @@ class TBRSubintervalResult:
         return self.upper < 0
 
     def __repr__(self) -> str:
-        """Generate professional string representation."""
+        """Generate string representation."""
         return (
             f"TBRSubintervalResult(\n"
             f"  days={self.start_day}-{self.end_day} (n={self.n_days}),\n"

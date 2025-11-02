@@ -15,7 +15,7 @@ Features
 - Rigorous statistical methodology with proper variance quantification
 - Comprehensive credible interval construction using t-distribution
 - Support for any time series treatment/control experiment
-- Professional PyPI package with full type hints and documentation
+- Full type hints and documentation
 
 Quick Start
 -----------
@@ -51,7 +51,7 @@ __version__ = "0.1.0a1"
 __author__ = "Ido Hirsh"
 __license__ = "Apache-2.0"
 
-# Lazy imports for optimal memory usage following SPEC-1 standards
+# Lazy imports for optimal memory usage following SPEC-1
 import lazy_loader as lazy
 
 # SPEC-1 Lazy Loading Implementation for main package
