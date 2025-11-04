@@ -63,13 +63,23 @@ install-dev: ## Install development dependencies
 
 
 
-test: ## Run tests
-	@echo "$(BLUE)Running tests...$(NC)"
-	@pytest $(TEST_DIR) -v
+test: ## Run tests (skips slow tests)
+	@echo "$(BLUE)Running tests (skipping slow tests)...$(NC)"
+	@pytest $(TEST_DIR) -v -m "not slow"
 	@echo "$(GREEN)✅ Tests completed$(NC)"
 
-test-cov: ## Run tests with coverage report
-	@echo "$(BLUE)Running tests with coverage...$(NC)"
+test-all: ## Run all tests including slow tests
+	@echo "$(BLUE)Running all tests (including slow tests)...$(NC)"
+	@pytest $(TEST_DIR) -v
+	@echo "$(GREEN)✅ All tests completed$(NC)"
+
+test-cov: ## Run tests with coverage report (skips slow tests)
+	@echo "$(BLUE)Running tests with coverage (skipping slow tests)...$(NC)"
+	@pytest $(TEST_DIR) --cov=$(SRC_DIR)/$(PACKAGE_NAME) --cov-report=html --cov-report=term-missing -v -m "not slow"
+	@echo "$(GREEN)✅ Coverage report generated in htmlcov/$(NC)"
+
+test-cov-all: ## Run all tests with coverage report (includes slow tests)
+	@echo "$(BLUE)Running all tests with coverage (including slow tests)...$(NC)"
 	@pytest $(TEST_DIR) --cov=$(SRC_DIR)/$(PACKAGE_NAME) --cov-report=html --cov-report=term-missing -v
 	@echo "$(GREEN)✅ Coverage report generated in htmlcov/$(NC)"
 
