@@ -373,6 +373,193 @@ class TBRAnalysis:
         # Return self for method chaining
         return self
 
+    def get_params(self, deep: bool = True) -> Dict[str, Any]:
+        """
+        Get configuration parameters for this estimator.
+
+        Parameters
+        ----------
+        deep : bool, default=True
+            If True, will return parameters for this estimator.
+            Parameter is included for sklearn compatibility but has no effect
+            since TBRAnalysis has no nested estimators.
+
+        Returns
+        -------
+        dict
+            Configuration parameters.
+
+        Examples
+        --------
+        >>> model = TBRAnalysis(level=0.90, threshold=5.0)
+        >>> params = model.get_params()
+        >>> print(params)
+        {'level': 0.90, 'threshold': 5.0, 'test_end_inclusive': False}
+
+        See Also
+        --------
+        set_params : Set configuration parameters.
+        """
+        # Note: 'deep' parameter is for sklearn compatibility
+        # TBRAnalysis has no nested estimators, so it has no effect
+        _ = deep  # Acknowledge parameter for vulture
+        return {
+            "level": self.level,
+            "threshold": self.threshold,
+            "test_end_inclusive": self.test_end_inclusive,
+        }
+
+    def set_params(self, **params: Any) -> "TBRAnalysis":
+        """
+        Set configuration parameters for this estimator.
+
+        Parameters are validated and stored. If the model was previously fitted,
+        it will need to be re-fitted with the new parameters.
+
+        Parameters
+        ----------
+        **params : dict
+            Configuration parameters to set. Valid parameters are:
+            - level : float between 0 and 1 exclusive
+            - threshold : numeric value
+            - test_end_inclusive : bool
+
+        Returns
+        -------
+        TBRAnalysis
+            Returns self for method chaining.
+
+        Raises
+        ------
+        ValueError
+            If invalid parameter names or values are provided.
+        TypeError
+            If parameter types are invalid.
+
+        Examples
+        --------
+        Update configuration:
+
+        >>> model = TBRAnalysis()
+        >>> model.set_params(level=0.95, threshold=10.0)
+        >>> print(model.get_params())
+        {'level': 0.95, 'threshold': 10.0, 'test_end_inclusive': False}
+
+        Method chaining:
+
+        >>> summary = (TBRAnalysis()
+        ...            .set_params(level=0.95)
+        ...            .fit(data, 'date', 'control', 'test', ...)
+        ...            .summarize())
+
+        See Also
+        --------
+        get_params : Get configuration parameters.
+
+        Notes
+        -----
+        If the model was previously fitted, changing parameters requires
+        re-fitting the model. The fitted state is reset when parameters change.
+        """
+        valid_params = {"level", "threshold", "test_end_inclusive"}
+
+        # Check for invalid parameter names
+        invalid_params = set(params.keys()) - valid_params
+        if invalid_params:
+            raise ValueError(
+                f"Invalid parameter(s): {invalid_params}. "
+                f"Valid parameters are: {valid_params}"
+            )
+
+        # Track if any parameter changed
+        params_changed = False
+
+        # Update parameters with validation
+        if "level" in params:
+            new_level = params["level"]
+            if not isinstance(new_level, (int, float)):
+                raise TypeError(
+                    f"level must be numeric, got {type(new_level).__name__}"
+                )
+            if not (0 < new_level < 1):
+                raise ValueError(
+                    f"level must be between 0 and 1 exclusive, got {new_level}"
+                )
+            if self.level != float(new_level):
+                self.level = float(new_level)
+                params_changed = True
+
+        if "threshold" in params:
+            new_threshold = params["threshold"]
+            if not isinstance(new_threshold, (int, float)):
+                raise TypeError(
+                    f"threshold must be numeric, got {type(new_threshold).__name__}"
+                )
+            if self.threshold != float(new_threshold):
+                self.threshold = float(new_threshold)
+                params_changed = True
+
+        if "test_end_inclusive" in params:
+            new_test_end_inclusive = params["test_end_inclusive"]
+            if not isinstance(new_test_end_inclusive, bool):
+                raise TypeError(
+                    f"test_end_inclusive must be bool, got {type(new_test_end_inclusive).__name__}"
+                )
+            if self.test_end_inclusive != new_test_end_inclusive:
+                self.test_end_inclusive = new_test_end_inclusive
+                params_changed = True
+
+        # Reset fitted state if parameters changed
+        if params_changed and self._fitted:
+            self._fitted = False
+            self._results = None
+            self._summaries = None
+            self._params = None
+            self._fit_info = None
+
+        return self
+
+    def copy(self) -> "TBRAnalysis":
+        """
+        Create a deep copy of this estimator.
+
+        Returns a new TBRAnalysis instance with the same configuration but
+        without fitted state. This is useful for creating multiple models
+        with the same configuration.
+
+        Returns
+        -------
+        TBRAnalysis
+            New instance with same configuration parameters.
+
+        Examples
+        --------
+        Create a copy with same configuration:
+
+        >>> model1 = TBRAnalysis(level=0.90, threshold=5.0)
+        >>> model2 = model1.copy()
+        >>> print(model2.get_params())
+        {'level': 0.90, 'threshold': 5.0, 'test_end_inclusive': False}
+
+        Copy for comparison:
+
+        >>> model1 = TBRAnalysis(level=0.80)
+        >>> model1.fit(data1, ...)
+        >>> model2 = model1.copy()
+        >>> model2.set_params(level=0.95)
+        >>> model2.fit(data2, ...)
+
+        Notes
+        -----
+        The copy will not include any fitted state. Only configuration
+        parameters (level, threshold, test_end_inclusive) are copied.
+        """
+        return TBRAnalysis(
+            level=self.level,
+            threshold=self.threshold,
+            test_end_inclusive=self.test_end_inclusive,
+        )
+
     def fit_predict(
         self,
         data: pd.DataFrame,
@@ -437,6 +624,75 @@ class TBRAnalysis:
             data, time_col, control_col, test_col, pretest_start, test_start, test_end
         )
         return self.predict(control_values)
+
+    def fit_summarize(
+        self,
+        data: pd.DataFrame,
+        time_col: str,
+        control_col: str,
+        test_col: str,
+        pretest_start: Union[pd.Timestamp, int, float],
+        test_start: Union[pd.Timestamp, int, float],
+        test_end: Union[pd.Timestamp, int, float],
+    ) -> TBRSummaryResult:
+        """
+        Fit model and immediately return final summary (convenience method).
+
+        Combines fit() and summarize() into a single method call for streamlined
+        workflows. This is particularly useful for quick analysis when only the
+        final summary statistics are needed.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Time series data with time, control, and test columns.
+        time_col : str
+            Name of the time column.
+        control_col : str
+            Name of control group metric column.
+        test_col : str
+            Name of test group metric column.
+        pretest_start : Union[pd.Timestamp, int, float]
+            Start time of pretest period (inclusive).
+        test_start : Union[pd.Timestamp, int, float]
+            Start time of test period (inclusive).
+        test_end : Union[pd.Timestamp, int, float]
+            End time of test period (inclusive/exclusive based on test_end_inclusive).
+
+        Returns
+        -------
+        TBRSummaryResult
+            Final summary result object with all statistics.
+
+        Examples
+        --------
+        One-line summary without storing model:
+
+        >>> summary = TBRAnalysis(level=0.95).fit_summarize(
+        ...     data, 'date', 'control', 'test',
+        ...     pretest_start='2023-01-01',
+        ...     test_start='2023-02-15',
+        ...     test_end='2023-03-01'
+        ... )
+        >>> print(f"Effect: {summary.estimate:.2f}")
+        >>> print(f"Significant: {summary.is_significant()}")
+
+        Quick analysis with method chaining:
+
+        >>> effect = (TBRAnalysis()
+        ...           .set_params(level=0.90, threshold=5.0)
+        ...           .fit_summarize(data, 'date', 'control', 'test', ...)
+        ...           .estimate)
+
+        Notes
+        -----
+        This is equivalent to calling `fit()` followed by `summarize()`, but
+        more concise for workflows where only the final summary is needed.
+        """
+        self.fit(
+            data, time_col, control_col, test_col, pretest_start, test_start, test_end
+        )
+        return self.summarize()
 
     def predict(
         self,

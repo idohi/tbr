@@ -1279,9 +1279,9 @@ class TestTBRAnalysisFitValidation:
                 time_col="date",
                 control_col="control",
                 test_col="test",
-                pretest_start="2023-01-01",
-                test_start="2023-02-15",
-                test_end="2023-03-01",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
             )
 
     def test_fit_non_numeric_control_column_error(self, sample_data):
@@ -1758,6 +1758,585 @@ class TestTBRAnalysisConvenienceMethods:
 
         # Should be positive
         assert predictions.mean_uncertainty > 0
+
+
+class TestTBRAnalysisGetParams:
+    """Test get_params() method for sklearn compatibility."""
+
+    def test_get_params_default(self):
+        """Test get_params() with default configuration."""
+        model = TBRAnalysis()
+        params = model.get_params()
+
+        assert params == {
+            "level": 0.80,
+            "threshold": 0.0,
+            "test_end_inclusive": False,
+        }
+
+    def test_get_params_custom(self):
+        """Test get_params() with custom configuration."""
+        model = TBRAnalysis(level=0.95, threshold=10.0, test_end_inclusive=True)
+        params = model.get_params()
+
+        assert params == {
+            "level": 0.95,
+            "threshold": 10.0,
+            "test_end_inclusive": True,
+        }
+
+    def test_get_params_deep_parameter(self):
+        """Test get_params() with deep parameter (sklearn compatibility)."""
+        model = TBRAnalysis(level=0.90)
+        params_shallow = model.get_params(deep=False)
+        params_deep = model.get_params(deep=True)
+
+        # Both should be identical since TBRAnalysis has no nested estimators
+        assert params_shallow == params_deep
+
+    def test_get_params_returns_dict(self):
+        """Test that get_params() returns a dict."""
+        model = TBRAnalysis()
+        params = model.get_params()
+
+        assert isinstance(params, dict)
+        assert len(params) == 3
+
+
+class TestTBRAnalysisSetParams:
+    """Test set_params() method for sklearn compatibility."""
+
+    def test_set_params_level(self):
+        """Test set_params() with level parameter."""
+        model = TBRAnalysis()
+        result = model.set_params(level=0.95)
+
+        assert model.level == 0.95
+        assert result is model  # Returns self for chaining
+
+    def test_set_params_threshold(self):
+        """Test set_params() with threshold parameter."""
+        model = TBRAnalysis()
+        result = model.set_params(threshold=5.0)
+
+        assert model.threshold == 5.0
+        assert result is model
+
+    def test_set_params_test_end_inclusive(self):
+        """Test set_params() with test_end_inclusive parameter."""
+        model = TBRAnalysis()
+        result = model.set_params(test_end_inclusive=True)
+
+        assert model.test_end_inclusive is True
+        assert result is model
+
+    def test_set_params_multiple(self):
+        """Test set_params() with multiple parameters."""
+        model = TBRAnalysis()
+        result = model.set_params(level=0.90, threshold=10.0, test_end_inclusive=True)
+
+        assert model.level == 0.90
+        assert model.threshold == 10.0
+        assert model.test_end_inclusive is True
+        assert result is model
+
+    def test_set_params_invalid_parameter(self):
+        """Test set_params() with invalid parameter name."""
+        model = TBRAnalysis()
+        with pytest.raises(ValueError, match="Invalid parameter"):
+            model.set_params(invalid_param=123)
+
+    def test_set_params_level_validation(self):
+        """Test set_params() validates level range."""
+        model = TBRAnalysis()
+        with pytest.raises(ValueError, match="level must be between 0 and 1 exclusive"):
+            model.set_params(level=1.5)
+
+    def test_set_params_level_type_validation(self):
+        """Test set_params() validates level type."""
+        model = TBRAnalysis()
+        with pytest.raises(TypeError, match="level must be numeric"):
+            model.set_params(level="0.90")
+
+    def test_set_params_threshold_type_validation(self):
+        """Test set_params() validates threshold type."""
+        model = TBRAnalysis()
+        with pytest.raises(TypeError, match="threshold must be numeric"):
+            model.set_params(threshold="5.0")
+
+    def test_set_params_test_end_inclusive_type_validation(self):
+        """Test set_params() validates test_end_inclusive type."""
+        model = TBRAnalysis()
+        with pytest.raises(TypeError, match="test_end_inclusive must be bool"):
+            model.set_params(test_end_inclusive="True")
+
+    def test_set_params_resets_fitted_state(self, sample_data):
+        """Test set_params() resets fitted state when parameters change."""
+        model = TBRAnalysis(level=0.80)
+        model.fit(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Verify model is fitted
+        assert model.fitted_ is True
+
+        # Change parameters
+        model.set_params(level=0.95)
+
+        # Fitted state should be reset
+        assert model.fitted_ is False
+
+    def test_set_params_no_change_preserves_fitted_state(self, sample_data):
+        """Test set_params() preserves fitted state when no parameters change."""
+        model = TBRAnalysis(level=0.80)
+        model.fit(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Verify model is fitted
+        assert model.fitted_ is True
+
+        # Set same parameter value
+        model.set_params(level=0.80)
+
+        # Fitted state should be preserved
+        assert model.fitted_ is True
+
+    def test_set_params_threshold_no_change(self):
+        """Test set_params() when threshold is set to same value."""
+        model = TBRAnalysis(threshold=5.0)
+        assert model.threshold == 5.0
+
+        # Set threshold to same value
+        result = model.set_params(threshold=5.0)
+
+        assert model.threshold == 5.0
+        assert result is model
+
+    def test_set_params_test_end_inclusive_no_change(self):
+        """Test set_params() when test_end_inclusive is set to same value."""
+        model = TBRAnalysis(test_end_inclusive=True)
+        assert model.test_end_inclusive is True
+
+        # Set test_end_inclusive to same value
+        result = model.set_params(test_end_inclusive=True)
+
+        assert model.test_end_inclusive is True
+        assert result is model
+
+    def test_set_params_threshold_change_resets_fitted(self, sample_data):
+        """Test set_params() resets fitted state when threshold changes."""
+        model = TBRAnalysis(threshold=0.0)
+        model.fit(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Verify model is fitted
+        assert model.fitted_ is True
+
+        # Change threshold
+        model.set_params(threshold=10.0)
+
+        # Fitted state should be reset
+        assert model.fitted_ is False
+
+    def test_set_params_test_end_inclusive_change_resets_fitted(self, sample_data):
+        """Test set_params() resets fitted state when test_end_inclusive changes."""
+        model = TBRAnalysis(test_end_inclusive=False)
+        model.fit(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Verify model is fitted
+        assert model.fitted_ is True
+
+        # Change test_end_inclusive
+        model.set_params(test_end_inclusive=True)
+
+        # Fitted state should be reset
+        assert model.fitted_ is False
+
+
+class TestTBRAnalysisCopy:
+    """Test copy() method for model cloning."""
+
+    def test_copy_default_configuration(self):
+        """Test copy() with default configuration."""
+        model1 = TBRAnalysis()
+        model2 = model1.copy()
+
+        # Should have same configuration
+        assert model2.level == model1.level
+        assert model2.threshold == model1.threshold
+        assert model2.test_end_inclusive == model1.test_end_inclusive
+
+        # Should be different instances
+        assert model2 is not model1
+
+    def test_copy_custom_configuration(self):
+        """Test copy() with custom configuration."""
+        model1 = TBRAnalysis(level=0.95, threshold=10.0, test_end_inclusive=True)
+        model2 = model1.copy()
+
+        # Should have same configuration
+        assert model2.level == 0.95
+        assert model2.threshold == 10.0
+        assert model2.test_end_inclusive is True
+
+        # Should be different instances
+        assert model2 is not model1
+
+    def test_copy_does_not_copy_fitted_state(self, sample_data):
+        """Test copy() does not include fitted state."""
+        model1 = TBRAnalysis()
+        model1.fit(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Verify model1 is fitted
+        assert model1.fitted_ is True
+
+        # Copy should not be fitted
+        model2 = model1.copy()
+        assert model2.fitted_ is False
+
+    def test_copy_independence(self):
+        """Test that copied models are independent."""
+        model1 = TBRAnalysis(level=0.80)
+        model2 = model1.copy()
+
+        # Modify model2
+        model2.set_params(level=0.95)
+
+        # model1 should be unchanged
+        assert model1.level == 0.80
+        assert model2.level == 0.95
+
+    def test_copy_returns_new_instance(self):
+        """Test that copy() returns TBRAnalysis instance."""
+        model1 = TBRAnalysis()
+        model2 = model1.copy()
+
+        assert isinstance(model2, TBRAnalysis)
+
+
+class TestTBRAnalysisFitSummarize:
+    """Test fit_summarize() convenience method."""
+
+    def test_fit_summarize_basic(self, sample_data):
+        """Test fit_summarize() returns summary result."""
+        summary = TBRAnalysis().fit_summarize(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Should return TBRSummaryResult
+        assert isinstance(summary, TBRSummaryResult)
+
+        # Should have expected attributes
+        assert hasattr(summary, "estimate")
+        assert hasattr(summary, "lower")
+        assert hasattr(summary, "upper")
+
+    def test_fit_summarize_equivalent_to_fit_then_summarize(self, sample_data):
+        """Test fit_summarize() equals fit() + summarize()."""
+        # Method 1: fit_summarize()
+        summary1 = TBRAnalysis(level=0.90).fit_summarize(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Method 2: fit() + summarize()
+        model = TBRAnalysis(level=0.90)
+        model.fit(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+        summary2 = model.summarize()
+
+        # Should be identical
+        assert summary1.estimate == summary2.estimate
+        assert summary1.lower == summary2.lower
+        assert summary1.upper == summary2.upper
+
+    def test_fit_summarize_with_custom_level(self, sample_data):
+        """Test fit_summarize() respects custom level."""
+        summary = TBRAnalysis(level=0.95).fit_summarize(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Should use 0.95 level
+        assert summary.level == 0.95
+
+    def test_fit_summarize_with_custom_threshold(self, sample_data):
+        """Test fit_summarize() respects custom threshold."""
+        summary = TBRAnalysis(threshold=5.0).fit_summarize(
+            sample_data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        # Should use 5.0 threshold
+        assert summary.threshold == 5.0
+
+
+class TestTBRAnalysisFluentAPIChaining:
+    """Test method chaining and fluent API patterns."""
+
+    def test_chaining_set_params_fit(self, sample_data):
+        """Test chaining set_params() -> fit()."""
+        model = (
+            TBRAnalysis()
+            .set_params(level=0.95)
+            .fit(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+        )
+
+        # Should be fitted with correct configuration
+        assert model.fitted_ is True
+        assert model.level == 0.95
+
+    def test_chaining_set_params_fit_summarize(self, sample_data):
+        """Test chaining set_params() -> fit_summarize()."""
+        summary = (
+            TBRAnalysis()
+            .set_params(level=0.90, threshold=10.0)
+            .fit_summarize(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+        )
+
+        # Should have correct configuration
+        assert summary.level == 0.90
+        assert summary.threshold == 10.0
+
+    def test_chaining_fit_summarize(self, sample_data):
+        """Test chaining fit() -> summarize()."""
+        summary = (
+            TBRAnalysis(level=0.95)
+            .fit(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+            .summarize()
+        )
+
+        assert isinstance(summary, TBRSummaryResult)
+        assert summary.level == 0.95
+
+    def test_chaining_fit_predict(self, sample_data):
+        """Test chaining fit() -> predict()."""
+        predictions = (
+            TBRAnalysis()
+            .fit(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+            .predict()
+        )
+
+        assert isinstance(predictions, TBRPredictionResult)
+
+    def test_chaining_fit_analyze_subinterval(self, sample_data):
+        """Test chaining fit() -> analyze_subinterval()."""
+        result = (
+            TBRAnalysis()
+            .fit(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+            .analyze_subinterval(1, 7)
+        )
+
+        assert isinstance(result, TBRSubintervalResult)
+
+    def test_chaining_copy_set_params_fit(self, sample_data):
+        """Test chaining copy() -> set_params() -> fit()."""
+        model1 = TBRAnalysis(level=0.80)
+        model2 = (
+            model1.copy()
+            .set_params(level=0.95)
+            .fit(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+        )
+
+        # model2 should be fitted with new level
+        assert model2.fitted_ is True
+        assert model2.level == 0.95
+
+        # model1 should be unchanged and unfitted
+        assert model1.fitted_ is False
+        assert model1.level == 0.80
+
+    def test_complex_chaining_workflow(self, sample_data):
+        """Test complex chaining workflow."""
+        # Create base model
+        base_model = TBRAnalysis()
+
+        # Create variants with different configurations
+        summary_80 = (
+            base_model.copy()
+            .set_params(level=0.80)
+            .fit_summarize(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+        )
+
+        summary_95 = (
+            base_model.copy()
+            .set_params(level=0.95)
+            .fit_summarize(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+        )
+
+        # Should have same estimate but different CI widths
+        assert summary_80.estimate == summary_95.estimate
+        assert summary_80.level == 0.80
+        assert summary_95.level == 0.95
+
+        # 95% CI should be wider
+        ci_width_80 = summary_80.upper - summary_80.lower
+        ci_width_95 = summary_95.upper - summary_95.lower
+        assert ci_width_95 > ci_width_80
+
+    def test_chaining_with_property_access(self, sample_data):
+        """Test chaining with property access."""
+        effect = (
+            TBRAnalysis()
+            .fit(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+            .final_effect
+        )
+
+        assert isinstance(effect, float)
+
+    def test_one_liner_analysis(self, sample_data):
+        """Test complete analysis in one line."""
+        effect = (
+            TBRAnalysis(level=0.95, threshold=0.0)
+            .fit_summarize(
+                sample_data,
+                "date",
+                "control",
+                "test",
+                pretest_start=pd.Timestamp("2023-01-01"),
+                test_start=pd.Timestamp("2023-02-15"),
+                test_end=pd.Timestamp("2023-03-01"),
+            )
+            .estimate
+        )
+
+        assert isinstance(effect, float)
 
 
 if __name__ == "__main__":
