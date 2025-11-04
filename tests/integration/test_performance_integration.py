@@ -71,16 +71,16 @@ class TestTBRPerformanceIntegration:
         assert "efficiency_report" in performance_report
         assert "data_characteristics" in performance_report
         assert "tbr_results" in performance_report
-        assert "daily_summaries" in performance_report
+        assert "tbr_summaries" in performance_report
 
         # Validate TBR results are correct
         tbr_results = performance_report["tbr_results"]
-        daily_summaries = performance_report["daily_summaries"]
+        tbr_summaries = performance_report["tbr_summaries"]
 
         assert isinstance(tbr_results, pd.DataFrame)
-        assert isinstance(daily_summaries, pd.DataFrame)
+        assert isinstance(tbr_summaries, pd.DataFrame)
         assert len(tbr_results) > 0
-        assert len(daily_summaries) > 0
+        assert len(tbr_summaries) > 0
 
         # Check that TBR analysis columns are present
         expected_columns = [
@@ -352,7 +352,7 @@ class TestTBRPerformanceIntegration:
 
         with profiler.profile_context("tbr_execution"):
             # Run actual TBR analysis
-            tbr_results, daily_summaries = perform_tbr_analysis(
+            _results = perform_tbr_analysis(
                 data=self.test_data.iloc[:75],  # Covers pretest + test periods
                 **self.tbr_params,
             )
@@ -590,7 +590,7 @@ class TestPerformanceRegressionDetection:
         durations = []
 
         # Run multiple analyses to establish trend
-        for i in range(3):
+        for _i in range(3):
             # Use slightly different data each time
             data_variant = self.test_data.copy()
             data_variant["control"] += np.random.normal(0, 1, len(data_variant))

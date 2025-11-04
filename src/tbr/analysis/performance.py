@@ -139,7 +139,7 @@ class TBRPerformanceAnalyzer:
 
             # Profile TBR analysis execution
             with self.profiler.profile_context("tbr_analysis_execution"):
-                tbr_results, daily_summaries = perform_tbr_analysis(
+                results = perform_tbr_analysis(
                     data=data,
                     time_col=time_col,
                     control_col=control_col,
@@ -154,11 +154,13 @@ class TBRPerformanceAnalyzer:
 
             # Profile results processing
             with self.profiler.profile_context("results_processing"):
-                results_size = len(tbr_results) + len(daily_summaries)
+                tbr_results = results.tbr_dataframe()
+                tbr_summaries = results.summary()
+                results_size = len(tbr_results) + len(tbr_summaries)
                 results_memory = (
                     (
                         tbr_results.memory_usage(deep=True).sum()
-                        + daily_summaries.memory_usage(deep=True).sum()
+                        + tbr_summaries.memory_usage(deep=True).sum()
                     )
                     / 1024
                     / 1024
@@ -200,7 +202,7 @@ class TBRPerformanceAnalyzer:
                 ),
             },
             "tbr_results": tbr_results,
-            "daily_summaries": daily_summaries,
+            "tbr_summaries": tbr_summaries,
         }
 
         return performance_report

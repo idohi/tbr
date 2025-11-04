@@ -6,8 +6,8 @@ for creating summary statistics, incremental analysis, subinterval analysis,
 and model diagnostics. All functions maintain 100% mathematical compatibility
 with the proven functional implementation while providing clean, modular interfaces.
 
-The module follows SPEC-1 lazy loading patterns for optimal performance and
-integrates seamlessly with the existing validation and core module infrastructure.
+The module uses lazy loading for optimal performance and integrates seamlessly
+with the existing validation and core module infrastructure.
 
 Modules
 -------
@@ -59,10 +59,10 @@ Examples
 >>> print(f"Days 5-10 effect: {result['estimate']:.2f}")
 """
 
-# Lazy imports for performance (SPEC-1)
+# Lazy imports for performance
 import lazy_loader as lazy
 
-# SPEC-1 Lazy Loading Implementation for analysis module
+# Lazy loading implementation - modules load only when accessed
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
     submodules=["summary", "incremental", "subinterval", "diagnostics", "performance"],

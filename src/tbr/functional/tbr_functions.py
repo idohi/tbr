@@ -58,16 +58,18 @@ causal effects with proper statistical uncertainty.
 See perform_tbr_analysis() for detailed usage and additional examples.
 """
 
-from typing import Dict, Tuple, Union
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
 
-from tbr.utils.datetime_utils import sort_dataframe_by_time
+from tbr.core.results import TBRResults
 from tbr.utils.preprocessing import split_time_series_by_periods
 from tbr.utils.validation import (
+    validate_column_distinctness,
     validate_metric_columns,
     validate_no_nulls,
+    validate_no_reserved_column_conflicts,
     validate_period_data,
     validate_required_columns,
     validate_time_boundaries_type,
@@ -193,7 +195,7 @@ def fit_tbr_regression_model(
     test_col: str,
 ) -> Dict[str, float]:
     """
-    Fit TBR regression model using statsmodels OLS on pretest period.
+    Fit TBR regression model using OLS on pretest period.
 
     This function provides a wrapper around the core regression implementation,
     maintaining backward compatibility while following clean architecture principles.
@@ -533,7 +535,7 @@ def compute_interval_estimate_and_ci(
     Examples
     --------
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_results, daily_summaries, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_results, tbr_summaries, start_day=5, end_day=10, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -731,7 +733,7 @@ def perform_tbr_analysis(
     level: float,
     threshold: float,
     test_end_inclusive: bool = False,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> TBRResults:
     """
     Execute complete TBR analysis pipeline for domain-agnostic time series data.
 
@@ -785,14 +787,23 @@ def perform_tbr_analysis(
 
     Returns
     -------
-    Tuple[pd.DataFrame, pd.DataFrame]
-        - tbr_dataframe: Complete time series with predictions, effects, and uncertainties
-        - daily_summaries: Day-by-day progression of cumulative effects with statistics
+    TBRResults
+        Comprehensive result object with all analysis outputs accessible via
+        properties and methods, with complete separation of inputs and outputs.
+
+        Key properties:
+        - estimate: Final cumulative effect
+        - conf_int_lower, conf_int_upper: Credible interval bounds
+        - pvalue: Posterior probability
+        - cumulative_effect, effects: Time-indexed Series
+        - summary(): Daily incremental summary statistics
+        - tbr_dataframe(): Get comprehensive TBR dataframe
 
     Raises
     ------
     ValueError
-        If input validation fails or insufficient data for analysis
+        If input validation fails, column names conflict with reserved names,
+        or insufficient data for analysis
 
     Examples
     --------
@@ -809,8 +820,8 @@ def perform_tbr_analysis(
     ...     'test': np.random.normal(1020, 55, 90)
     ... })
     >>>
-    >>> # Run TBR analysis with exclusive end boundary (default)
-    >>> tbr_results, daily_summaries = perform_tbr_analysis(
+    >>> # Run TBR analysis - returns TBRResults object
+    >>> results = perform_tbr_analysis(
     ...     data=data,
     ...     time_col='date',
     ...     control_col='control',
@@ -823,27 +834,26 @@ def perform_tbr_analysis(
     ...     threshold=0.0
     ... )
     >>>
-    >>> # Same-day analysis with inclusive end boundary
-    >>> same_day_results, same_day_summaries = perform_tbr_analysis(
-    ...     data=data,
-    ...     time_col='date',
-    ...     control_col='control',
-    ...     test_col='test',
-    ...     pretest_start=pd.Timestamp('2023-01-01'),
-    ...     test_start=pd.Timestamp('2023-02-15'),
-    ...     test_end=pd.Timestamp('2023-02-15'),  # Same day as start
-    ...     test_end_inclusive=True,  # Include the entire day of 2023-02-15
-    ...     level=0.80,
-    ...     threshold=0.0
-    ... )
-    >>>
-    >>> # Get final treatment effect
-    >>> final_effect = daily_summaries.iloc[-1]['estimate']
-    >>> print(f"Treatment Effect: {final_effect:.2f}")
+    >>> # Access results via clean property interface
+    >>> print(f"Effect: {results.estimate:.2f}")
+    >>> print(f"80% CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
+    >>> print(f"P-value: {results.pvalue:.3f}")
     >>>
     >>> # Check significance
-    >>> is_significant = daily_summaries.iloc[-1]['lower'] > 0
+    >>> is_significant = results.conf_int_lower > 0
     >>> print(f"Significant Positive Effect: {is_significant}")
+    >>>
+    >>> # Access time series (all indexed by date)
+    >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')
+    >>> print(results.effects.describe())
+    >>>
+    >>> # Get daily summary table
+    >>> daily_summary = results.summary()
+    >>> print(daily_summary.tail())
+    >>>
+    >>> # Get comprehensive TBR dataframe
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_df.to_csv('tbr_results.csv', index=False)
 
     Integer time example (hours since start):
 
@@ -854,7 +864,7 @@ def perform_tbr_analysis(
     ...     'test': np.random.normal(520, 30, 48)
     ... })
     >>>
-    >>> tbr_results, summaries = perform_tbr_analysis(
+    >>> results = perform_tbr_analysis(
     ...     data=hourly_data,
     ...     time_col='hour',
     ...     control_col='control',
@@ -866,6 +876,7 @@ def perform_tbr_analysis(
     ...     level=0.80,
     ...     threshold=0.0
     ... )
+    >>> print(f"Hourly effect: {results.estimate:.2f}")
 
     Medical trial example:
 
@@ -876,7 +887,7 @@ def perform_tbr_analysis(
     ...     'treatment_recovery_rate': np.random.normal(0.82, 0.06, 120)
     ... })
     >>>
-    >>> tbr_results, summaries = perform_tbr_analysis(
+    >>> results = perform_tbr_analysis(
     ...     data=medical_data,
     ...     time_col='day',
     ...     control_col='control_recovery_rate',
@@ -888,6 +899,7 @@ def perform_tbr_analysis(
     ...     level=0.95,
     ...     threshold=0.05  # 5% improvement threshold
     ... )
+    >>> print(f"Treatment improvement: {results.estimate:.3f}")
     """
     # Input validation
     if data.empty:
@@ -895,6 +907,12 @@ def perform_tbr_analysis(
 
     required_cols = [time_col, control_col, test_col]
     validate_required_columns(data, required_cols, "data")
+
+    # NEW: Validate column distinctness (prevent same column used for multiple purposes)
+    validate_column_distinctness(time_col, control_col, test_col)
+
+    # NEW: Validate no conflicts with reserved output column names
+    validate_no_reserved_column_conflicts(data, time_col, control_col, test_col)
 
     validate_time_column_type(data, time_col, "data")
 
@@ -932,219 +950,20 @@ def perform_tbr_analysis(
         test_col=test_col,
     )
 
-    # Step 3: Create TBR dataframe with all periods and calculations
-    # First, prepare test data with period indicators
-    test_data_with_period = test_data.copy()
-    test_data_with_period["period"] = 1
-
-    if not cooldown_data.empty:
-        cooldown_data_with_period = cooldown_data.copy()
-        cooldown_data_with_period["period"] = 3
-
-        # Combine test and cooldown data
-        combined_data = pd.concat(
-            [test_data_with_period, cooldown_data_with_period], ignore_index=True
-        )
-        test_data_extended = sort_dataframe_by_time(
-            combined_data, time_col, validate_column=False
-        )
-    else:
-        test_data_extended = test_data_with_period
-
-    # Create comprehensive TBR dataframe
-    tbr_dataframe = _create_tbr_dataframe(
-        baseline_data=baseline_data,
-        pretest_data=pretest_data,
-        test_data=test_data_extended,
+    # Step 3: Create and return TBRResults object
+    # TBRResults encapsulates all analysis outputs with clean property-based access
+    return TBRResults(
+        _data=data,
         time_col=time_col,
         control_col=control_col,
         test_col=test_col,
         model_params=model_params,
-    )
-
-    # Step 4: Create incremental daily summaries
-    daily_summaries = create_incremental_tbr_summaries(
-        tbr_dataframe=tbr_dataframe,
-        alpha=model_params["alpha"],
-        beta=model_params["beta"],
-        sigma=model_params["sigma"],
-        var_alpha=model_params["var_alpha"],
-        var_beta=model_params["var_beta"],
-        cov_alpha_beta=model_params["cov_alpha_beta"],
-        degrees_freedom=safe_int_conversion(
-            model_params["degrees_freedom"], "degrees_freedom"
-        ),
+        periods={
+            "baseline": baseline_data,
+            "pretest": pretest_data,
+            "test": test_data,
+            "cooldown": cooldown_data,
+        },
         level=level,
         threshold=threshold,
     )
-
-    return tbr_dataframe, daily_summaries
-
-
-def _create_tbr_dataframe(
-    baseline_data: pd.DataFrame,
-    pretest_data: pd.DataFrame,
-    test_data: pd.DataFrame,
-    time_col: str,
-    control_col: str,
-    test_col: str,
-    model_params: Dict[str, float],
-) -> pd.DataFrame:
-    """
-    Create the comprehensive TBR dataframe with all periods and calculations.
-
-    This internal function processes baseline, pretest, and test period data to create
-    the main TBR output DataFrame. It handles period assignment, calculates fitted
-    values, residuals, cumulative effects, and prediction uncertainties for each
-    period according to TBR methodology.
-
-    Parameters
-    ----------
-    baseline_data : pd.DataFrame
-        Baseline period data (before pretest). May be empty.
-    pretest_data : pd.DataFrame
-        Pretest period data used for model fitting (learning set)
-    test_data : pd.DataFrame
-        Test period data including test and cooldown periods if present
-    time_col : str
-        Name of time column
-    control_col : str
-        Name of control column
-    test_col : str
-        Name of test column
-    model_params : Dict[str, float]
-        Regression model parameters from fit_tbr_regression_model containing:
-        alpha, beta, sigma, var_alpha, var_beta, cov_alpha_beta, n_pretest, x_mean
-
-    Returns
-    -------
-    pd.DataFrame
-        Comprehensive TBR DataFrame with columns:
-        - time_col: Original time column
-        - period: Period indicator (-1=baseline, 0=pretest, 1=test, 3=cooldown)
-        - y: Test group values
-        - x: Control group values
-        - pred: Fitted/predicted values (NaN for baseline)
-        - predsd: Prediction standard deviations (0 for pretest, calculated for test)
-        - dif: Residuals/effects (y - pred, NaN for baseline)
-        - cumdif: Cumulative effects (NaN for baseline/pretest, cumulative for test)
-        - cumsd: Cumulative standard deviations (0 for pretest, calculated for test)
-        - estsd: Fitted value standard deviations (calculated for pretest, NaN elsewhere)
-
-    Notes
-    -----
-    This function is called internally by perform_tbr_analysis and handles the
-    complex DataFrame construction that combines multiple periods with different
-    statistical calculations appropriate for each period type.
-
-    Period codes:
-    - -1: Baseline period (before pretest)
-    - 0: Pretest period (learning set for model fitting)
-    - 1: Test period (treatment effect measurement)
-    - 3: Cooldown period (post-treatment observation)
-    """
-    # Process baseline period (if exists)
-    if not baseline_data.empty:
-        baseline_df = baseline_data.copy()
-        baseline_df["period"] = -1
-        baseline_df["y"] = baseline_df[test_col]
-        baseline_df["x"] = baseline_df[control_col]
-        baseline_df["pred"] = np.nan
-        baseline_df["predsd"] = np.nan
-        baseline_df["dif"] = np.nan
-        baseline_df["cumdif"] = np.nan
-        baseline_df["cumsd"] = np.nan
-        baseline_df["estsd"] = np.nan
-    else:
-        baseline_df = pd.DataFrame()
-
-    # Process pretest period
-    pretest_df = pretest_data.copy()
-    pretest_df["period"] = 0
-    pretest_df["y"] = pretest_df[test_col]
-    pretest_df["x"] = pretest_df[control_col]
-
-    # Calculate fitted values for pretest
-    pretest_df["pred"] = model_params["alpha"] + model_params["beta"] * pretest_df["x"]
-
-    # Calculate pretest statistics from same data source
-    pretest_control_values = pretest_df["x"].values
-    pretest_x_mean = float(np.mean(pretest_control_values))
-    pretest_sum_x_squared_deviations = calculate_sum_x_squared_deviations(
-        pretest_control_values
-    )
-
-    # Calculate fitted value standard deviations for pretest
-    fitted_variances = calculate_model_variance(
-        x_values=pretest_control_values,
-        pretest_x_mean=pretest_x_mean,
-        sigma=model_params["sigma"],
-        n_pretest=safe_int_conversion(model_params["n_pretest"], "n_pretest"),
-        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,
-    )
-    pretest_df["estsd"] = np.sqrt(fitted_variances)
-    pretest_df["predsd"] = 0.0
-
-    # Calculate residuals
-    pretest_df["dif"] = pretest_df["y"] - pretest_df["pred"]
-    pretest_df["cumdif"] = np.nan
-    pretest_df["cumsd"] = 0.0
-
-    # Process test period (includes test and cooldown if present)
-    test_df = test_data.copy()
-    test_df["y"] = test_df[test_col]
-    test_df["x"] = test_df[control_col]
-
-    # Generate counterfactual predictions
-    test_predictions = generate_counterfactual_predictions(
-        alpha=model_params["alpha"],
-        beta=model_params["beta"],
-        sigma=model_params["sigma"],
-        pretest_x_mean=pretest_x_mean,  # Use calculated value from pretest data
-        n_pretest=safe_int_conversion(model_params["n_pretest"], "n_pretest"),
-        pretest_sum_x_squared_deviations=pretest_sum_x_squared_deviations,  # Use calculated value from pretest data
-        test_period_data=test_df,
-        control_col=control_col,
-        time_col=time_col,
-    )
-
-    test_df["pred"] = test_predictions["pred"]
-    test_df["predsd"] = test_predictions["predsd"]
-
-    # Calculate effects
-    test_df["dif"] = test_df["y"] - test_df["pred"]
-    test_df["cumdif"] = test_df["dif"].cumsum()
-
-    # Calculate cumulative standard deviations
-    cumsd_values = calculate_cumulative_standard_deviation(
-        test_df["x"].values,
-        model_params["sigma"],
-        model_params["var_alpha"],
-        model_params["var_beta"],
-        model_params["cov_alpha_beta"],
-    )
-    test_df["cumsd"] = cumsd_values
-    test_df["estsd"] = np.nan
-
-    # Combine all periods
-    dataframes_to_combine = [
-        df for df in [baseline_df, pretest_df, test_df] if not df.empty
-    ]
-    tbr_df = pd.concat(dataframes_to_combine, ignore_index=True)
-
-    # Order columns consistently
-    output_cols = [
-        time_col,
-        "period",
-        "y",
-        "x",
-        "pred",
-        "predsd",
-        "dif",
-        "cumdif",
-        "cumsd",
-        "estsd",
-    ]
-    tbr_df = tbr_df[output_cols]
-
-    return tbr_df

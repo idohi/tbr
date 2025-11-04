@@ -747,3 +747,153 @@ def validate_time_series_continuity(df: pd.DataFrame, time_col: str) -> None:
                     f"Time series in column '{time_col}' has large gaps. "
                     f"Median gap: {median_diff}, Max gap: {max_diff}"
                 )
+
+
+# =============================================================================
+# Column Name Validation for API Design
+# =============================================================================
+
+
+def validate_column_distinctness(
+    time_col: str,
+    control_col: str,
+    test_col: str,
+) -> None:
+    """
+    Validate that time_col, control_col, and test_col are distinct column names.
+
+    This validation prevents logical errors where the same column is used for
+    multiple purposes in TBR analysis (e.g., using the same column as both
+    control and test groups).
+
+    Parameters
+    ----------
+    time_col : str
+        Name of the time column
+    control_col : str
+        Name of the control group column
+    test_col : str
+        Name of the test group column
+
+    Raises
+    ------
+    ValueError
+        If any two column names are identical
+
+    Examples
+    --------
+    >>> validate_column_distinctness('date', 'control', 'test')  # OK
+    >>> validate_column_distinctness('date', 'metric', 'metric')  # Raises ValueError
+    Traceback (most recent call last):
+        ...
+    ValueError: control_col and test_col must be different columns. Both are set to 'metric'
+
+    Notes
+    -----
+    Catches user errors early with clear, actionable error messages.
+    """
+    if time_col == control_col:
+        raise ValueError(
+            f"time_col and control_col must be different columns. "
+            f"Both are set to '{time_col}'"
+        )
+
+    if time_col == test_col:
+        raise ValueError(
+            f"time_col and test_col must be different columns. "
+            f"Both are set to '{time_col}'"
+        )
+
+    if control_col == test_col:
+        raise ValueError(
+            f"control_col and test_col must be different columns. "
+            f"Both are set to '{control_col}'"
+        )
+
+
+# Reserved column names used in TBR output DataFrames
+# These are used when converting results to DataFrame format
+_RESERVED_OUTPUT_COLUMNS = frozenset(
+    [
+        "period",  # Period indicator (-1=baseline, 0=pretest, 1=test, 3=cooldown)
+        "y",  # Test group values
+        "x",  # Control group values
+        "pred",  # Predicted/fitted values
+        "predsd",  # Prediction standard deviations
+        "dif",  # Residuals/effects (y - pred)
+        "cumdif",  # Cumulative effects
+        "cumsd",  # Cumulative standard deviations
+        "estsd",  # Fitted value standard deviations
+    ]
+)
+
+
+def validate_no_reserved_column_conflicts(
+    _data: pd.DataFrame,
+    time_col: str,
+    control_col: str,
+    test_col: str,
+) -> None:
+    """
+    Validate that user column names don't conflict with TBR output column names.
+
+    TBR analysis generates output DataFrames with specific column names. If the
+    user's input data already contains columns with these names, it could cause
+    confusion or data loss when results are exported to DataFrame format.
+
+    This validation prevents such conflicts by checking user-specified column names
+    against the reserved output column names used by TBR.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Input DataFrame containing the time series data
+    time_col : str
+        Name of the time column
+    control_col : str
+        Name of the control group column
+    test_col : str
+        Name of the test group column
+
+    Raises
+    ------
+    ValueError
+        If any user-specified column name conflicts with reserved TBR output columns
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> data = pd.DataFrame({
+    ...     'date': [1, 2, 3],
+    ...     'control': [100, 110, 120],
+    ...     'test': [102, 112, 122]
+    ... })
+    >>> validate_no_reserved_column_conflicts(data, 'date', 'control', 'test')  # OK
+
+    >>> data_conflict = pd.DataFrame({
+    ...     'date': [1, 2, 3],
+    ...     'control': [100, 110, 120],
+    ...     'pred': [102, 112, 122]  # 'pred' is reserved!
+    ... })
+    >>> validate_no_reserved_column_conflicts(data_conflict, 'date', 'control', 'pred')
+    Traceback (most recent call last):
+        ...
+    ValueError: Column name(s) {'pred'} are reserved for TBR output...
+
+    Notes
+    -----
+    Reserved column names: period, y, x, pred, predsd, dif, cumdif, cumsd, estsd
+
+    Prevents column name conflicts between user-specified columns and reserved
+    TBR output column names, providing clear, actionable error messages to users.
+    """
+    # Check user-specified columns against reserved names
+    user_columns = {time_col, control_col, test_col}
+    conflicts = user_columns & _RESERVED_OUTPUT_COLUMNS
+
+    if conflicts:
+        raise ValueError(
+            f"Column name(s) {conflicts} are reserved for TBR output columns. "
+            f"Please rename these columns in your input data.\n"
+            f"Reserved column names: {sorted(_RESERVED_OUTPUT_COLUMNS)}"
+        )

@@ -275,7 +275,7 @@ class TestEndToEndTBRValidation:
         data = pd.DataFrame({"date": dates, "control": control, "test": test})
 
         # Run TBR analysis
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -288,12 +288,20 @@ class TestEndToEndTBRValidation:
         )
 
         # Mathematical consistency tests
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults), "Should return TBRResults object"
+
+        # Get DataFrames via methods
+        tbr_results = results.tbr_dataframe()
+        tbr_summaries = results.summary()
+
         assert isinstance(
             tbr_results, pd.DataFrame
         ), "TBR results should be a DataFrame"
         assert isinstance(
-            daily_summaries, pd.DataFrame
-        ), "Daily summaries should be a DataFrame"
+            tbr_summaries, pd.DataFrame
+        ), "TBR summaries should be a DataFrame"
 
         # Check required columns exist
         required_tbr_cols = ["period", "y", "x", "pred", "cumdif", "cumsd"]
@@ -314,7 +322,7 @@ class TestEndToEndTBRValidation:
             )
 
         # Mathematical property: final estimate should match final cumulative difference
-        final_summary = daily_summaries.iloc[-1]
+        final_summary = tbr_summaries.iloc[-1]
         final_cumdif = test_period_data["cumdif"].iloc[-1]
 
         np.testing.assert_allclose(

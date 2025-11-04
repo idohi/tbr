@@ -221,7 +221,7 @@ def validate_analysis_results_tuple(
     Parameters
     ----------
     results : Tuple[pd.DataFrame, pd.DataFrame]
-        Tuple containing analysis results (typically tbr_dataframe, daily_summaries)
+        Tuple containing analysis results (typically tbr_dataframe, tbr_summaries)
     expected_length : int, default 2
         Expected number of elements in the tuple
 

@@ -301,7 +301,7 @@ class TBRAnalysis:
         )
 
         # Perform TBR analysis using functional API with stored configuration
-        tbr_dataframe, daily_summaries = perform_tbr_analysis(
+        tbr_results = perform_tbr_analysis(
             data=data,
             time_col=time_col,
             control_col=control_col,
@@ -314,8 +314,12 @@ class TBRAnalysis:
             test_end_inclusive=self.test_end_inclusive,
         )
 
+        # Extract DataFrames from TBRResults
+        tbr_dataframe = tbr_results.tbr_dataframe()
+        tbr_summaries = tbr_results.summary()
+
         # Extract model parameters from summaries (all rows have same parameters)
-        summary_row = daily_summaries.iloc[0]
+        summary_row = tbr_summaries.iloc[0]
 
         # Extract pretest data to calculate pretest_sum_x_squared_deviations
         _, pretest_df, test_df, _ = split_time_series_by_periods(
@@ -336,7 +340,7 @@ class TBRAnalysis:
 
         # Store results
         self._results = tbr_dataframe
-        self._summaries = daily_summaries
+        self._summaries = tbr_summaries
 
         # Store parameters dictionary
         self._params = {

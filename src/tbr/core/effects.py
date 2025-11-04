@@ -223,7 +223,7 @@ def compute_interval_estimate_and_ci(
     --------
     >>> from tbr.core.effects import compute_interval_estimate_and_ci
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_results, daily_summaries, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_results, tbr_summaries, start_day=5, end_day=10, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")

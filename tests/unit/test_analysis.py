@@ -495,8 +495,8 @@ class TestMainAnalysisWorkflow:
 
         data = pd.DataFrame({"date": dates, "control": control_vals, "test": test_vals})
 
-        # Run complete analysis
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        # Run complete analysis - returns TBRResults object
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -508,9 +508,17 @@ class TestMainAnalysisWorkflow:
             threshold=0.0,
         )
 
-        # Check results structure
+        # Check results structure - should be TBRResults object
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+
+        # Get DataFrames via methods
+        tbr_results = results.tbr_dataframe()
+        tbr_summaries = results.summary()
+
         assert isinstance(tbr_results, pd.DataFrame)
-        assert isinstance(daily_summaries, pd.DataFrame)
+        assert isinstance(tbr_summaries, pd.DataFrame)
 
         # Check TBR results columns
         expected_tbr_cols = [
@@ -529,14 +537,14 @@ class TestMainAnalysisWorkflow:
 
         # Check daily summaries columns
         expected_summary_cols = ["test_day", "estimate", "precision", "lower", "upper"]
-        assert all(col in daily_summaries.columns for col in expected_summary_cols)
+        assert all(col in tbr_summaries.columns for col in expected_summary_cols)
 
         # Check that we have the right number of test days
-        test_days = len(daily_summaries)
+        test_days = len(tbr_summaries)
         assert test_days > 0
 
         # Check that final estimate captures treatment effect
-        final_estimate = daily_summaries["estimate"].iloc[-1]
+        final_estimate = results.estimate  # Use property directly
         assert final_estimate > 0  # Should detect positive treatment effect
 
     def test_analysis_with_integer_time(self):
@@ -550,7 +558,7 @@ class TestMainAnalysisWorkflow:
             }
         )
 
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="hour",
             control_col="control",
@@ -563,9 +571,14 @@ class TestMainAnalysisWorkflow:
         )
 
         # Should handle integer time correctly
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        tbr_results = results.tbr_dataframe()
+        tbr_summaries = results.summary()
         assert isinstance(tbr_results, pd.DataFrame)
-        assert isinstance(daily_summaries, pd.DataFrame)
-        assert len(daily_summaries) > 0
+        assert isinstance(tbr_summaries, pd.DataFrame)
+        assert len(tbr_summaries) > 0
 
     def test_analysis_with_minimal_data(self):
         """Test analysis with minimal valid data."""
@@ -578,7 +591,7 @@ class TestMainAnalysisWorkflow:
             }
         )
 
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -591,8 +604,13 @@ class TestMainAnalysisWorkflow:
         )
 
         # Should work with minimal data
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        tbr_results = results.tbr_dataframe()
+        tbr_summaries = results.summary()
         assert len(tbr_results) > 0
-        assert len(daily_summaries) > 0
+        assert len(tbr_summaries) > 0
 
     def test_analysis_validation_errors(self):
         """Test analysis input validation errors."""
@@ -636,7 +654,7 @@ class TestMainAnalysisWorkflow:
             }
         )
 
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -649,6 +667,10 @@ class TestMainAnalysisWorkflow:
         )
 
         # Should include baseline period (Dec data)
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        tbr_results = results.tbr_dataframe()
         periods = tbr_results["period"].unique()
         assert -1 in periods  # Baseline period
         assert 0 in periods  # Pretest period
@@ -673,7 +695,7 @@ class TestAnalysisEdgeCases:
             }
         )
 
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -687,8 +709,12 @@ class TestAnalysisEdgeCases:
         )
 
         # Should work with single day test period
-        assert len(daily_summaries) == 1
-        assert daily_summaries["test_day"].iloc[0] == 1
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        tbr_summaries = results.summary()
+        assert len(tbr_summaries) == 1
+        assert tbr_summaries["test_day"].iloc[0] == 1
 
     def test_analysis_with_high_threshold(self):
         """Test analysis with high threshold for probability calculation."""
@@ -700,7 +726,7 @@ class TestAnalysisEdgeCases:
             }
         )
 
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -713,7 +739,10 @@ class TestAnalysisEdgeCases:
         )
 
         # With high threshold, probability should be low
-        final_prob = daily_summaries["prob"].iloc[-1]
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        final_prob = results.pvalue
         assert 0 <= final_prob <= 1
 
     def test_analysis_comprehensive_parameter_combinations(self):
@@ -734,7 +763,7 @@ class TestAnalysisEdgeCases:
         ]
 
         for config in test_configs:
-            tbr_results, daily_summaries = perform_tbr_analysis(
+            results = perform_tbr_analysis(
                 data=base_data,
                 time_col="date",
                 control_col="control",
@@ -746,9 +775,14 @@ class TestAnalysisEdgeCases:
             )
 
         # All configurations should work
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        tbr_results = results.tbr_dataframe()
+        tbr_summaries = results.summary()
         assert len(tbr_results) > 0
-        assert len(daily_summaries) > 0
-        assert daily_summaries["level"].iloc[0] == config["level"]
+        assert len(tbr_summaries) > 0
+        assert tbr_summaries["level"].iloc[0] == config["level"]
 
     def test_analysis_no_cooldown_data(self):
         """Test analysis with no cooldown data (line 1564)."""
@@ -761,7 +795,7 @@ class TestAnalysisEdgeCases:
             }
         )
 
-        tbr_results, daily_summaries = perform_tbr_analysis(
+        results = perform_tbr_analysis(
             data=data,
             time_col="date",
             control_col="control",
@@ -775,8 +809,13 @@ class TestAnalysisEdgeCases:
         )
 
         # Should work without cooldown data (hits line 1564)
+        from tbr.core.results import TBRResults
+
+        assert isinstance(results, TBRResults)
+        tbr_results = results.tbr_dataframe()
+        tbr_summaries = results.summary()
         assert len(tbr_results) > 0
-        assert len(daily_summaries) > 0
+        assert len(tbr_summaries) > 0
 
         # Should only have periods -1 (baseline), 0 (pretest), 1 (test), no 3 (cooldown)
         periods = tbr_results["period"].unique()
