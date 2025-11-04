@@ -567,8 +567,12 @@ class TestScalabilityBenchmarks:
 
         print(f"\nn={n_samples}: {stats['mean']*1000:.2f} ± {stats['std']*1000:.2f} ms")
 
+    @pytest.mark.slow
     def test_scalability_large_dataset(self, benchmarker):
-        """Test performance with large dataset (10,000 samples)."""
+        """Test performance with large dataset (10,000 samples).
+
+        Note: This test takes ~3 minutes. Skip with: pytest -m "not slow"
+        """
         np.random.seed(42)
         n_samples = 10000
         dates = pd.date_range("2024-01-01", periods=n_samples)

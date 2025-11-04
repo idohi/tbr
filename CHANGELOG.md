@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2025-11-04
 
-### 🎉 First Stable Release
+### 🎉 First Public Release (Beta)
 
-**TBR v0.1.0** is a comprehensive, production-ready Python package for Time-Based Regression (TBR) analysis.
+**TBR v0.1.0** is a comprehensive, feature-complete Python package for Time-Based Regression (TBR) analysis.
 This release includes complete functionality, 100% test coverage, and professional API design suitable for
-scientific and commercial applications.
+scientific and commercial applications. Marked as Beta to gather real-world feedback before v1.0 stable release.
 
 ### Added
 
