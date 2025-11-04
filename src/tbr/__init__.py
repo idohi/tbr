@@ -57,9 +57,10 @@ import lazy_loader as lazy
 # Lazy loading implementation - modules load only when accessed
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
-    submodules=["functional", "utils", "analysis"],
+    submodules=["functional", "utils", "analysis", "core"],
     submod_attrs={
         "functional": ["perform_tbr_analysis"],
+        "core": ["TBRAnalysis"],
         "utils": ["CONTROL_VAL", "TEST_VAL"],
         "analysis": [
             "create_tbr_summary",
