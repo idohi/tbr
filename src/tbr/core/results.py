@@ -136,6 +136,46 @@ class TBRPredictionResult:
             "control_values": self.control_values,
         }
 
+    def to_json(self, filepath: str, **kwargs: Any) -> None:
+        """
+        Export result to JSON file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to output JSON file
+        **kwargs : any
+            Additional arguments passed to export_to_json()
+
+        Examples
+        --------
+        >>> result = model.predict()
+        >>> result.to_json('predictions.json')
+        """
+        from tbr.utils.export import export_to_json
+
+        export_to_json(self, filepath, **kwargs)
+
+    def to_csv(self, filepath: str, **kwargs: Any) -> None:
+        """
+        Export predictions DataFrame to CSV file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to output CSV file
+        **kwargs : any
+            Additional arguments passed to export_to_csv()
+
+        Examples
+        --------
+        >>> result = model.predict()
+        >>> result.to_csv('predictions.csv', index=False)
+        """
+        from tbr.utils.export import export_to_csv
+
+        export_to_csv(self.predictions, filepath, **kwargs)
+
     @property
     def mean_pred(self) -> float:
         """
@@ -274,6 +314,46 @@ class TBRSummaryResult:
         """
         return pd.DataFrame([self.to_dict()])
 
+    def to_json(self, filepath: str, **kwargs: Any) -> None:
+        """
+        Export result to JSON file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to output JSON file
+        **kwargs : any
+            Additional arguments passed to export_to_json()
+
+        Examples
+        --------
+        >>> summary = model.summarize()
+        >>> summary.to_json('summary.json')
+        """
+        from tbr.utils.export import export_to_json
+
+        export_to_json(self, filepath, **kwargs)
+
+    def to_csv(self, filepath: str, **kwargs: Any) -> None:
+        """
+        Export result to CSV file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to output CSV file
+        **kwargs : any
+            Additional arguments passed to export_to_csv()
+
+        Examples
+        --------
+        >>> summary = model.summarize()
+        >>> summary.to_csv('summary.csv', index=False)
+        """
+        from tbr.utils.export import export_to_csv
+
+        export_to_csv(self, filepath, **kwargs)
+
     def is_significant(self, probability_threshold: float = 0.95) -> bool:
         """
         Check if effect is statistically significant.
@@ -367,6 +447,45 @@ class TBRSubintervalResult:
             "end_day": self.end_day,
             "n_days": self.n_days,
         }
+
+    def to_json(self, filepath: str, **kwargs: Any) -> None:
+        """
+        Export result to JSON file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to output JSON file
+        **kwargs : any
+            Additional arguments passed to export_to_json()
+
+        Examples
+        --------
+        >>> result = model.analyze_subinterval(1, 7)
+        >>> result.to_json('week1_results.json')
+        """
+        from tbr.utils.export import export_to_json
+
+        export_to_json(self, filepath, **kwargs)
+
+    def to_csv(self, filepath: str, **kwargs: Any) -> None:
+        """
+        Export result to CSV file as single-row DataFrame.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to output CSV file
+        **kwargs : any
+            Additional arguments passed to pandas.DataFrame.to_csv()
+
+        Examples
+        --------
+        >>> result = model.analyze_subinterval(1, 7)
+        >>> result.to_csv('week1_results.csv', index=False)
+        """
+        df = pd.DataFrame([self.to_dict()])
+        df.to_csv(filepath, **kwargs)
 
     def contains_zero(self) -> bool:
         """

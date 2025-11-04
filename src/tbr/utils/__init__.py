@@ -12,6 +12,7 @@ from .exceptions import (
     NumericalInstabilityError,
     TBRError,
 )
+from .export import export_to_csv, export_to_json, load_json, safe_json_serialize
 from .performance import (
     EfficiencyMetrics,
     EfficiencyReport,
@@ -109,4 +110,9 @@ __all__ = [
     "EfficiencyReport",
     "profile_tbr_workflow",
     "benchmark_tbr_functions",
+    # Export Utilities
+    "export_to_json",
+    "export_to_csv",
+    "load_json",
+    "safe_json_serialize",
 ]
