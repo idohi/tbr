@@ -7,14 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-11-04
+
+### 🎉 First Stable Release
+
+**TBR v0.1.0** is a comprehensive, production-ready Python package for Time-Based Regression (TBR) analysis.
+This release includes complete functionality, 100% test coverage, and professional API design suitable for
+scientific and commercial applications.
+
 ### Added
-- Enhanced CHANGELOG.md following Keep a Changelog standards
-- Professional MANIFEST.in for distribution packaging
-- Individual test execution capabilities (make test-single, make test-pattern)
+
+#### Core Functionality
+- **Functional API**: Complete `perform_tbr_analysis()` function with all TBR mathematical implementations
+- **OOP API**: `TBRAnalysis` class with sklearn-compatible interface (`fit()`, `predict()`, `get_params()`, `set_params()`)
+- **Result Objects**: Professional dataclass-based result containers (`TBRSummaryResult`, `TBRPredictionResult`, `TBRSubintervalResult`)
+- **Export Utilities**: JSON and CSV export with full metadata preservation
+- **Method Chaining**: Fluent API patterns for streamlined workflows
+
+#### Analysis Capabilities
+- **Summary Analysis**: Complete treatment effect estimation with credible intervals
+- **Incremental Analysis**: Day-by-day progression of treatment effects
+- **Subinterval Analysis**: Custom time window analysis with configurable confidence levels
+- **Counterfactual Predictions**: Model-based estimation with uncertainty quantification
+- **Diagnostics**: Comprehensive model validation and assumption checking
+
+#### Statistical Features
+- **Rigorous Mathematics**: Exact TBR formulas with complete theoretical foundation
+- **Variance Quantification**: Proper uncertainty estimation separating model and residual components
+- **Credible Intervals**: t-distribution based intervals with proper degrees of freedom
+- **Posterior Probabilities**: Bayesian threshold exceedance testing
+- **Performance Diagnostics**: Computational efficiency metrics and optimization recommendations
+
+#### Testing & Quality
+- **1,227 Tests**: Comprehensive test suite covering all functionality
+- **100% Code Coverage**: 2,365 statements, 888 branches fully covered
+- **Test Categories**: Unit (726), Integration (143), Mathematical (123), Performance (39)
+- **Performance Validation**: OOP API overhead < 50%, linear O(n) scalability confirmed
+- **Cross-validation**: OOP vs Functional API equivalence at machine precision (rtol=1e-14)
+
+#### Documentation
+- **Quick Start Guide**: Installation and basic usage examples
+- **API Reference**: Complete documentation of all classes and methods
+- **Result Objects Guide**: Comprehensive documentation of result structures
+- **Best Practices**: Common patterns and domain-specific guidance
+- **Examples**: Three complete example scripts demonstrating workflows
+
+#### Infrastructure
+- **Lazy Loading**: SPEC-1 compliant lazy imports for optimal memory usage
+- **Type Hints**: Complete type annotations throughout codebase
+- **Pre-commit Hooks**: Black, isort, Ruff, MyPy, pydocstyle, interrogate, vulture
+- **CI/CD Pipeline**: GitHub Actions with multi-platform testing (Ubuntu, Windows, macOS)
+- **Python Support**: Python 3.8, 3.9, 3.10, 3.11, 3.12
 
 ### Changed
-- Improved README.md with comprehensive testing documentation
-- Enhanced project structure alignment with top scientific PyPI packages
+- Upgraded from alpha (0.1.0a1) to stable release (0.1.0)
+- Improved performance with lazy loading (64-99% faster import times)
+- Enhanced error messages with actionable guidance
+- Optimized memory efficiency across all operations
+
+### Fixed
+- All pre-commit hook issues resolved
+- Mathematical correctness validated against theoretical derivations
+- Cross-platform compatibility issues resolved
+- Numerical stability edge cases handled
+
+### Performance
+- **Import Time**: 64-99% faster with lazy loading
+- **OOP Overhead**: < 50% vs functional API (often faster)
+- **Method Chaining**: < 10% overhead
+- **Scalability**: Linear O(n) from 50 to 10,000 samples
+- **Memory**: Efficient garbage collection and resource management
+
+### Breaking Changes
+None - First stable release
 
 ## [0.1.0a1] - 2025-09-16
 

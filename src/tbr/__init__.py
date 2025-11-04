@@ -1,10 +1,6 @@
 """
 TBR - Time-Based Regression Analysis Package.
 
-⚠️  **ALPHA RELEASE** ⚠️
-This package is under active development. The API may change in future versions.
-For production use, please wait for the stable 1.0.0 release.
-
 A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR)
 analysis. Perform rigorous statistical analysis of treatment/control group time
 series data across any industry.
@@ -47,7 +43,7 @@ See Also
 - Issues: https://github.com/idohi/tbr/issues
 """
 
-__version__ = "0.1.0a1"
+__version__ = "0.1.0"
 __author__ = "Ido Hirsh"
 __license__ = "Apache-2.0"
 
