@@ -59,7 +59,7 @@ def fit_regression_model(
     test_col: str,
 ) -> Dict[str, float]:
     """
-    Fit TBR regression model using statsmodels OLS on pretest period.
+    Fit TBR regression model using OLS on pretest period.
 
     This function fits a linear regression model of the form:
     test = α + β * control + ε
@@ -125,13 +125,13 @@ def fit_regression_model(
             "Control group values are constant in pretest period - cannot fit regression"
         )
 
-    # Prepare data for statsmodels (add constant for intercept)
+    # Prepare data (add constant for intercept)
     X = prepare_regression_arrays(x, add_constant=True)
 
-    # Fit OLS regression using statsmodels
+    # Fit OLS regression
     model = sm.OLS(y, X).fit()
 
-    # Extract all parameters directly from statsmodels
+    # Extract all parameters from fitted model
     alpha = model.params[0]  # Intercept
     beta = model.params[1]  # Slope
 

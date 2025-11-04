@@ -11,12 +11,14 @@ import pytest
 
 from tbr.utils.validation import (
     validate_array_not_empty,
+    validate_column_distinctness,
     validate_column_types,
     validate_dataframe_not_empty,
     validate_degrees_freedom,
     validate_learning_set,
     validate_metric_columns,
     validate_no_nulls,
+    validate_no_reserved_column_conflicts,
     validate_period_data,
     validate_probability_level,
     validate_required_columns,
@@ -568,3 +570,141 @@ class TestMissingCoverageScenarios:
         """Test validate_column_types with matching types (line 687 branch coverage)."""
         df = pd.DataFrame({"a": [1, 2, 3]})  # int64
         validate_column_types(df, {"a": "int64"})  # Should not raise
+
+
+class TestColumnDistinctnessValidation:
+    """Test validation of distinct column names for TBR analysis."""
+
+    def test_all_distinct_columns(self):
+        """Test validation passes when all columns are distinct."""
+        # Should not raise any error
+        validate_column_distinctness("date", "control", "test")
+
+    def test_time_col_equals_control_col(self):
+        """Test error when time_col equals control_col."""
+        with pytest.raises(
+            ValueError,
+            match="time_col and control_col must be different columns. Both are set to 'metric'",
+        ):
+            validate_column_distinctness("metric", "metric", "test")
+
+    def test_time_col_equals_test_col(self):
+        """Test error when time_col equals test_col."""
+        with pytest.raises(
+            ValueError,
+            match="time_col and test_col must be different columns. Both are set to 'data'",
+        ):
+            validate_column_distinctness("data", "control", "data")
+
+    def test_control_col_equals_test_col(self):
+        """Test error when control_col equals test_col."""
+        with pytest.raises(
+            ValueError,
+            match="control_col and test_col must be different columns. Both are set to 'values'",
+        ):
+            validate_column_distinctness("date", "values", "values")
+
+    def test_all_same_column(self):
+        """Test error when all three columns are the same."""
+        # Should raise error for first conflict detected (time vs control)
+        with pytest.raises(
+            ValueError,
+            match="time_col and control_col must be different columns. Both are set to 'col'",
+        ):
+            validate_column_distinctness("col", "col", "col")
+
+
+class TestReservedColumnConflictsValidation:
+    """Test validation of column names against reserved TBR output names."""
+
+    def test_no_conflicts(self):
+        """Test validation passes when no conflicts exist."""
+        data = pd.DataFrame(
+            {
+                "date": pd.date_range("2023-01-01", periods=10),
+                "control": range(10),
+                "test": range(10, 20),
+                "other_data": range(20, 30),
+            }
+        )
+        # Should not raise any error
+        validate_no_reserved_column_conflicts(data, "date", "control", "test")
+
+    def test_time_col_conflicts_with_period(self):
+        """Test error when time_col uses reserved name 'period'."""
+        data = pd.DataFrame(
+            {"period": range(10), "control": range(10), "test": range(10, 20)}
+        )
+        with pytest.raises(
+            ValueError,
+            match="Column name\\(s\\) \\{'period'\\} are reserved for TBR output columns",
+        ):
+            validate_no_reserved_column_conflicts(data, "period", "control", "test")
+
+    def test_control_col_conflicts_with_x(self):
+        """Test error when control_col uses reserved name 'x'."""
+        data = pd.DataFrame({"date": range(10), "x": range(10), "test": range(10, 20)})
+        with pytest.raises(
+            ValueError,
+            match="Column name\\(s\\) \\{'x'\\} are reserved for TBR output columns",
+        ):
+            validate_no_reserved_column_conflicts(data, "date", "x", "test")
+
+    def test_test_col_conflicts_with_y(self):
+        """Test error when test_col uses reserved name 'y'."""
+        data = pd.DataFrame(
+            {"date": range(10), "control": range(10), "y": range(10, 20)}
+        )
+        with pytest.raises(
+            ValueError,
+            match="Column name\\(s\\) \\{'y'\\} are reserved for TBR output columns",
+        ):
+            validate_no_reserved_column_conflicts(data, "date", "control", "y")
+
+    def test_multiple_conflicts(self):
+        """Test error message with multiple conflicting columns."""
+        data = pd.DataFrame(
+            {"period": range(10), "pred": range(10), "y": range(10, 20)}
+        )
+        with pytest.raises(
+            ValueError,
+            match="Column name\\(s\\) \\{.*\\} are reserved for TBR output columns",
+        ):
+            validate_no_reserved_column_conflicts(data, "period", "pred", "y")
+
+    def test_all_reserved_names(self):
+        """Test validation detects all reserved column names."""
+        reserved_names = [
+            "period",
+            "y",
+            "x",
+            "pred",
+            "predsd",
+            "dif",
+            "cumdif",
+            "cumsd",
+            "estsd",
+        ]
+
+        for reserved_name in reserved_names:
+            data = pd.DataFrame(
+                {reserved_name: range(10), "control": range(10), "test": range(10, 20)}
+            )
+            with pytest.raises(ValueError, match="are reserved for TBR output columns"):
+                validate_no_reserved_column_conflicts(
+                    data, reserved_name, "control", "test"
+                )
+
+    def test_reserved_name_in_data_but_not_used(self):
+        """Test that reserved names in data are OK if not used as analysis columns."""
+        # Data has 'pred' column, but we're not using it for analysis
+        data = pd.DataFrame(
+            {
+                "date": range(10),
+                "control": range(10),
+                "test": range(10, 20),
+                "pred": range(20, 30),  # Reserved name, but not used
+            }
+        )
+        # Should not raise - 'pred' is in data but not specified as analysis column
+        validate_no_reserved_column_conflicts(data, "date", "control", "test")

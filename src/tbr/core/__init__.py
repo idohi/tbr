@@ -14,9 +14,9 @@ The core modules include:
 - inference: Statistical inference, credible intervals, and hypothesis testing
 - posterior: Advanced posterior probability analysis and threshold testing
 
-This module uses lazy loading (SPEC-1) to optimize memory usage and import times.
-Heavy scientific modules (scipy, statsmodels) are only loaded when their
-functions are actually accessed, providing significant performance benefits
+This module uses lazy loading to optimize memory usage and import times.
+Heavy dependencies are only loaded when their functions are actually accessed,
+providing significant performance benefits
 for users who don't need all functionality.
 """
 
@@ -33,6 +33,7 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "TBRPredictionResult",
             "TBRSummaryResult",
             "TBRSubintervalResult",
+            "TBRResults",
         ],
         "regression": [
             "fit_regression_model",

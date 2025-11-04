@@ -55,9 +55,8 @@ statistical methods:
 
 Notes
 -----
-All functions use lazy imports for scipy.stats to minimize import overhead and
-follow the SPEC-1 lazy loading pattern established in the TBR package.
-Functions integrate seamlessly with the basic inference module from Task 4.3.
+All functions use lazy imports to minimize import overhead. Functions integrate
+seamlessly with the basic inference module.
 
 See individual function documentation for detailed usage and examples.
 """

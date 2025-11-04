@@ -560,7 +560,7 @@ class TestStructureValidationIntegration:
             }
         )
 
-        daily_summaries = pd.DataFrame(
+        tbr_summaries = pd.DataFrame(
             {
                 "test_day": [1, 2],
                 "estimate": [2.0, 4.0],
@@ -570,7 +570,7 @@ class TestStructureValidationIntegration:
             }
         )
 
-        results = (tbr_dataframe, daily_summaries)
+        results = (tbr_dataframe, tbr_summaries)
 
         # Should validate successfully
         validate_analysis_results_tuple(results)

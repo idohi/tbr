@@ -516,7 +516,7 @@ class TestTBRPerformanceAnalyzer:
         assert "efficiency_report" in performance_report
         assert "data_characteristics" in performance_report
         assert "tbr_results" in performance_report
-        assert "daily_summaries" in performance_report
+        assert "tbr_summaries" in performance_report
 
         # Check workflow metrics
         workflow_metrics = performance_report["workflow_metrics"]

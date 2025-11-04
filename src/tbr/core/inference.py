@@ -54,8 +54,7 @@ statistical methods:
 
 Notes
 -----
-All functions use lazy imports for scipy.stats to minimize import overhead and
-follow the SPEC-1 lazy loading pattern established in the TBR package.
+All functions use lazy imports to minimize import overhead.
 
 See individual function documentation for detailed usage and examples.
 """
@@ -192,7 +191,7 @@ def calculate_p_value(
 
     Notes
     -----
-    Uses lazy import of scipy.stats to minimize import overhead.
+    Uses lazy import to minimize import overhead.
     The p-value represents the probability of Type I error under the null hypothesis.
     """
     # Lazy import to minimize overhead

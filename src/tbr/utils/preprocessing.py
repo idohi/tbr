@@ -201,7 +201,7 @@ def assign_period_indicators(
 
 def prepare_regression_arrays(x: np.ndarray, add_constant: bool = True) -> np.ndarray:
     """
-    Prepare arrays for statsmodels regression analysis.
+    Prepare arrays for regression analysis.
 
     This function is extracted from the functional TBR implementation (line 329)
     and provides data preparation for regression fitting.
@@ -226,10 +226,10 @@ def prepare_regression_arrays(x: np.ndarray, add_constant: bool = True) -> np.nd
     >>> print(f"Original shape: {x.shape}, Prepared shape: {X.shape}")
     """
     if add_constant:
-        # Lazy import to avoid loading statsmodels until needed
+        # Lazy import to minimize dependencies
         import statsmodels.api as sm
 
-        # Prepare data for statsmodels (add constant for intercept)
+        # Add constant for intercept
         X = sm.add_constant(x)
         return X
     else:

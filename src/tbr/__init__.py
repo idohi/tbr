@@ -51,10 +51,10 @@ __version__ = "0.1.0a1"
 __author__ = "Ido Hirsh"
 __license__ = "Apache-2.0"
 
-# Lazy imports for optimal memory usage following SPEC-1
+# Lazy imports for optimal memory usage
 import lazy_loader as lazy
 
-# SPEC-1 Lazy Loading Implementation for main package
+# Lazy loading implementation - modules load only when accessed
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,
     submodules=["functional", "utils", "analysis"],
