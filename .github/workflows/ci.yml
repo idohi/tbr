@@ -168,7 +168,7 @@ jobs:
   package:
     needs: quality
     runs-on: ubuntu-latest
-    name: Package Build Test
+    name: Package Build & Dependency Test
 
     steps:
     - uses: actions/checkout@v4
@@ -196,14 +196,64 @@ jobs:
       run: |
         python -m build
 
-    - name: Check package
+    - name: Check package with twine
       run: |
         twine check dist/*
 
-    - name: Test package installation
+    - name: Test package installation in clean environment
       run: |
+        # Create completely clean virtual environment
+        python -m venv test_env
+        source test_env/bin/activate
+
+        # Install ONLY from wheel (runtime dependencies only)
         pip install dist/*.whl
-        python -c "import tbr; print(f'TBR version: {tbr.__version__}')"
+
+        # Test basic import
+        python -c "import tbr; print(f'✓ TBR version: {tbr.__version__}')"
+
+        # Test OOP API
+        python -c "from tbr import TBRAnalysis; print('✓ TBRAnalysis imported')"
+
+        # Test functional API (requires psutil!)
+        python -c "from tbr import perform_tbr_analysis; print('✓ Functional API imported')"
+
+        # Test result objects
+        python -c "from tbr.core import TBRSummaryResult, TBRPredictionResult; print('✓ Result objects imported')"
+
+        deactivate
+
+    - name: Run dependency tests in clean environment
+      run: |
+        # Reuse the clean environment
+        source test_env/bin/activate
+
+        # Install ONLY pytest (minimal testing tool)
+        pip install pytest
+
+        # Run dependency tests
+        pytest tests/integration/test_package_dependencies.py -v
+
+        deactivate
+
+    - name: Verify no development dependencies leaked
+      run: |
+        source test_env/bin/activate
+
+        # These should NOT be present
+        python -c "import sys; import importlib.util; assert importlib.util.find_spec('black') is None, 'black should not be installed'" || echo "✓ black not in environment"
+        python -c "import sys; import importlib.util; assert importlib.util.find_spec('ruff') is None, 'ruff should not be installed'" || echo "✓ ruff not in environment"
+        python -c "import sys; import importlib.util; assert importlib.util.find_spec('mypy') is None, 'mypy should not be installed'" || echo "✓ mypy not in environment"
+
+        # These SHOULD be present (runtime deps)
+        python -c "import pandas; print('✓ pandas present')"
+        python -c "import numpy; print('✓ numpy present')"
+        python -c "import scipy; print('✓ scipy present')"
+        python -c "import statsmodels; print('✓ statsmodels present')"
+        python -c "import psutil; print('✓ psutil present')"
+        python -c "import lazy_loader; print('✓ lazy_loader present')"
+
+        deactivate
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
