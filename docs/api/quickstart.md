@@ -171,6 +171,6 @@ Measure the impact of new product features on user metrics.
 ## Getting Help
 
 - Check the [API Reference](api_reference.md) for detailed method documentation
-- See [Examples](examples/) for domain-specific use cases
+- See [Examples](../../examples/) for domain-specific use cases
 - Review [Common Patterns](patterns.md) for best practices
 - Read [Result Objects](results.md) to understand output structures

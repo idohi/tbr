@@ -28,7 +28,7 @@ Returned by: `summarize()`, `fit_summarize()`, `final_summary`
 | `upper` | float | Upper bound of credible interval |
 | `se` | float | Standard error |
 | `prob` | float | Posterior probability (effect > threshold) |
-| `precision` | float | Precision (1/variance) |
+| `precision` | float | Half-width of credible interval (margin of error) |
 | `level` | float | Credibility level used |
 | `threshold` | float | Threshold used for probability |
 | `alpha` | float | Regression intercept |
