@@ -113,9 +113,8 @@ TBR analysis implements rigorous statistical methods based on Ordinary Least Squ
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/idohi/tbr/blob/main/LICENSE) file for details.
 
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/idohi/tbr/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/idohi/tbr/discussions)
