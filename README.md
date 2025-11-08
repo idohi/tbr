@@ -4,7 +4,7 @@
 [![Build Status](https://github.com/idohi/tbr/workflows/CI/badge.svg)](https://github.com/idohi/tbr/actions)
 [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/idohi/tbr/actions)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Development Status](https://img.shields.io/badge/status-beta-yellow.svg)](https://pypi.org/project/tbr/)
 
@@ -100,7 +100,6 @@ TBR analysis implements rigorous statistical methods based on Ordinary Least Squ
 ## Documentation
 
 - **Examples**: See `examples/` directory in the repository
-- **Testing Guide**: `docs/testing/testing.rst`
 - **Full Documentation**: Coming in v0.2.0
 
 ## Version Compatibility
@@ -113,7 +112,7 @@ TBR analysis implements rigorous statistical methods based on Ordinary Least Squ
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](https://github.com/idohi/tbr/blob/main/LICENSE) file for details.
+This project is licensed under the BSD-3-Clause License - see the [LICENSE](https://github.com/idohi/tbr/blob/main/LICENSE) file for details.
 
 ## Support
 
