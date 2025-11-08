@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tbr"
-version = "0.1.0"
+version = "0.1.1"
 description = "A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = {text = "BSD-3-Clause"}
 authors = [
     {name = "Ido Hirsh", email = "idohirsh@users.noreply.github.com"}
 ]

@@ -43,9 +43,9 @@ See Also
 - Issues: https://github.com/idohi/tbr/issues
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Ido Hirsh"
-__license__ = "Apache-2.0"
+__license__ = "BSD-3-Clause"
 
 # Lazy imports for optimal memory usage
 import lazy_loader as lazy

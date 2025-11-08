@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-11-08
+
+### Changed
+- **License**: Changed from Apache-2.0 to BSD-3-Clause to align with the scientific Python ecosystem (NumPy, pandas, SciPy, statsmodels)
+  - Maintains same permissive terms
+  - Enhances compatibility and familiarity for scientific community
+  - Reduces adoption friction for researchers and organizations
+
 ## [0.1.0] - 2025-11-04
 
 ### 🎉 First Public Release (Beta)
