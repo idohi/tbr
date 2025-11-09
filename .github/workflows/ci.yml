@@ -1,13 +1,13 @@
 name: CI
 
 on:
-  # Automatic triggers (commented out for manual control during development)
-  # push:
-  #   branches: [ main, develop ]
-  # pull_request:
-  #   branches: [ main, develop ]
+  # Automatic triggers
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-  # Manual trigger (active during development to control GitHub Actions usage)
+  # Manual trigger for on-demand testing
   workflow_dispatch:
     inputs:
       reason:
