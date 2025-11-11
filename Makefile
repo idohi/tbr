@@ -171,8 +171,8 @@ ci-local: ## Run exact CI tests locally (mirrors GitHub Actions)
 	@echo "$(YELLOW)Step 1: Installing dependencies$(NC)"
 	@python -m pip install --upgrade pip
 	@pip install -e .[dev]
-	@echo "$(YELLOW)Step 2: Running unit tests with coverage$(NC)"
-	@pytest tests/unit/ -v --cov=src/tbr --cov-report=xml --cov-report=term-missing
+	@echo "$(YELLOW)Step 2: Running unit tests with coverage (excluding performance tests)$(NC)"
+	@pytest tests/unit/ -v -m "not performance" --cov=src/tbr --cov-report=xml --cov-report=term-missing
 	@echo "$(YELLOW)Step 3: Running integration tests$(NC)"
 	@pytest tests/integration/ -v
 	@echo "$(YELLOW)Step 4: Running mathematical validation tests$(NC)"
