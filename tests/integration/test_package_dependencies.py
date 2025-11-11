@@ -185,7 +185,7 @@ class TestPackageMetadata:
         import tbr
 
         assert tbr.__license__, "Package license should be specified"
-        assert "Apache" in tbr.__license__, "Expected Apache license"
+        assert "BSD" in tbr.__license__, "Expected BSD license"
 
     def test_author_specified(self):
         """Test that author is specified."""
