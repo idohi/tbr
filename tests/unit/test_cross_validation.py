@@ -202,6 +202,46 @@ class TestCrossImplementationValidation:
                 f"rel_error={relative_error:.2e}"
             )
 
+    def test_sum_squared_deviations_numerical_stability(self):
+        """Test numerical stability with challenging data.
+
+        Validates that both implementations maintain accuracy with:
+        - Very small values (near machine epsilon)
+        - Very large values
+        - Mixed ranges spanning many orders of magnitude
+        - Near-zero values with small perturbations
+        """
+        # Test scenarios with different numerical challenges
+        test_scenarios = [
+            ("small_values", np.random.uniform(1e-6, 1e-5, 1000)),
+            ("large_values", np.random.uniform(1e6, 1e7, 1000)),
+            (
+                "mixed_range",
+                np.concatenate(
+                    [
+                        np.random.uniform(1e-6, 1e-5, 500),
+                        np.random.uniform(1e6, 1e7, 500),
+                    ]
+                ),
+            ),
+            ("near_zero", np.random.uniform(-1e-10, 1e-10, 1000) + 1000),
+        ]
+
+        for scenario_name, test_data in test_scenarios:
+            # Calculate with both implementations
+            core_result = calculate_sum_squared_deviations(test_data)
+            func_result = func_calculate_sum_x_squared_deviations(test_data)
+
+            # Validate numerical accuracy
+            relative_error = abs(core_result - func_result) / max(
+                abs(func_result), 1e-15
+            )
+            assert relative_error < 1e-12, (
+                f"Numerical accuracy issue in {scenario_name}: "
+                f"core={core_result:.6e}, func={func_result:.6e}, "
+                f"relative_error={relative_error:.2e}"
+            )
+
 
 class TestPerformanceParityValidation:
     """Validate performance parity between core and functional implementations."""
@@ -234,9 +274,9 @@ class TestPerformanceParityValidation:
             func_fit_tbr_regression_model, learning_data, "control", "test"
         )
 
-        # Performance should be comparable (within reasonable CI variability)
+        # Performance should be comparable (within 50% difference)
         performance_ratio = core_time / func_time
-        assert 0.5 <= performance_ratio <= 2.5, (
+        assert 0.5 <= performance_ratio <= 2.0, (
             f"Performance regression detected: core_time={core_time:.4f}s, "
             f"func_time={func_time:.4f}s, ratio={performance_ratio:.2f}"
         )

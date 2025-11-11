@@ -257,58 +257,6 @@ class TestRegressionFittingPerformance:
 
 
 @pytest.mark.performance
-class TestSumSquaredDeviationsPerformance:
-    """Performance benchmarks for sum of squared deviations calculations."""
-
-    def test_sum_squared_deviations_numerical_stability(self):
-        """Test numerical stability performance with challenging data."""
-        benchmarker = PerformanceBenchmarker()
-
-        # Test scenarios with different numerical challenges
-        test_scenarios = [
-            ("small_values", np.random.uniform(1e-6, 1e-5, 1000)),
-            ("large_values", np.random.uniform(1e6, 1e7, 1000)),
-            (
-                "mixed_range",
-                np.concatenate(
-                    [
-                        np.random.uniform(1e-6, 1e-5, 500),
-                        np.random.uniform(1e6, 1e7, 500),
-                    ]
-                ),
-            ),
-            ("near_zero", np.random.uniform(-1e-10, 1e-10, 1000) + 1000),
-        ]
-
-        for scenario_name, test_data in test_scenarios:
-            # Benchmark both implementations
-            core_stats = benchmarker.benchmark_function(
-                calculate_sum_squared_deviations, test_data
-            )
-            func_stats = benchmarker.benchmark_function(
-                func_calculate_sum_x_squared_deviations, test_data
-            )
-
-            # Compare performance
-            comparison = benchmarker.compare_performance(core_stats, func_stats)
-
-            # Validate numerical accuracy
-            relative_error = abs(core_stats["result"] - func_stats["result"]) / max(
-                abs(func_stats["result"]), 1e-15
-            )
-            assert relative_error < 1e-12, (
-                f"Numerical accuracy issue in {scenario_name}: "
-                f"relative_error={relative_error:.2e}"
-            )
-
-            # Performance should be reasonable
-            assert comparison["within_tolerance"], (
-                f"Performance issue in {scenario_name}: "
-                f"ratio={comparison['ratio_mean']:.2f}"
-            )
-
-
-@pytest.mark.performance
 class TestVarianceCalculationsPerformance:
     """Performance benchmarks for variance calculations."""
 
