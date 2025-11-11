@@ -151,18 +151,11 @@ jobs:
 
     - name: Run performance tests
       run: |
-        pytest tests/performance/ -v --durations=10 --tb=short > performance_results.txt
+        pytest tests/performance/ -v --durations=10
 
     - name: Run performance tests (slow)
       run: |
-        pytest tests/performance/ -m slow -v --durations=10 --tb=short >> performance_results.txt
-
-    - name: Upload performance results
-      uses: actions/upload-artifact@v4
-      with:
-        name: performance-results-${{ github.run_id }}
-        path: performance_results.txt
-        retention-days: 30
+        pytest tests/performance/ -m slow -v --durations=10
 
   # Package Building and Installation Test
   package:
