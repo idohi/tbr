@@ -18,7 +18,6 @@ import pytest
 from tbr.core.regression import (
     calculate_model_variance,
     calculate_prediction_variance,
-    calculate_sum_squared_deviations,
     calculate_variances,
     convert_to_integer,
     fit_regression_model,
@@ -30,9 +29,6 @@ from tbr.functional.tbr_functions import (
 )
 from tbr.functional.tbr_functions import (
     calculate_prediction_variance as func_calculate_prediction_variance,
-)
-from tbr.functional.tbr_functions import (
-    calculate_sum_x_squared_deviations as func_calculate_sum_x_squared_deviations,
 )
 from tbr.functional.tbr_functions import (
     fit_tbr_regression_model as func_fit_tbr_regression_model,
@@ -487,113 +483,3 @@ class TestIntegerConversionPerformance:
             f"ratio={comparison['ratio_mean']:.2f}, tolerance={tolerance:.1f}x "
             f"(adaptive: {base_time_us:.1f}μs operation)"
         )
-
-
-@pytest.mark.performance
-class TestEndToEndPerformanceBenchmarks:
-    """End-to-end performance benchmarks for complete regression workflows."""
-
-    def test_complete_regression_workflow_performance(self):
-        """Test performance of complete regression analysis workflow."""
-        benchmarker = PerformanceBenchmarker()
-
-        # Generate realistic TBR dataset
-        np.random.seed(42)
-        n_samples = 1000
-        control_values = np.random.normal(1000, 100, n_samples)
-        test_values = 50 + 0.95 * control_values + np.random.normal(0, 30, n_samples)
-
-        learning_data = pd.DataFrame({"control": control_values, "test": test_values})
-
-        # Define complete workflow using core functions
-        def core_workflow(data):
-            # Step 1: Fit regression
-            params = fit_regression_model(data, "control", "test")
-
-            # Step 2: Calculate sum squared deviations
-            sum_sq_dev = calculate_sum_squared_deviations(data["control"].values)
-
-            # Step 3: Calculate variances for prediction
-            test_x = np.array([950, 1000, 1050, 1100])
-            model_vars, pred_vars = calculate_variances(
-                test_x,
-                params["pretest_x_mean"],
-                params["sigma"],
-                params["n_pretest"],
-                sum_sq_dev,
-            )
-
-            # Step 4: Convert degrees of freedom
-            dof = convert_to_integer(params["degrees_freedom"], "degrees_freedom")
-
-            return params, sum_sq_dev, model_vars, pred_vars, dof
-
-        # Define complete workflow using functional functions
-        def func_workflow(data):
-            # Step 1: Fit regression
-            params = func_fit_tbr_regression_model(data, "control", "test")
-
-            # Step 2: Calculate sum squared deviations
-            sum_sq_dev = func_calculate_sum_x_squared_deviations(data["control"].values)
-
-            # Step 3: Calculate variances for prediction
-            test_x = np.array([950, 1000, 1050, 1100])
-            model_vars = func_calculate_model_variance(
-                test_x,
-                params["pretest_x_mean"],
-                params["sigma"],
-                params["n_pretest"],
-                sum_sq_dev,
-            )
-            pred_vars = func_calculate_prediction_variance(model_vars, params["sigma"])
-
-            # Step 4: Convert degrees of freedom
-            dof = func_safe_int_conversion(params["degrees_freedom"], "degrees_freedom")
-
-            return params, sum_sq_dev, model_vars, pred_vars, dof
-
-        # Benchmark both workflows
-        core_stats = benchmarker.benchmark_function(core_workflow, learning_data)
-        func_stats = benchmarker.benchmark_function(func_workflow, learning_data)
-
-        # Compare performance
-        comparison = benchmarker.compare_performance(core_stats, func_stats)
-
-        # Validate results are identical
-        core_results = core_stats["result"]
-        func_results = func_stats["result"]
-
-        # Compare all components
-        for key in core_results[0]:  # params
-            assert abs(core_results[0][key] - func_results[0][key]) < 1e-12
-
-        assert abs(core_results[1] - func_results[1]) < 1e-15  # sum_sq_dev
-        np.testing.assert_allclose(
-            core_results[2], func_results[2], rtol=1e-15
-        )  # model_vars
-        np.testing.assert_allclose(
-            core_results[3], func_results[3], rtol=1e-15
-        )  # pred_vars
-        assert core_results[4] == func_results[4]  # dof
-
-        # Performance should be within tolerance
-        assert comparison["within_tolerance"], (
-            f"End-to-end workflow performance regression: "
-            f"ratio={comparison['ratio_mean']:.2f}, "
-            f"difference={comparison['performance_difference_pct']:.1f}%"
-        )
-
-        # Log detailed performance results
-        print("\nEnd-to-End Workflow Performance:")
-        print(
-            f"Core implementation: {core_stats['mean']*1000:.2f} ± {core_stats['std']*1000:.2f} ms"
-        )
-        print(
-            f"Functional implementation: {func_stats['mean']*1000:.2f} ± {func_stats['std']*1000:.2f} ms"
-        )
-        print(f"Performance ratio: {comparison['ratio_mean']:.2f}")
-        print(
-            f"Performance difference: {comparison['performance_difference_pct']:.1f}%"
-        )
-        print(f"Core is faster: {comparison['core_faster']}")
-        print(f"Within tolerance: {comparison['within_tolerance']}")

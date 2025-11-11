@@ -48,16 +48,37 @@ from tbr.core.prediction import (
     calculate_cumulative_standard_deviation as core_pred_cumsd,
 )
 from tbr.core.prediction import generate_counterfactual_predictions as core_predictions
+
+# Regression module imports for complete workflow cross-validation
+from tbr.core.regression import (
+    calculate_sum_squared_deviations,
+    calculate_variances,
+    convert_to_integer,
+    fit_regression_model,
+)
 from tbr.functional.tbr_functions import (
     calculate_cumulative_standard_deviation as func_cumsd,
+)
+from tbr.functional.tbr_functions import (
+    calculate_model_variance as func_calculate_model_variance,
+)
+from tbr.functional.tbr_functions import (
+    calculate_prediction_variance as func_calculate_prediction_variance,
+)
+from tbr.functional.tbr_functions import (
+    calculate_sum_x_squared_deviations as func_calculate_sum_x_squared_deviations,
 )
 from tbr.functional.tbr_functions import (
     compute_interval_estimate_and_ci as func_interval,
 )
 from tbr.functional.tbr_functions import create_tbr_summary as func_summary
 from tbr.functional.tbr_functions import (
+    fit_tbr_regression_model as func_fit_tbr_regression_model,
+)
+from tbr.functional.tbr_functions import (
     generate_counterfactual_predictions as func_predictions,
 )
+from tbr.functional.tbr_functions import safe_int_conversion as func_safe_int_conversion
 
 
 class TestCoreEffectsFunctionalCrossValidation:
@@ -552,6 +573,61 @@ class TestIntegratedWorkflowCrossValidation:
                 rtol=1e-12,
                 err_msg="P-value and posterior probability should satisfy mathematical relationship",
             )
+
+    def test_complete_workflow_cross_validation(self):
+        """Cross-validate complete regression workflow between core and functional implementations."""
+        # Generate realistic TBR dataset
+        np.random.seed(42)
+        n_samples = 1000
+        control_values = np.random.normal(1000, 100, n_samples)
+        test_values = 50 + 0.95 * control_values + np.random.normal(0, 30, n_samples)
+
+        learning_data = pd.DataFrame({"control": control_values, "test": test_values})
+
+        # Execute complete workflow using core functions
+        params_core = fit_regression_model(learning_data, "control", "test")
+        sum_sq_dev_core = calculate_sum_squared_deviations(
+            learning_data["control"].values
+        )
+        test_x = np.array([950, 1000, 1050, 1100])
+        model_vars_core, pred_vars_core = calculate_variances(
+            test_x,
+            params_core["pretest_x_mean"],
+            params_core["sigma"],
+            params_core["n_pretest"],
+            sum_sq_dev_core,
+        )
+        dof_core = convert_to_integer(params_core["degrees_freedom"], "degrees_freedom")
+
+        # Execute complete workflow using functional functions
+        params_func = func_fit_tbr_regression_model(learning_data, "control", "test")
+        sum_sq_dev_func = func_calculate_sum_x_squared_deviations(
+            learning_data["control"].values
+        )
+        model_vars_func = func_calculate_model_variance(
+            test_x,
+            params_func["pretest_x_mean"],
+            params_func["sigma"],
+            params_func["n_pretest"],
+            sum_sq_dev_func,
+        )
+        pred_vars_func = func_calculate_prediction_variance(
+            model_vars_func, params_func["sigma"]
+        )
+        dof_func = func_safe_int_conversion(
+            params_func["degrees_freedom"], "degrees_freedom"
+        )
+
+        # Validate results are identical
+        for key in params_core:
+            assert (
+                abs(params_core[key] - params_func[key]) < 1e-12
+            ), f"Mismatch in {key}"
+
+        assert abs(sum_sq_dev_core - sum_sq_dev_func) < 1e-15
+        np.testing.assert_allclose(model_vars_core, model_vars_func, rtol=1e-15)
+        np.testing.assert_allclose(pred_vars_core, pred_vars_func, rtol=1e-15)
+        assert dof_core == dof_func
 
 
 class TestNumericalPrecisionCrossValidation:
