@@ -289,6 +289,7 @@ class TestCumulativeVariancePerformance:
             assert np.all(cum_var > 0)
             assert np.all(np.isfinite(cum_var))
 
+    @pytest.mark.performance
     def test_cumulative_variance_memory_efficiency(self):
         """Test memory efficiency of cumulative variance calculation."""
         import os
