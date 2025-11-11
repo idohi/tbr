@@ -406,11 +406,11 @@ class TestTimeColumnTypes:
 
     def test_integer_time_column(self):
         """Test equivalence with integer time column."""
-        # Create data with integer time
+        # Create data with integer time (explicit int64 for cross-platform compatibility)
         np.random.seed(111)
         data = pd.DataFrame(
             {
-                "day": np.arange(1, 51),
+                "day": np.arange(1, 51, dtype=np.int64),
                 "control": np.random.normal(100, 10, 50),
                 "test": np.random.normal(105, 11, 50),
             }
@@ -448,11 +448,11 @@ class TestTimeColumnTypes:
 
     def test_float_time_column(self):
         """Test equivalence with float time column."""
-        # Create data with float time
+        # Create data with float time (explicit float64 for cross-platform compatibility)
         np.random.seed(222)
         data = pd.DataFrame(
             {
-                "time": np.linspace(0.0, 10.0, 50),
+                "time": np.linspace(0.0, 10.0, 50, dtype=np.float64),
                 "control": np.random.normal(100, 10, 50),
                 "test": np.random.normal(105, 11, 50),
             }
