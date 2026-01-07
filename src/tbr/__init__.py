@@ -43,7 +43,7 @@ See Also
 - Issues: https://github.com/idohi/tbr/issues
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.4"
 __author__ = "Ido Hirsh"
 __license__ = "BSD-3-Clause"
 
