@@ -10,17 +10,17 @@
 
 A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis. Perform rigorous statistical analysis of treatment/control group time series data across any industry - marketing, medical research, economics, and more.
 
-## v0.1.0 - First Public Release (Beta)
+## Status: Beta
 
-**TBR v0.1.0** is feature-complete and ready for use with:
+**TBR** is feature-complete and ready for production use with:
 - Complete TBR functionality (functional + OOP APIs)
-- 1,227 tests with 100% code coverage
+- 1,200+ tests with 100% code coverage
 - Intuitive, type-safe API interfaces
 - Export utilities (JSON, CSV)
 - Performance validated (linear O(n) scalability)
 - Cross-platform support (Python 3.8-3.12)
 
-**Why Beta?** This is our first public release. While comprehensively tested, we're marking it as Beta to gather real-world feedback before declaring v1.0 stable. We encourage production use and welcome your feedback!
+**Why Beta?** While comprehensively tested, we're gathering real-world feedback before declaring v1.0 stable. We encourage production use and welcome your feedback!
 
 ## Features
 
