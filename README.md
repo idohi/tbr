@@ -8,7 +8,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Development Status](https://img.shields.io/badge/status-beta-yellow.svg)](https://pypi.org/project/tbr/)
 
-A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis. Perform rigorous statistical analysis of treatment/control group time series data across any industry - marketing, medical research, economics, and more.
+A comprehensive Python package for Time-Based Regression (TBR) analysis. TBR combines regression techniques with time series analysis to estimate treatment effects in before-after studies. Applications span marketing effectiveness, medical research, A/B testing, policy evaluation, and more.
 
 ## Status: Beta
 
@@ -95,7 +95,12 @@ summary.to_json('results.json')
 
 ## Mathematical Foundation
 
-TBR analysis implements rigorous statistical methods based on Ordinary Least Squares (OLS) regression, counterfactual prediction with uncertainty quantification, Bayesian inference for credible intervals, and variance decomposition.
+TBR implements statistical methods for estimating causal effects in before-after study designs:
+
+- **Regression Modeling**: Establishes relationship between control and test groups
+- **Counterfactual Prediction**: Estimates what would have occurred without intervention
+- **Bayesian Inference**: Credible intervals with uncertainty quantification
+- **Variance Decomposition**: Proper error propagation
 
 ## Documentation
 
@@ -109,6 +114,14 @@ TBR analysis implements rigorous statistical methods based on Ordinary Least Squ
 - **numpy**: 1.24+
 - **scipy**: 1.10+
 - **statsmodels**: 0.14+
+
+## References
+
+The mathematical framework and notation in this package are based on:
+
+> Kerman, J., Wang, P., & Vaver, J. (2017). *Estimating Ad Effectiveness using Geo Experiments in a Time-Based Regression Framework*. Technical Report, Google, Inc. [PDF](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45950.pdf)
+
+This package provides a domain-agnostic Python implementation of the time-based regression methodology for any before-after intervention study.
 
 ## License
 
