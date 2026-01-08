@@ -1,9 +1,8 @@
 """
 Comprehensive tests for cumulative variance functionality.
 
-This module provides professional testing for the cumulative variance computation
-in the TBR effects module, following scientific Python package standards with
-mathematical validation, numerical stability testing, and cross-implementation
+This module tests the cumulative variance computation in the TBR effects module,
+with mathematical validation, numerical stability testing, and cross-implementation
 verification.
 """
 

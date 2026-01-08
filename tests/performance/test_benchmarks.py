@@ -224,7 +224,7 @@ class TestRegressionFittingPerformance:
             memory_ratio = core_memory_delta / func_memory_delta
             base_memory_mb = min(core_memory_delta, func_memory_delta) / 1024 / 1024
 
-            # Professional approach: Use statistical tolerance based on operation size
+            # Use statistical tolerance based on operation size
             # Small memory operations (< 2MB) have high measurement variance due to:
             # - System background processes
             # - Python garbage collection timing
@@ -232,7 +232,7 @@ class TestRegressionFittingPerformance:
             if base_memory_mb < 2.0:
                 # For small operations, focus on absolute memory usage rather than ratios
                 max_memory_mb = max(core_memory_delta, func_memory_delta) / 1024 / 1024
-                # Allow up to 5MB total usage for small operations (professional standard)
+                # Allow up to 5MB total usage for small operations
                 assert max_memory_mb <= 5.0, (
                     f"Memory usage validation: core={core_memory_delta/1024/1024:.2f}MB, "
                     f"func={func_memory_delta/1024/1024:.2f}MB, max={max_memory_mb:.2f}MB "

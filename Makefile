@@ -1,5 +1,5 @@
 # TBR Package Development Makefile
-# Professional development workflow automation
+# Development workflow automation
 
 .PHONY: help setup clean install install-dev test test-cov lint format type-check docstring build upload docs serve-docs pre-commit all
 

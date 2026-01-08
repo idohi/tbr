@@ -1,12 +1,9 @@
 """
 Unit tests for TBR Analysis Diagnostics Module.
 
-This module provides comprehensive unit tests for the analysis.diagnostics module,
+This module provides unit tests for the analysis.diagnostics module,
 ensuring all diagnostic functions work correctly with TBR DataFrames and provide
 accurate model validation, assumption checking, and performance assessment.
-
-The tests follow professional scientific PyPI package standards with comprehensive
-coverage, edge case handling, and mathematical validation.
 """
 
 from unittest.mock import patch

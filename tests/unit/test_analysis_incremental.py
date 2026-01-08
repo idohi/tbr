@@ -1,10 +1,8 @@
 """
 Unit tests for TBR Analysis Incremental Module.
 
-This module provides comprehensive unit tests for the incremental analysis
-functionality, ensuring mathematical accuracy, proper error handling, and
-professional standards compliance following patterns from top scientific
-PyPI packages.
+This module provides unit tests for the incremental analysis functionality,
+ensuring mathematical accuracy and proper error handling.
 
 Test Categories:
 - Basic functionality and mathematical accuracy
@@ -12,9 +10,9 @@ Test Categories:
 - Edge cases and boundary conditions
 - Backward compatibility with functional implementation
 - Integration with lazy loading system
-- Professional module organization standards
+- Module organization
 
-The tests maintain 100% coverage and validate against the proven functional
+The tests maintain 100% coverage and validate against the functional
 implementation to ensure mathematical consistency.
 """
 
@@ -326,7 +324,7 @@ class TestCreateIncrementalTbrSummaries:
         assert incremental_func is main_func
 
     def test_module_organization_standards(self):
-        """Test professional module organization standards."""
+        """Test module organization standards."""
         # Test module has proper docstring
         from tbr.analysis import incremental
 

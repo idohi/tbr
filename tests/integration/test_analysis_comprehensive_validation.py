@@ -2,9 +2,9 @@
 Comprehensive Analysis Framework Validation Tests - Streamlined Version.
 
 This module provides focused validation for the entire analysis framework
-implemented in Phase 3 (Tasks 5.1-5.4). Tests ensure integration consistency,
-mathematical accuracy, and professional standards compliance across all
-analysis modules: summary, incremental, and subinterval.
+implemented in Phase 3 (Tasks 5.1-5.4). Tests ensure integration consistency
+and mathematical accuracy across all analysis modules: summary, incremental,
+and subinterval.
 
 Test Categories
 ---------------
@@ -14,7 +14,7 @@ Test Categories
 4. Performance Validation - Scalability and efficiency testing
 
 This streamlined version focuses on the most critical validation requirements
-while maintaining comprehensive coverage of the analysis framework.
+while maintaining coverage of the analysis framework.
 """
 
 import time
@@ -507,7 +507,7 @@ class TestAnalysisModuleIntegration:
         assert main_subinterval is analysis_subinterval is direct_subinterval
 
     def test_module_organization_standards(self):
-        """Test professional module organization standards."""
+        """Test module organization standards."""
         # Test module has proper docstring
         from tbr.analysis import incremental, subinterval, summary
 

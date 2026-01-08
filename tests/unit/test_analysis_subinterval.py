@@ -1,10 +1,8 @@
 """
 Unit tests for TBR Analysis Subinterval Module.
 
-This module provides comprehensive unit tests for the subinterval analysis
-functionality, ensuring mathematical accuracy, proper error handling, and
-professional standards compliance following patterns from top scientific
-PyPI packages.
+This module provides unit tests for the subinterval analysis functionality,
+ensuring mathematical accuracy and proper error handling.
 
 Test Categories:
 - Basic subinterval functionality and mathematical accuracy
@@ -14,9 +12,9 @@ Test Categories:
 - Edge cases and boundary conditions
 - Backward compatibility with core implementations
 - Integration with lazy loading system
-- Professional module organization standards
+- Module organization
 
-The tests maintain 100% coverage and validate against the proven core
+The tests maintain 100% coverage and validate against the core
 implementation to ensure mathematical consistency.
 """
 
@@ -640,7 +638,7 @@ class TestSubintervalModuleIntegration:
         assert main_compute is analysis_compute is direct_compute
 
     def test_module_organization_standards(self):
-        """Test professional module organization standards."""
+        """Test module organization standards."""
         # Test module has proper docstring
         from tbr.analysis import subinterval
 
