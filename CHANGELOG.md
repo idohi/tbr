@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-01-08
+
+### Changed
+- Added References section to README citing foundational TBR paper (Kerman, Wang & Vaver, 2017)
+- Added CITATION.cff for formal citation support
+- Updated README description and Mathematical Foundation section
+- Implemented single source of truth for version (reads from pyproject.toml)
+
 ## [0.1.4] - 2026-01-07
 
 ### Fixed

@@ -43,7 +43,9 @@ See Also
 - Issues: https://github.com/idohi/tbr/issues
 """
 
-__version__ = "0.1.4"
+from importlib.metadata import version as _get_version
+
+__version__ = _get_version("tbr")
 __author__ = "Ido Hirsh"
 __license__ = "BSD-3-Clause"
 

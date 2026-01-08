@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tbr"
-version = "0.1.4"
+dynamic = ["version"]
 description = "A comprehensive, domain-agnostic Python package for Time-Based Regression (TBR) analysis"
 readme = "README.md"
 license = {text = "BSD-3-Clause"}
@@ -281,3 +281,10 @@ norecursedirs = [
     ".git",
     "__pycache__"
 ]
+
+# ============================================================================
+# SETUPTOOLS_SCM - Version from Git Tags
+# ============================================================================
+[tool.setuptools_scm]
+# Version is automatically derived from git tags (e.g., v0.1.5 -> 0.1.5)
+# Development versions include commit info (e.g., 0.1.5.dev3+g1234abc)
