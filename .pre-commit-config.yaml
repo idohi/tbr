@@ -33,7 +33,7 @@ repos:
         args: [--ignore-missing-imports]
         exclude: ^tests/
 
-  # Docstring validation (NumPy convention for scientific packages)
+  # Docstring validation
   - repo: https://github.com/PyCQA/pydocstyle
     rev: 6.3.0
     hooks:
@@ -42,11 +42,14 @@ repos:
         args: ["--convention=numpy", "--add-ignore=D104"]
         exclude: ^tests/
 
-  # Docstring coverage validation
-  - repo: https://github.com/econchick/interrogate
-    rev: 1.5.0
+  # Docstring coverage validation (local: use project env so setuptools/pkg_resources available in CI)
+  - repo: local
     hooks:
       - id: interrogate
+        name: interrogate
+        entry: interrogate
+        language: system
+        types: [python]
         args: ["--fail-under=90", "-v", "--color"]
         exclude: ^tests/
 

@@ -169,16 +169,18 @@ class TestPackageMetadata:
     """Test that package metadata is correct."""
 
     def test_version_format(self):
-        """Test that version follows semantic versioning."""
+        """Test that version follows semantic versioning or PEP 440 (e.g. setuptools-scm dev)."""
         import re
 
         import tbr
 
-        # Should match semver or pre-release (e.g., 0.1.0, 0.1.0rc1, 0.1.0b1)
-        version_pattern = r"^\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?$"
+        # Semver / PEP 440: 0.1.0, 0.1.0rc1, 0.1.dev1, 0.1.dev1+g4786da0fd
+        version_pattern = (
+            r"^\d+\.\d+(?:\.\d+)?(?:(?:a|b|rc)\d+)?(?:\.dev\d+)?(?:\+.*)?$"
+        )
         assert re.match(
             version_pattern, tbr.__version__
-        ), f"Version '{tbr.__version__}' doesn't match semver pattern"
+        ), f"Version '{tbr.__version__}' doesn't match semver/PEP 440 pattern"
 
     def test_license_specified(self):
         """Test that license is specified."""
