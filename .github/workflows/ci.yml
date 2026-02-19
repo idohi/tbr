@@ -199,6 +199,9 @@ jobs:
         python -m venv test_env
         source test_env/bin/activate
 
+        # Use current pip in venv (avoids version notice, matches other jobs)
+        pip install --upgrade pip
+
         # Install ONLY from wheel (runtime dependencies only)
         pip install dist/*.whl
 
@@ -221,7 +224,7 @@ jobs:
         # Reuse the clean environment
         source test_env/bin/activate
 
-        # Install ONLY pytest (minimal testing tool)
+        # Pip already upgraded in previous step; install ONLY pytest (minimal testing tool)
         pip install pytest
 
         # Run dependency tests
