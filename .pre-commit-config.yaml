@@ -42,11 +42,12 @@ repos:
         args: ["--convention=numpy", "--add-ignore=D104"]
         exclude: ^tests/
 
-  # Docstring coverage validation
+  # Docstring coverage validation (setuptools required: interrogate uses pkg_resources)
   - repo: https://github.com/econchick/interrogate
     rev: 1.5.0
     hooks:
       - id: interrogate
+        additional_dependencies: [setuptools]
         args: ["--fail-under=90", "-v", "--color"]
         exclude: ^tests/
 
