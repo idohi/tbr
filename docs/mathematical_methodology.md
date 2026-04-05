@@ -8,7 +8,8 @@ This document provides a comprehensive overview of the mathematical foundations 
 
 1. [Overview](#overview)
 2. [Statistical Model](#statistical-model)
-3. [References](#references)
+3. [Prediction and Uncertainty](#prediction-and-uncertainty)
+4. [References](#references)
 
 ---
 
@@ -171,6 +172,85 @@ s^2 = \frac{1}{n - 2} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2
 $$
 
 where $\hat{y}_i = \hat{\beta}_0 + \hat{\beta}_1 x_i$ is the fitted value. The denominator uses $n - 2$ degrees of freedom to provide an unbiased estimate of $\sigma^2$.
+
+---
+
+## Prediction and Uncertainty
+
+Once the regression model has been fitted on the pre-treatment period, TBR uses it to generate **counterfactual predictions** — estimates of what the treatment group would have experienced in the absence of the intervention. Quantifying the uncertainty of these predictions is essential for valid statistical inference about treatment effects.
+
+### Counterfactual Predictions
+
+During the treatment period, the control group metric $x_t$ is observed but the treatment group is affected by the intervention. The counterfactual prediction for each time point $t$ in the treatment period is:
+
+$$
+\hat{y}_t^* = \hat{\beta}_0 + \hat{\beta}_1 x_t, \quad t \text{ in the test period}
+$$
+
+where:
+- $\hat{y}_t^*$ is the predicted value the treatment group would have taken without treatment at time $t$
+- $x_t$ is the observed control group metric at time $t$
+- $\hat{\beta}_0$ and $\hat{\beta}_1$ are the regression coefficients estimated from the pre-treatment period
+
+These predictions rely on the assumption that the relationship between the control and treatment groups, established during the pre-treatment period, continues to hold during the treatment period.
+
+### Model Variance
+
+The model variance captures the uncertainty in $\hat{y}_t^*$ that arises solely from estimating the regression coefficients $\hat{\beta}_0$ and $\hat{\beta}_1$. If the true coefficients were known, this component would be zero.
+
+$$
+\mathbb{V}[\hat{y}_t^*] = s^2 \left( \frac{1}{n} + \frac{(x_t - \bar{x})^2}{S_{xx}} \right)
+$$
+
+where:
+- $s^2$ is the estimated residual variance from the pre-treatment period
+- $n$ is the number of pre-treatment observations
+- $\bar{x}$ is the mean of the control group metric in the pre-treatment period
+- $S_{xx} = \sum_{i=1}^{n} (x_i - \bar{x})^2$ is the sum of squared deviations
+
+The model variance is smallest when the control group value $x_t$ is close to the pre-treatment mean $\bar{x}$, and increases as $x_t$ moves further from $\bar{x}$. It also decreases with larger pre-treatment sample size $n$.
+
+### Prediction Variance
+
+The prediction variance captures the **total** uncertainty in a counterfactual observation $y_t^*$, combining both the model uncertainty and the irreducible residual noise:
+
+$$
+y_t^* = \hat{y}_t^* + \varepsilon_t^*, \quad \varepsilon_t^* \sim \mathcal{N}(0, \sigma^2)
+$$
+
+Since $\hat{y}_t^*$ and $\varepsilon_t^*$ are independent:
+
+$$
+\mathbb{V}[y_t^*] = \mathbb{V}[\hat{y}_t^*] + \sigma^2
+$$
+
+Substituting the model variance and replacing $\sigma^2$ with its estimator $s^2$:
+
+$$
+\mathbb{V}[y_t^*] = s^2 \left( 1 + \frac{1}{n} + \frac{(x_t - \bar{x})^2}{S_{xx}} \right)
+$$
+
+The prediction standard deviation is then:
+
+$$
+\sqrt{\mathbb{V}[y_t^*]} = s \cdot \sqrt{1 + \frac{1}{n} + \frac{(x_t - \bar{x})^2}{S_{xx}}}
+$$
+
+### Distinguishing Model Variance and Prediction Variance
+
+These two quantities serve different purposes in the TBR framework:
+
+| Quantity | Formula | Source of uncertainty | Role in TBR |
+|----------|---------|----------------------|-------------|
+| Model variance $\mathbb{V}[\hat{y}_t^*]$ | $s^2 \left( \frac{1}{n} + \frac{(x_t - \bar{x})^2}{S_{xx}} \right)$ | Estimation of regression coefficients | Cumulative effect variance and credible intervals |
+| Prediction variance $\mathbb{V}[y_t^*]$ | $s^2 \left( 1 + \frac{1}{n} + \frac{(x_t - \bar{x})^2}{S_{xx}} \right)$ | Coefficient estimation **and** residual noise | Pointwise prediction intervals for counterfactual outcomes |
+
+The prediction variance is always larger than the model variance by exactly $s^2$ (the residual variance term). In practice:
+
+- **Model variance** ($\mathbb{V}[\hat{y}_t^*]$) is used when computing the cumulative effect variance and credible intervals for the treatment effect
+- **Prediction variance** ($\mathbb{V}[y_t^*]$) is used for pointwise prediction intervals around individual counterfactual values
+
+Both quantities increase as the control group value $x_t$ moves further from $\bar{x}$, reflecting greater extrapolation uncertainty.
 
 ---
 
