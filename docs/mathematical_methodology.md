@@ -13,7 +13,8 @@ This document provides a comprehensive overview of the mathematical foundations 
 5. [Statistical Inference](#statistical-inference)
 6. [Subinterval Analysis](#subinterval-analysis)
 7. [Model Diagnostics](#model-diagnostics)
-8. [References](#references)
+8. [Assumptions and Limitations](#assumptions-and-limitations)
+9. [References](#references)
 
 ---
 
@@ -40,13 +41,7 @@ TBR is appropriate when you have:
 - **A stable pre-treatment relationship** between control and treatment groups
 - **No treatment contamination** in the control group during the test period
 
-**Common applications include:**
-
-- Marketing campaign effectiveness measurement
-- Medical treatment outcome analysis
-- Policy intervention evaluation
-- A/B testing with time-based metrics
-- Economic impact studies
+**Common applications include** any domain where a before-after experiment is conducted with control and treatment groups observed over time.
 
 TBR is particularly valuable when randomized controlled trials are impractical or when you need to measure cumulative effects over time.
 
@@ -60,7 +55,7 @@ TBR is particularly valuable when randomized controlled trials are impractical o
 **Interpretability**
 - Results are expressed in the original units of measurement
 - Cumulative effects show total impact over the test period
-- Posterior probabilities give intuitive answers to business questions
+- Posterior probabilities give intuitive answers to practical questions
 
 **Flexibility**
 - Works with any time granularity (daily, weekly, hourly, etc.)
@@ -286,7 +281,7 @@ $$
 \Delta(T) = \sum_{t=1}^{T} \phi_t = \sum_{t=1}^{T} (y_t - \hat{y}_t^*)
 $$
 
-This measures the total impact of the treatment over the test period. For example, if $y_t$ represents daily revenue, $\Delta(T)$ is the total incremental revenue attributable to the treatment.
+This measures the total impact of the treatment over the test period.
 
 ### Posterior Variance of the Cumulative Effect
 
@@ -406,7 +401,7 @@ $$
 
 where $F_{t_\nu}$ is the CDF of the Student's $t$-distribution with $\nu$ degrees of freedom.
 
-When $\theta = 0$, this gives the posterior probability that the treatment had a positive effect. This provides an intuitive, decision-relevant summary: for example, "there is a 95% posterior probability that the treatment increased revenue."
+When $\theta = 0$, this gives the posterior probability that the treatment had a positive effect. This provides an intuitive, decision-relevant summary: for example, "there is a 95% posterior probability that the treatment increased the response metric."
 
 ---
 
@@ -515,6 +510,59 @@ TBR reports several metrics that summarize how well the pretest regression model
 where $SS_{\text{tot}} = \sum(y_i - \bar{y})^2$, $SS_{\text{res}} = \sum e_i^2$, $SS_{\text{reg}} = SS_{\text{tot}} - SS_{\text{res}}$, and $k$ is the number of predictors (typically 1 for simple linear regression).
 
 A high $R^2$ indicates a strong pretest relationship between the control and treatment groups, which improves the precision of counterfactual predictions. A statistically significant $F$-statistic confirms that the linear relationship is meaningful.
+
+---
+
+## Assumptions and Limitations
+
+### When TBR is Appropriate
+
+TBR is designed for before-after experimental designs where:
+
+- A **pretest period** establishes the baseline relationship between control and treatment groups
+- A **test period** introduces an intervention whose causal effect is to be estimated
+- The **control group** remains unaffected by the intervention throughout the experiment
+- The response metric is observed as a **time series** at regular intervals
+
+### Key Assumptions
+
+The validity of TBR inference rests on the following assumptions:
+
+**1. Linearity**
+
+The relationship between the control and treatment group metrics is linear. If the true relationship is nonlinear, the counterfactual predictions will be biased, leading to biased treatment effect estimates.
+
+**2. Stable relationship**
+
+The pretest relationship between groups persists unchanged during the test period. This is the central assumption enabling counterfactual prediction. It can be violated by external events that differentially affect the treatment and control groups.
+
+**3. No treatment contamination**
+
+The control group is not affected by the intervention. If the treatment "spills over" into the control group, the counterfactual predictions will not reflect a true no-treatment baseline.
+
+**4. Independent residuals**
+
+The error terms $\varepsilon_t$ are independent across time. Autocorrelation in the residuals causes the posterior variance to be underestimated, producing credible intervals that are too narrow. The Durbin-Watson test (see [Model Diagnostics](#model-diagnostics)) can detect this violation.
+
+**5. Homoscedasticity**
+
+The residual variance is constant across all time periods. Heteroscedasticity leads to inefficient estimates and unreliable standard errors.
+
+**6. Normality**
+
+The error terms follow a normal distribution. This assumption supports the $t$-distribution framework for credible intervals and posterior probabilities. With sufficient pretest observations, moderate departures from normality have limited impact due to the central limit theorem.
+
+### Limitations
+
+**Single predictor.** TBR uses simple linear regression with one predictor (the control group metric). It does not accommodate multiple control variables or more complex model structures.
+
+**Sensitivity to pretest length.** Short pretest periods yield imprecise parameter estimates and wide credible intervals. Increasing $n$ improves precision, but with diminishing returns: the credible interval width decreases at a rate of $1/\sqrt{n}$ and is bounded below by the residual variance $\sigma^2$ (see [Kerman et al., 2017](https://research.google/pubs/pub45950/), Section 9.3).
+
+**No structural breaks.** TBR assumes the regression parameters ($\beta_0$, $\beta_1$, $\sigma^2$) remain constant throughout the pretest period. If the relationship between groups changes during the pretest period (e.g., due to a trend or regime shift), the fitted model may not generalize to the test period.
+
+**Cumulative uncertainty growth.** The posterior variance of the cumulative effect grows with the test period length $T$ as $\mathbb{V}[\Delta(T)] = T \cdot \sigma^2 + T^2 \cdot v$ (see [Treatment Effect Estimation](#treatment-effect-estimation)). Long test periods accumulate substantial uncertainty, reducing the precision of the treatment effect estimate.
+
+**i.i.d. residual approximation.** The variance formula $\mathbb{V}\!\left[\sum y_t\right] = T \cdot \sigma^2$ is exact only when the residuals $\varepsilon_t$ are independent with constant variance $\sigma^2$. When residuals are autocorrelated, it becomes an approximation that may underestimate the true variance. In practice, [Kerman et al. (2017)](https://research.google/pubs/pub45950/) demonstrate that TBR credible intervals achieve accurate coverage even under correlated conditions.
 
 ---
 
