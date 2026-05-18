@@ -14,7 +14,8 @@ This document provides a comprehensive overview of the mathematical foundations 
 6. [Subinterval Analysis](#subinterval-analysis)
 7. [Model Diagnostics](#model-diagnostics)
 8. [Assumptions and Limitations](#assumptions-and-limitations)
-9. [References](#references)
+9. [Notation Reference](#notation-reference)
+10. [References](#references)
 
 ---
 
@@ -563,6 +564,52 @@ The error terms follow a normal distribution. This assumption supports the $t$-d
 **Cumulative uncertainty growth.** The posterior variance of the cumulative effect grows with the test period length $T$ as $\mathbb{V}[\Delta(T)] = T \cdot \sigma^2 + T^2 \cdot v$ (see [Treatment Effect Estimation](#treatment-effect-estimation)). Long test periods accumulate substantial uncertainty, reducing the precision of the treatment effect estimate.
 
 **i.i.d. residual approximation.** The variance formula $\mathbb{V}\!\left[\sum y_t\right] = T \cdot \sigma^2$ is exact only when the residuals $\varepsilon_t$ are independent with constant variance $\sigma^2$. When residuals are autocorrelated, it becomes an approximation that may underestimate the true variance. In practice, [Kerman et al. (2017)](https://research.google/pubs/pub45950/) demonstrate that TBR credible intervals achieve accurate coverage even under correlated conditions.
+
+---
+
+## Notation Reference
+
+The following table maps the mathematical notation used in this document to the corresponding Python variable names in the TBR package.
+
+### Model Parameters
+
+| Symbol | Meaning | Python Variable |
+|--------|---------|-----------------|
+| $\beta_0$ | Regression intercept | `alpha` |
+| $\beta_1$ | Regression slope | `beta` |
+| $\sigma$ | Residual standard deviation | `sigma` |
+| $s^2$ | Estimated residual variance ($\sigma^2$) | `sigma**2` |
+| $\mathbb{V}[\hat{\beta}_0]$ | Variance of intercept estimate | `var_alpha` |
+| $\mathbb{V}[\hat{\beta}_1]$ | Variance of slope estimate | `var_beta` |
+| $\text{Cov}(\hat{\beta}_0, \hat{\beta}_1)$ | Covariance of intercept and slope | `cov_alpha_beta` |
+| $\nu$ | Degrees of freedom | `degrees_freedom` |
+| $n$ | Number of pretest observations | `n_pretest` |
+| $\bar{x}$ | Mean of control in pretest period | `pretest_x_mean` |
+
+### Daily Output Columns
+
+| Symbol | Meaning | Column Name |
+|--------|---------|-------------|
+| $y_t$ | Treatment group metric at time $t$ | `y` |
+| $x_t$ | Control group metric at time $t$ | `x` |
+| $\hat{y}_t$ or $\hat{y}_t^*$ | Fitted value (pretest) or counterfactual prediction (test) | `pred` |
+| $\sqrt{\mathbb{V}[y_t^*]}$ | Prediction standard deviation | `predsd` |
+| $\phi_t = y_t - \hat{y}_t^*$ | Pointwise treatment effect | `dif` |
+| $\sum \phi_t$ | Cumulative treatment effect | `cumdif` |
+| $\sqrt{\mathbb{V}[\Delta(T)]}$ | Cumulative effect standard deviation | `cumsd` |
+| $\sqrt{\mathbb{V}[\hat{y}_t^*]}$ | Model standard deviation (fitted value) | `estsd` |
+
+### Summary Output
+
+| Symbol | Meaning | Field Name |
+|--------|---------|------------|
+| $\hat{\Delta}(T)$ | Cumulative treatment effect estimate | `estimate` |
+| $\text{SE}$ | Posterior standard deviation of cumulative effect | `se` |
+| $t_{\alpha/2,\nu} \cdot \text{SE}$ | Half-width of credible interval | `precision` |
+| $[\text{lower}, \text{upper}]$ | Credible interval bounds | `lower`, `upper` |
+| $1 - \alpha$ | Credible interval level | `level` |
+| $\theta$ | Threshold for posterior probability | `thres` |
+| $P(\Delta(T) > \theta \mid \text{data})$ | Posterior probability of exceeding threshold | `prob` |
 
 ---
 
