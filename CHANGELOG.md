@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Comprehensive mathematical methodology document (`docs/mathematical_methodology.md`)
+  covering model specification, prediction and uncertainty, posterior inference
+  (sections 3–7), assumptions and limitations, a notation reference table mapping
+  mathematical symbols to Python variables, and supporting literature including
+  the foundational Kerman, Wang & Vaver (2017) TBR paper.
+
 ## [0.1.5] - 2026-01-08
 
 ### Changed
