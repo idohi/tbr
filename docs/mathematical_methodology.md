@@ -42,7 +42,7 @@ TBR is appropriate when you have:
 - **A stable pre-treatment relationship** between control and treatment groups
 - **No treatment contamination** in the control group during the test period
 
-**Common applications include** any domain where a before-after experiment is conducted with control and treatment groups observed over time.
+TBR applies to any domain where a before-after experiment is conducted with control and treatment groups observed over time.
 
 TBR is particularly valuable when randomized controlled trials are impractical or when you need to measure cumulative effects over time.
 
@@ -288,10 +288,10 @@ This measures the total impact of the treatment over the test period.
 
 The uncertainty in $\Delta(T)$ arises from two independent sources:
 
-1. **Residual noise** in the observed outcomes $y_t$
-2. **Model uncertainty** in the counterfactual predictions $\hat{y}_t^*$
+1. **Residual noise**: each outcome $y_t$ in the test period follows $y_t = \beta_0 + \beta_1 x_t + \varepsilon_t$, where the noise $\varepsilon_t$ has variance $\sigma^2$
+2. **Model uncertainty**: the counterfactual predictions $\hat{y}_t^*$ depend on the estimated coefficients $\hat{\beta}_0$ and $\hat{\beta}_1$, which carry estimation uncertainty from the finite pretest sample
 
-Since the observed $y_t$ values are treated as fixed and the counterfactual predictions $\hat{y}_t^*$ are random (due to estimated coefficients), the posterior variance of the cumulative effect is:
+These two sources are independent — the residual noise in the test period is independent of the parameter uncertainty from the pretest model — so the posterior variance decomposes as:
 
 $$
 \mathbb{V}[\Delta(T)] = \mathbb{V}\left(\sum_{t=1}^{T} y_t\right) + \mathbb{V}\left(\sum_{t=1}^{T} \hat{y}_t^*\right)
@@ -339,7 +339,7 @@ TBR uses the posterior distribution of the cumulative treatment effect to provid
 
 ### The t-Distribution Framework
 
-Under the standard linear regression assumptions and a noninformative prior on $(\alpha, \beta, \log \sigma)$, the posterior distribution of the cumulative treatment effect $\Delta(T)$ follows a Student's $t$-distribution:
+Under the standard linear regression assumptions and a noninformative prior on $(\beta_0, \beta_1, \log \sigma)$, the posterior distribution of the cumulative treatment effect $\Delta(T)$ follows a Student's $t$-distribution:
 
 $$
 \Delta(T) \mid \text{data} \sim t_\nu\!\left(\hat{\Delta}(T),\; \text{SE}\right)
@@ -357,14 +357,16 @@ The use of the $t$-distribution (rather than a normal distribution) accounts for
 The degrees of freedom $\nu$ are determined by the residual degrees of freedom from the regression model fitted on the pretest period:
 
 $$
-\nu = n - k
+\nu = n - p
 $$
 
 where:
 - $n$ is the number of observations in the pretest period
-- $k$ is the number of estimated model parameters (typically $k = 2$: intercept and slope)
+- $p$ is the number of estimated model parameters
 
-A larger pretest period yields more degrees of freedom, which narrows the $t$-distribution and produces tighter credible intervals. For example, with $n = 90$ pretest observations and $k = 2$, $\nu = 88$.
+For simple linear regression (intercept and slope), $p = 2$, giving $\nu = n - 2$.
+
+A larger pretest period yields more degrees of freedom, which narrows the $t$-distribution and produces tighter credible intervals. For example, with $n = 90$ pretest observations, $\nu = 88$.
 
 ### Credible Intervals
 
@@ -578,7 +580,7 @@ The following table maps the mathematical notation used in this document to the 
 | $\beta_0$ | Regression intercept | `alpha` |
 | $\beta_1$ | Regression slope | `beta` |
 | $\sigma$ | Residual standard deviation | `sigma` |
-| $s^2$ | Estimated residual variance ($\sigma^2$) | `sigma**2` |
+| $s^2$ | Estimated residual variance (estimator of $\sigma^2$) | `sigma**2` |
 | $\mathbb{V}[\hat{\beta}_0]$ | Variance of intercept estimate | `var_alpha` |
 | $\mathbb{V}[\hat{\beta}_1]$ | Variance of slope estimate | `var_beta` |
 | $\text{Cov}(\hat{\beta}_0, \hat{\beta}_1)$ | Covariance of intercept and slope | `cov_alpha_beta` |
