@@ -617,4 +617,8 @@ The following table maps the mathematical notation used in this document to the 
 
 Kerman, J., Wang, P., & Vaver, J. (2017). *Estimating Ad Effectiveness using Geo Experiments in a Time-Based Regression Framework*. Technical Report, Google, Inc. [PDF](https://research.google/pubs/pub45950/)
 
+Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). Chapman & Hall/CRC.
+
+Vaver, J., & Koehler, J. (2011). *Measuring Ad Effectiveness Using Geo Experiments*. Technical Report, Google, Inc. [PDF](https://research.google/pubs/pub38355/)
+
 ---
