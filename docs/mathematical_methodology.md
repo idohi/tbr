@@ -559,13 +559,13 @@ The error terms follow a normal distribution. This assumption supports the $t$-d
 
 **Single predictor.** TBR uses simple linear regression with one predictor (the control group metric). It does not accommodate multiple control variables or more complex model structures.
 
-**Sensitivity to pretest length.** Short pretest periods yield imprecise parameter estimates and wide credible intervals. Increasing $n$ improves precision, but with diminishing returns: the credible interval width decreases at a rate of $1/\sqrt{n}$ and is bounded below by the residual variance $\sigma^2$ (see [Kerman et al., 2017](https://research.google/pubs/pub45950/), Section 9.3).
+**Sensitivity to pretest length.** Short pretest periods yield imprecise parameter estimates and wide credible intervals. Increasing $n$ improves precision, but with diminishing returns: the credible interval width decreases at a rate of $1/\sqrt{n}$ and is bounded below by the residual variance $\sigma^2$ (see {cite}`kerman2017tbr`, Section 9.3).
 
 **No structural breaks.** TBR assumes the regression parameters ($\beta_0$, $\beta_1$, $\sigma^2$) remain constant throughout the pretest period. If the relationship between groups changes during the pretest period (e.g., due to a trend or regime shift), the fitted model may not generalize to the test period.
 
 **Cumulative uncertainty growth.** The posterior variance of the cumulative effect grows with the test period length $T$ as $\mathbb{V}[\Delta(T)] = T \cdot \sigma^2 + T^2 \cdot v$ (see [Treatment Effect Estimation](#treatment-effect-estimation)). Long test periods accumulate substantial uncertainty, reducing the precision of the treatment effect estimate.
 
-**i.i.d. residual approximation.** The variance formula $\mathbb{V}\!\left[\sum y_t\right] = T \cdot \sigma^2$ is exact only when the residuals $\varepsilon_t$ are independent with constant variance $\sigma^2$. When residuals are autocorrelated, it becomes an approximation that may underestimate the true variance. In practice, [Kerman et al. (2017)](https://research.google/pubs/pub45950/) demonstrate that TBR credible intervals achieve accurate coverage even under correlated conditions.
+**i.i.d. residual approximation.** The variance formula $\mathbb{V}\!\left[\sum y_t\right] = T \cdot \sigma^2$ is exact only when the residuals $\varepsilon_t$ are independent with constant variance $\sigma^2$. When residuals are autocorrelated, it becomes an approximation that may underestimate the true variance. In practice, Kerman et al. {cite}`kerman2017tbr` demonstrate that TBR credible intervals achieve accurate coverage even under correlated conditions.
 
 ---
 
@@ -617,10 +617,8 @@ The following table maps the mathematical notation used in this document to the 
 
 ## References
 
-Kerman, J., Wang, P., & Vaver, J. (2017). *Estimating Ad Effectiveness using Geo Experiments in a Time-Based Regression Framework*. Technical Report, Google, Inc. [PDF](https://research.google/pubs/pub45950/)
-
-Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). Chapman & Hall/CRC.
-
-Vaver, J., & Koehler, J. (2011). *Measuring Ad Effectiveness Using Geo Experiments*. Technical Report, Google, Inc. [PDF](https://research.google/pubs/pub38355/)
+```{bibliography}
+:all:
+```
 
 ---

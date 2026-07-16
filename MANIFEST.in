@@ -9,7 +9,7 @@ include LICENSE
 include src/tbr/py.typed
 
 # Include user-facing documentation
-recursive-include docs *.md *.rst
+recursive-include docs *.md *.rst *.py *.bib *.css *.png *.svg
 recursive-exclude docs/_build *
 
 # Include usage examples
