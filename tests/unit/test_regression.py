@@ -20,7 +20,7 @@ class TestRegressionModelFitting:
     def test_basic_regression_fit(self):
         """Test basic regression model fitting."""
         learning_data = pd.DataFrame(
-            {"control": [100, 110, 120, 130, 140], "test": [200, 220, 240, 260, 280]}
+            {"control": [100, 110, 120, 130, 140], "test": [201, 219, 242, 258, 281]}
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
