@@ -620,5 +620,3 @@ The following table maps the mathematical notation used in this document to the 
 ```{bibliography}
 :all:
 ```
-
----

@@ -118,7 +118,7 @@ print(f"Effect: {summary.estimate:.2f}")
 ## Next Steps
 
 - **[API Reference](api_reference.md)** - Complete API documentation
-- **[Examples](../../examples/)** - Domain-specific examples
+- **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Domain-specific examples
 - **[Common Patterns](patterns.md)** - Best practices and patterns
 - **[Result Objects](results.md)** - Understanding result objects
 
@@ -171,6 +171,6 @@ Measure the impact of new product features on user metrics.
 ## Getting Help
 
 - Check the [API Reference](api_reference.md) for detailed method documentation
-- See [Examples](../../examples/) for domain-specific use cases
+- See [Examples](https://github.com/idohi/tbr/tree/main/examples) for domain-specific use cases
 - Review [Common Patterns](patterns.md) for best practices
 - Read [Result Objects](results.md) to understand output structures

@@ -553,5 +553,5 @@ if summary.is_significant():
 
 - **[API Reference](api_reference.md)** - Complete API documentation
 - **[Quick Start](quickstart.md)** - Getting started guide
-- **[Examples](../../examples/)** - Practical examples
+- **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Practical examples
 - **[Result Objects](results.md)** - Understanding results

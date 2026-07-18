@@ -419,5 +419,5 @@ with open('complete_analysis.json', 'w') as f:
 
 - **[API Reference](api_reference.md)** - Complete API documentation
 - **[Quick Start](quickstart.md)** - Getting started guide
-- **[Examples](../../examples/)** - Practical examples
+- **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Practical examples
 - **[Common Patterns](patterns.md)** - Best practices
