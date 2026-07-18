@@ -611,6 +611,6 @@ TEST_VAL     # 1
 ## See Also
 
 - **[Quick Start](quickstart.md)** - Getting started guide
-- **[Examples](../../examples/)** - Domain-specific examples
+- **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Domain-specific examples
 - **[Common Patterns](patterns.md)** - Best practices
 - **[Result Objects](results.md)** - Detailed result documentation
