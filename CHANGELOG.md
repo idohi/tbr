@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (sections 3–7), assumptions and limitations, a notation reference table mapping
   mathematical symbols to Python variables, and supporting literature including
   the foundational Kerman, Wang & Vaver (2017) TBR paper.
+- Sphinx + Read the Docs configuration for rendered documentation site
+  at https://tbr.readthedocs.io/, with LaTeX rendering via MathJax,
+  full-text search, bibliography support via sphinxcontrib-bibtex,
+  type-hint rendering via sphinx-autodoc-typehints, and intersphinx
+  cross-references to NumPy, SciPy, pandas, and statsmodels.
 
 ## [0.1.5] - 2026-01-08
 
