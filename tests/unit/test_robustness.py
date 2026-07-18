@@ -28,19 +28,19 @@ class TestRobustnessValidation:
             pd.DataFrame(
                 {
                     "control": [1e-6, 2e-6, 3e-6, 4e-6, 5e-6],
-                    "test": [1.1e-6, 2.1e-6, 3.1e-6, 4.1e-6, 5.1e-6],
+                    "test": [1.1e-6, 2.05e-6, 3.12e-6, 4.08e-6, 5.15e-6],
                 }
             ),
             # Very large values
             pd.DataFrame(
                 {
                     "control": [1e6, 2e6, 3e6, 4e6, 5e6],
-                    "test": [1.1e6, 2.1e6, 3.1e6, 4.1e6, 5.1e6],
+                    "test": [1.1e6, 2.05e6, 3.12e6, 4.08e6, 5.15e6],
                 }
             ),
             # Mixed positive and negative
             pd.DataFrame(
-                {"control": [-100, -50, 0, 50, 100], "test": [-95, -45, 5, 55, 105]}
+                {"control": [-100, -50, 0, 50, 100], "test": [-95, -44, 5, 54, 106]}
             ),
         ]
 
@@ -111,14 +111,14 @@ class TestRobustnessValidation:
             pd.DataFrame(
                 {
                     "control": pd.Series([100, 200, 300, 400, 500], dtype="float64"),
-                    "test": pd.Series([110, 220, 330, 440, 550], dtype="float64"),
+                    "test": pd.Series([110, 221, 329, 442, 548], dtype="float64"),
                 }
             ),
             # Float32
             pd.DataFrame(
                 {
                     "control": pd.Series([100, 200, 300, 400, 500], dtype="float32"),
-                    "test": pd.Series([110, 220, 330, 440, 550], dtype="float32"),
+                    "test": pd.Series([110, 221, 329, 442, 548], dtype="float32"),
                 }
             ),
             # Integer converted to float
@@ -127,7 +127,7 @@ class TestRobustnessValidation:
                     "control": pd.Series(
                         [100, 200, 300, 400, 500], dtype="int64"
                     ).astype(float),
-                    "test": pd.Series([110, 220, 330, 440, 550], dtype="int64").astype(
+                    "test": pd.Series([110, 221, 329, 442, 548], dtype="int64").astype(
                         float
                     ),
                 }

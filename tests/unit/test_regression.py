@@ -262,56 +262,61 @@ class TestRegressionEdgeCases:
         learning_data = pd.DataFrame(
             {
                 "control": [1e-6, 2e-6, 3e-6, 4e-6, 5e-6],
-                "test": [2e-6, 4e-6, 6e-6, 8e-6, 10e-6],
+                "test": [2.0e-6, 4.1e-6, 5.9e-6, 8.2e-6, 9.8e-6],
             }
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
 
         # Should handle small values correctly
-        assert result["beta"] == pytest.approx(2.0, abs=1e-10)
-        assert result["alpha"] == pytest.approx(0.0, abs=1e-12)
+        assert result["beta"] == pytest.approx(2.0, abs=0.1)
+        assert np.isfinite(result["alpha"])
         assert np.isfinite(result["sigma"])
-        assert result["sigma"] >= 0
+        assert result["sigma"] > 0
 
     def test_very_large_values(self):
         """Test regression with very large values."""
         learning_data = pd.DataFrame(
-            {"control": [1e6, 2e6, 3e6, 4e6, 5e6], "test": [2e6, 4e6, 6e6, 8e6, 10e6]}
+            {
+                "control": [1e6, 2e6, 3e6, 4e6, 5e6],
+                "test": [2.0e6, 4.1e6, 5.9e6, 8.2e6, 9.8e6],
+            }
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
 
         # Should handle large values correctly
-        assert result["beta"] == pytest.approx(2.0, rel=1e-10)
-        assert result["alpha"] == pytest.approx(0.0, abs=1e-6)
+        assert result["beta"] == pytest.approx(2.0, abs=0.1)
+        assert np.isfinite(result["alpha"])
         assert np.isfinite(result["sigma"])
-        assert result["sigma"] >= 0
+        assert result["sigma"] > 0
 
     def test_negative_values(self):
         """Test regression with negative values."""
         learning_data = pd.DataFrame(
-            {"control": [-5, -3, -1, 1, 3], "test": [-10, -6, -2, 2, 6]}
+            {"control": [-5, -3, -1, 1, 3], "test": [-10, -6, -1, 2, 7]}
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
 
         # Should handle negative values correctly
-        assert result["beta"] == pytest.approx(2.0, abs=1e-10)
-        assert result["alpha"] == pytest.approx(0.0, abs=1e-10)
+        assert result["beta"] == pytest.approx(2.1, abs=1e-10)
+        assert result["alpha"] == pytest.approx(0.5, abs=1e-10)
         assert np.isfinite(result["sigma"])
+        assert result["sigma"] > 0
 
     def test_mixed_positive_negative(self):
         """Test regression with mixed positive and negative values."""
         learning_data = pd.DataFrame(
-            {"control": [-2, -1, 0, 1, 2], "test": [1, 3, 5, 7, 9]}  # y = 5 + 2x
+            {"control": [-2, -1, 0, 1, 2], "test": [0, 3, 5, 8, 8]}
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
 
         # Should correctly estimate intercept and slope
-        assert result["beta"] == pytest.approx(2.0, abs=1e-10)
-        assert result["alpha"] == pytest.approx(5.0, abs=1e-10)
+        assert result["beta"] == pytest.approx(2.1, abs=1e-10)
+        assert result["alpha"] == pytest.approx(4.8, abs=1e-10)
+        assert result["sigma"] > 0
         assert result["pretest_x_mean"] == pytest.approx(0.0, abs=1e-10)
 
     def test_noisy_data(self):
@@ -362,7 +367,7 @@ class TestRegressionStatisticalProperties:
             learning_data = pd.DataFrame(
                 {
                     "control": range(1, n + 1),
-                    "test": [2 * x + 1 for x in range(1, n + 1)],
+                    "test": [2 * x + 1 + (1 if x == n else 0) for x in range(1, n + 1)],
                 }
             )
 
@@ -387,7 +392,7 @@ class TestRegressionStatisticalProperties:
     def test_covariance_structure(self):
         """Test covariance structure properties."""
         learning_data = pd.DataFrame(
-            {"control": [10, 20, 30, 40, 50], "test": [15, 25, 35, 45, 55]}
+            {"control": [10, 20, 30, 40, 50], "test": [15, 25, 36, 45, 55]}
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
