@@ -430,7 +430,7 @@ class TestDiagnosticsEdgeCases:
     def test_residuals_with_minimum_data(self):
         """Test residual calculation with minimum required data."""
         # Minimum data for regression (3 points)
-        data = pd.DataFrame({"control": [1, 2, 3], "test": [2, 4, 6]})
+        data = pd.DataFrame({"control": [1, 2, 3], "test": [2, 4, 7]})
 
         model_params = fit_regression_model(data, "control", "test")
         residuals = calculate_residuals(data, model_params, "control", "test")
