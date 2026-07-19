@@ -2,6 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/tbr.svg)](https://badge.fury.io/py/tbr)
 [![Build Status](https://github.com/idohi/tbr/workflows/CI/badge.svg)](https://github.com/idohi/tbr/actions)
+[![Documentation Status](https://readthedocs.org/projects/tbr/badge/?version=latest)](https://tbr.readthedocs.io/en/latest/?badge=latest)
 [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/idohi/tbr/actions)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
@@ -105,7 +106,8 @@ TBR implements statistical methods for estimating causal effects in before-after
 ## Documentation
 
 - **Examples**: See `examples/` directory in the repository
-- **Full Documentation**: Coming in v0.2.0
+- **Full Documentation**: [tbr.readthedocs.io](https://tbr.readthedocs.io/)
+- **Mathematical Methodology**: [TBR Mathematical Methodology](https://tbr.readthedocs.io/en/latest/mathematical_methodology.html)
 
 ## Version Compatibility
 
