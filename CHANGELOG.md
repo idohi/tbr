@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type-hint rendering via sphinx-autodoc-typehints, and intersphinx
   cross-references to NumPy, SciPy, pandas, and statsmodels.
 
+### Changed
+- README updated with Read the Docs build badge and link to documentation site.
+
 ## [0.1.5] - 2026-01-08
 
 ### Changed
