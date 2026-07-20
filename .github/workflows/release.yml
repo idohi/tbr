@@ -90,19 +90,24 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     name: Create GitHub Release
+    permissions:
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
 
     - name: Create Release
-      uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          Changes in this Release
-          - Add your release notes here
-        draft: false
-        prerelease: ${{ contains(github.ref, 'a') || contains(github.ref, 'b') || contains(github.ref, 'rc') }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        release_args=(
+          "$GITHUB_REF_NAME"
+          --title "TBR ${GITHUB_REF_NAME#v}"
+          --generate-notes
+        )
+
+        if [[ "$GITHUB_REF_NAME" == *a* || "$GITHUB_REF_NAME" == *b* || "$GITHUB_REF_NAME" == *rc* ]]; then
+          release_args+=(--prerelease)
+        fi
+
+        gh release create "${release_args[@]}"
