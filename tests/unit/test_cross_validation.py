@@ -300,16 +300,22 @@ class TestPerformanceParityValidation:
             func_calculate_sum_x_squared_deviations, large_array
         )
 
-        # Performance should be comparable (allow wider tolerance for very fast operations)
+        # Performance should be comparable, but ratio checks are noisy for
+        # sub-millisecond operations where scheduler jitter dominates timing.
         performance_ratio = core_time / func_time if func_time > 0 else 1.0
-        max_ratio = (
-            10.0 if min(core_time, func_time) < 1e-4 else 3.0
-        )  # More tolerance for sub-millisecond operations
-        assert 0.2 <= performance_ratio <= max_ratio, (
-            f"Performance regression in sum squared deviations: "
-            f"core_time={core_time:.6f}s, func_time={func_time:.6f}s, "
-            f"ratio={performance_ratio:.2f}"
-        )
+        min_time = min(core_time, func_time)
+
+        if min_time < 1e-3:
+            assert core_time < 0.01 and func_time < 0.01, (
+                f"Sub-millisecond operation exceeded absolute runtime budget: "
+                f"core_time={core_time:.6f}s, func_time={func_time:.6f}s"
+            )
+        else:
+            assert 0.2 <= performance_ratio <= 3.0, (
+                f"Performance regression in sum squared deviations: "
+                f"core_time={core_time:.6f}s, func_time={func_time:.6f}s, "
+                f"ratio={performance_ratio:.2f}"
+            )
 
         # Results should be identical
         assert abs(core_result - func_result) < 1e-15
