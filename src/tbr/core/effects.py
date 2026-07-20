@@ -161,7 +161,7 @@ def calculate_cumulative_variance(
         raise ValueError("test_x_values cannot be empty")
 
     n = len(test_x_values)
-    T_values = np.arange(1, n + 1)  # [1, 2, 3, ..., n]
+    T_values = np.arange(1, n + 1, dtype=np.float64)  # [1, 2, 3, ..., n]
 
     # Calculate cumulative means efficiently using vectorized operations
     cumsum_x = np.cumsum(test_x_values)

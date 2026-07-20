@@ -213,7 +213,7 @@ def calculate_cumulative_standard_deviation(
     where v = Var(α̂) + 2·x̄_T·Cov(α̂,β̂) + x̄_T²·Var(β̂)
     """
     n = len(test_x_values)
-    T_values = np.arange(1, n + 1)  # [1, 2, 3, ..., n]
+    T_values = np.arange(1, n + 1, dtype=np.float64)  # [1, 2, 3, ..., n]
 
     # Calculate cumulative means efficiently using vectorized operations
     cumsum_x = np.cumsum(test_x_values)
