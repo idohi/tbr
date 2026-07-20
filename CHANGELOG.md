@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-07-20
+
 ### Added
 - Comprehensive mathematical methodology document (`docs/mathematical_methodology.md`)
   covering model specification, prediction and uncertainty, posterior inference
