@@ -137,10 +137,14 @@ def create_tbr_summary(
 
     Examples
     --------
-    Create summary for a TBR analysis:
+    Create summary for a TBR analysis output:
 
+    >>> import pandas as pd
+    >>> tbr_dataframe = pd.DataFrame(
+    ...     {"period": [1, 1], "cumdif": [5.0, 8.0], "cumsd": [2.0, 3.0]}
+    ... )
     >>> summary = create_tbr_summary(
-    ...     tbr_results, alpha=50.2, beta=0.95, sigma=25.3,
+    ...     tbr_dataframe, alpha=50.2, beta=0.95, sigma=25.3,
     ...     var_alpha=100.5, var_beta=0.001, cov_alpha_beta=-0.05,
     ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )

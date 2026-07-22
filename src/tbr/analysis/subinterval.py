@@ -141,29 +141,39 @@ def compute_interval_estimate_and_ci(
 
     Examples
     --------
-    Analyze effect for days 5-10 of test period:
+    Analyze effect for the first two days of a test period:
 
-    >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    >>> import pandas as pd
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
     ... )
-    >>> print(f"Days 5-10 effect: {result['estimate']:.2f}")
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> result = compute_interval_estimate_and_ci(
+    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ... )
+    >>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
     >>> print(f"Precision: ±{result['precision']:.2f}")
 
     Analyze single day effect:
 
-    >>> day_7_result = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=7, end_day=7, ci_level=0.95
+    >>> day_3_result = compute_interval_estimate_and_ci(
+    ...     tbr_df, tbr_summary, start_day=3, end_day=3, ci_level=0.95
     ... )
-    >>> print(f"Day 7 effect: {day_7_result['estimate']:.2f}")
+    >>> print(f"Day 3 effect: {day_3_result['estimate']:.2f}")
 
     Compare different credibility levels:
 
     >>> result_80 = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=1, end_day=14, ci_level=0.80
+    ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
     ... )
     >>> result_95 = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=1, end_day=14, ci_level=0.95
+    ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.95
     ... )
     >>> print(f"80% CI width: {result_80['upper'] - result_80['lower']:.2f}")
     >>> print(f"95% CI width: {result_95['upper'] - result_95['lower']:.2f}")

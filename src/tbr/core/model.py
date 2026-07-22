@@ -95,20 +95,38 @@ class TBRAnalysis:
     --------
     Basic workflow:
 
+    >>> import pandas as pd
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=8),
+    ...         "control": [100, 110, 120, 130, 140, 150, 160, 170],
+    ...         "test": [101, 112, 121, 134, 143, 156, 166, 177],
+    ...     }
+    ... )
     >>> model = TBRAnalysis(level=0.80, threshold=0.0)
-    >>> model.fit(data, 'date', 'control', 'test',
-    ...           pretest_start='2023-01-01',
-    ...           test_start='2023-02-15',
-    ...           test_end='2023-03-01')
-    >>> print(model.summaries_.iloc[-1])
+    >>> model.fit(
+    ...     data=data,
+    ...     time_col="date",
+    ...     control_col="control",
+    ...     test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-06"),
+    ...     test_end=pd.Timestamp("2023-01-08"),
+    ... )
+    >>> summary = model.summarize()
+    >>> print(f"Effect: {summary.estimate:.2f}")
 
     Custom configuration:
 
-    >>> model = TBRAnalysis(level=0.95, threshold=5.0, test_end_inclusive=True)
-    >>> model.fit(data, 'date', 'control', 'test',
-    ...           pretest_start='2023-01-01',
-    ...           test_start='2023-02-15',
-    ...           test_end='2023-02-15')  # Same-day analysis
+    >>> same_day_model = TBRAnalysis(
+    ...     level=0.95, threshold=5.0, test_end_inclusive=True
+    ... )
+    >>> same_day_model.fit(
+    ...     data, "date", "control", "test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-06"),
+    ...     test_end=pd.Timestamp("2023-01-06"),
+    ... )
 
     Notes
     -----

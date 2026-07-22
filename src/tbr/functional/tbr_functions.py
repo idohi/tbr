@@ -782,8 +782,6 @@ def perform_tbr_analysis(
         Credibility level for credible intervals (e.g., 0.80 for 80% credible interval)
     threshold : float
         Threshold for probability calculation (typically 0.0 for positive effect testing)
-    test_end_inclusive : bool, default False
-        Whether to include test_end date in the analysis period
 
     Returns
     -------
@@ -813,11 +811,12 @@ def perform_tbr_analysis(
     >>> import numpy as np
     >>>
     >>> # Create sample time series data with datetime64[ns] (pandas native)
+    >>> rng = np.random.default_rng(42)
     >>> dates = pd.date_range('2023-01-01', periods=90)
     >>> data = pd.DataFrame({
     ...     'date': dates,
-    ...     'control': np.random.normal(1000, 50, 90),
-    ...     'test': np.random.normal(1020, 55, 90)
+    ...     'control': rng.normal(1000, 50, 90),
+    ...     'test': rng.normal(1020, 55, 90)
     ... })
     >>>
     >>> # Run TBR analysis - returns TBRResults object
@@ -858,10 +857,11 @@ def perform_tbr_analysis(
     Integer time example (hours since start):
 
     >>> # Integer time column example
+    >>> rng = np.random.default_rng(123)
     >>> hourly_data = pd.DataFrame({
     ...     'hour': range(1, 49),  # Hours 1-48
-    ...     'control': np.random.normal(500, 25, 48),
-    ...     'test': np.random.normal(520, 30, 48)
+    ...     'control': rng.normal(500, 25, 48),
+    ...     'test': rng.normal(520, 30, 48)
     ... })
     >>>
     >>> results = perform_tbr_analysis(
@@ -881,10 +881,11 @@ def perform_tbr_analysis(
     Medical trial example:
 
     >>> # Medical trial data with integer time (days since start)
+    >>> rng = np.random.default_rng(456)
     >>> medical_data = pd.DataFrame({
     ...     'day': range(1, 121),  # Days 1-120
-    ...     'control_recovery_rate': np.random.normal(0.75, 0.05, 120),
-    ...     'treatment_recovery_rate': np.random.normal(0.82, 0.06, 120)
+    ...     'control_recovery_rate': rng.normal(0.75, 0.05, 120),
+    ...     'treatment_recovery_rate': rng.normal(0.82, 0.06, 120)
     ... })
     >>>
     >>> results = perform_tbr_analysis(
