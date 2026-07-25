@@ -12,10 +12,11 @@ Examples
 >>> import numpy as np
 >>>
 >>> # Create sample data
+>>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
 ...     'date': pd.date_range('2023-01-01', periods=90),
-...     'control': np.random.normal(1000, 50, 90),
-...     'test': np.random.normal(1020, 55, 90)
+...     'control': rng.normal(1000, 50, 90),
+...     'test': rng.normal(1020, 55, 90)
 ... })
 >>>
 >>> # Initialize and fit model
@@ -25,9 +26,9 @@ Examples
 ...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
-...     pretest_start='2023-01-01',
-...     test_start='2023-02-15',
-...     test_end='2023-03-01'
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-03-01'),
 ... )
 >>>
 >>> # Access results

@@ -25,14 +25,15 @@ Examples
 >>> from tbr.functional.tbr_functions import perform_tbr_analysis
 >>>
 >>> # Create time series data (control vs test groups)
+>>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
 ...     'date': pd.date_range('2023-01-01', periods=90),
-...     'control': np.random.normal(1000, 50, 90),  # Control group metric
-...     'test': np.random.normal(1020, 55, 90)      # Test group metric
+...     'control': rng.normal(1000, 50, 90),  # Control group metric
+...     'test': rng.normal(1020, 55, 90)      # Test group metric
 ... })
 >>>
->>> # Analyze treatment effect
->>> results, summaries = perform_tbr_analysis(
+>>> # Analyze treatment effect (returns a single TBRResults object)
+>>> results = perform_tbr_analysis(
 ...     data=data,
 ...     time_col='date',
 ...     control_col='control',
@@ -45,9 +46,8 @@ Examples
 ... )
 >>>
 >>> # Get treatment effect and credible interval
->>> final_summary = summaries.iloc[-1]
->>> print(f"Effect: {final_summary['estimate']:.2f}")
->>> print(f"80% CI: [{final_summary['lower']:.2f}, {final_summary['upper']:.2f}]")
+>>> print(f"Effect: {results.estimate:.2f}")
+>>> print(f"80% CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
 
 Notes
 -----
