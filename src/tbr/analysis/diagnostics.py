@@ -168,6 +168,9 @@ def validate_tbr_model(
     The function integrates multiple diagnostic approaches to provide a
     comprehensive assessment of model validity and reliability.
 
+    For mathematical background, see the project mathematical methodology guide
+    sections on model diagnostics, model assumptions, and limitations.
+
     Examples
     --------
     Basic model validation. ``tbr_df`` is the daily TBR output,
@@ -422,6 +425,9 @@ def diagnose_tbr_analysis(
     diagnostics, and optional performance metrics. A failed diagnostic does not
     necessarily make a TBR analysis unusable; it identifies model assumptions or
     data quality issues that should be reviewed before interpreting results.
+
+    For mathematical background, see the project mathematical methodology guide
+    sections on model diagnostics, model assumptions, and limitations.
 
     Examples
     --------

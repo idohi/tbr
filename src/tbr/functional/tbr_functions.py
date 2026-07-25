@@ -803,6 +803,14 @@ def perform_tbr_analysis(
         If input validation fails, column names conflict with reserved names,
         or insufficient data for analysis
 
+    Notes
+    -----
+    This pipeline follows the methodology described in the project mathematical
+    methodology guide: fit the pretest-period regression model, generate
+    counterfactual predictions for the test period, estimate cumulative
+    treatment effects, and compute t-distribution credible intervals and
+    posterior probabilities.
+
     Examples
     --------
     Basic usage with marketing campaign data:

@@ -133,6 +133,9 @@ class TBRAnalysis:
     Configuration parameters are stored in __init__. Call fit() to perform
     analysis. Access fitted results via underscore-suffixed attributes
     (results_, summaries_, params_), which validate fitted state before access.
+    For mathematical background, see the project mathematical methodology guide
+    sections on the statistical model, prediction uncertainty, treatment effect
+    estimation, and statistical inference.
 
     See Also
     --------
