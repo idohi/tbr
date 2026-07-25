@@ -135,8 +135,10 @@ def create_tbr_summary(
 
     where F_t is the t-distribution cumulative distribution function.
 
-    For mathematical background, see the project mathematical methodology guide
-    sections on treatment effect estimation and statistical inference.
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the sections on treatment effect estimation and statistical
+    inference.
 
     Examples
     --------

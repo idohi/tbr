@@ -153,9 +153,10 @@ def create_incremental_tbr_summaries(
     .. math::
         P(effect_t > threshold) = 1 - F_t((threshold - estimate_t)/se_t, df)
 
-    For mathematical background, see the project mathematical methodology guide
-    sections on cumulative treatment effects, posterior variance, and
-    statistical inference.
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the sections on cumulative treatment effects, posterior
+    variance, and statistical inference.
 
     Examples
     --------

@@ -805,11 +805,11 @@ def perform_tbr_analysis(
 
     Notes
     -----
-    This pipeline follows the methodology described in the project mathematical
-    methodology guide: fit the pretest-period regression model, generate
-    counterfactual predictions for the test period, estimate cumulative
-    treatment effects, and compute t-distribution credible intervals and
-    posterior probabilities.
+    This pipeline follows the methodology described in the
+    :doc:`mathematical methodology guide </mathematical_methodology>`: fit the
+    pretest-period regression model, generate counterfactual predictions for
+    the test period, estimate cumulative treatment effects, and compute
+    t-distribution credible intervals and posterior probabilities.
 
     Examples
     --------

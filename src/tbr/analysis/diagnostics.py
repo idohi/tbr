@@ -168,8 +168,10 @@ def validate_tbr_model(
     The function integrates multiple diagnostic approaches to provide a
     comprehensive assessment of model validity and reliability.
 
-    For mathematical background, see the project mathematical methodology guide
-    sections on model diagnostics, model assumptions, and limitations.
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the sections on model diagnostics, model assumptions, and
+    limitations.
 
     Examples
     --------
@@ -426,8 +428,10 @@ def diagnose_tbr_analysis(
     necessarily make a TBR analysis unusable; it identifies model assumptions or
     data quality issues that should be reviewed before interpreting results.
 
-    For mathematical background, see the project mathematical methodology guide
-    sections on model diagnostics, model assumptions, and limitations.
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the sections on model diagnostics, model assumptions, and
+    limitations.
 
     Examples
     --------

@@ -149,8 +149,9 @@ def compute_interval_estimate_and_ci(
     where y_i is the observed value and pred_i is the counterfactual prediction
     for day i within the subinterval.
 
-    For mathematical background, see the project mathematical methodology guide
-    section on subinterval analysis.
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the section on subinterval analysis.
 
     Examples
     --------
