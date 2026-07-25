@@ -21,19 +21,29 @@ validate_subinterval_parameters : Validate subinterval analysis parameters
 
 Examples
 --------
+>>> import pandas as pd
 >>> from tbr.analysis.subinterval import compute_interval_estimate_and_ci
->>> result = compute_interval_estimate_and_ci(
-...     tbr_results, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+>>> tbr_df = pd.DataFrame(
+...     {
+...         "period": [1, 1, 1],
+...         "y": [110.0, 115.0, 118.0],
+...         "pred": [105.0, 108.0, 112.0],
+...         "estsd": [2.0, 2.1, 2.2],
+...     }
 ... )
->>> print(f"Days 5-10 effect: {result['estimate']:.2f}")
+>>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+>>> result = compute_interval_estimate_and_ci(
+...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+... )
+>>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
 >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
 
 Analyze multiple subintervals:
 
 >>> from tbr.analysis.subinterval import analyze_multiple_subintervals
->>> intervals = [(1, 7), (8, 14), (1, 14)]  # Week 1, Week 2, Full period
+>>> intervals = [(1, 2), (2, 3), (1, 3)]
 >>> results = analyze_multiple_subintervals(
-...     tbr_results, tbr_summary, intervals, ci_level=0.80
+...     tbr_df, tbr_summary, intervals, ci_level=0.80
 ... )
 >>> for i, result in enumerate(results):
 ...     start, end = intervals[i]
@@ -44,7 +54,7 @@ Create comprehensive summary:
 
 >>> from tbr.analysis.subinterval import create_subinterval_summary
 >>> summary = create_subinterval_summary(
-...     tbr_results, tbr_summary, intervals=[(1, 7), (8, 14)], ci_level=0.80
+...     tbr_df, tbr_summary, intervals=[(1, 2), (2, 3)], ci_level=0.80
 ... )
 >>> print(summary[['interval', 'estimate', 'lower', 'upper', 'significant']])
 """
@@ -243,21 +253,31 @@ def analyze_multiple_subintervals(
 
     Examples
     --------
-    Compare weekly effects during a 2-week test:
+    Compare effects across multiple windows:
 
-    >>> intervals = [(1, 7), (8, 14)]  # Week 1, Week 2
+    >>> import pandas as pd
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
+    ... )
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> intervals = [(1, 2), (2, 3)]
     >>> results = analyze_multiple_subintervals(
-    ...     tbr_results, tbr_summary, intervals, ci_level=0.80
+    ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> for i, result in enumerate(results, 1):
-    ...     print(f"Week {i}: {result['estimate']:.2f} "
+    ...     print(f"Window {i}: {result['estimate']:.2f} "
     ...           f"[{result['lower']:.2f}, {result['upper']:.2f}]")
 
     Analyze overlapping intervals:
 
-    >>> intervals = [(1, 7), (4, 10), (7, 14)]  # Overlapping windows
+    >>> intervals = [(1, 2), (1, 3), (2, 3)]  # Overlapping windows
     >>> results = analyze_multiple_subintervals(
-    ...     tbr_results, tbr_summary, intervals, ci_level=0.90
+    ...     tbr_df, tbr_summary, intervals, ci_level=0.90
     ... )
     >>> for i, (start, end) in enumerate(intervals):
     ...     result = results[i]
@@ -265,9 +285,9 @@ def analyze_multiple_subintervals(
 
     Compare different interval lengths:
 
-    >>> intervals = [(1, 3), (1, 7), (1, 14)]  # 3-day, 1-week, 2-week
+    >>> intervals = [(1, 1), (1, 2), (1, 3)]
     >>> results = analyze_multiple_subintervals(
-    ...     tbr_results, tbr_summary, intervals
+    ...     tbr_df, tbr_summary, intervals
     ... )
     >>> for i, (start, end) in enumerate(intervals):
     ...     days = end - start + 1
@@ -377,18 +397,28 @@ def create_subinterval_summary(
 
     Examples
     --------
-    Create summary for weekly analysis:
+    Create a summary for multiple subintervals:
 
-    >>> intervals = [(1, 7), (8, 14), (1, 14)]
+    >>> import pandas as pd
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
+    ... )
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> intervals = [(1, 2), (2, 3), (1, 3)]
     >>> summary = create_subinterval_summary(
-    ...     tbr_results, tbr_summary, intervals, ci_level=0.80
+    ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> print(summary[['interval', 'estimate', 'significant']])
 
     Analyze with custom significance threshold:
 
     >>> summary = create_subinterval_summary(
-    ...     tbr_results, tbr_summary, intervals,
+    ...     tbr_df, tbr_summary, intervals,
     ...     significance_threshold=10.0  # Effect must be > 10
     ... )
     >>> significant_intervals = summary[summary['significant']]
@@ -397,7 +427,7 @@ def create_subinterval_summary(
     Compare average daily effects:
 
     >>> summary = create_subinterval_summary(
-    ...     tbr_results, tbr_summary, [(1, 3), (1, 7), (1, 14)]
+    ...     tbr_df, tbr_summary, [(1, 1), (1, 2), (1, 3)]
     ... )
     >>> print(summary[['interval', 'avg_daily_effect']].sort_values('avg_daily_effect'))
     """

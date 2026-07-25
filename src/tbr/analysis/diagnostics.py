@@ -23,14 +23,24 @@ create_tbr_diagnostic_report : Comprehensive diagnostic reporting
 
 Examples
 --------
+>>> import pandas as pd
 >>> from tbr.analysis.diagnostics import validate_tbr_model
 >>> from tbr.functional import perform_tbr_analysis
 >>>
 >>> # Perform TBR analysis
->>> tbr_df, summary_df = perform_tbr_analysis(
-...     data, 'date', 'control', 'test',
-...     pretest_start='2023-01-01', test_start='2023-02-15', test_end='2023-03-01'
+>>> results = perform_tbr_analysis(
+...     data=data,
+...     time_col='date',
+...     control_col='control',
+...     test_col='test',
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-03-01'),
+...     level=0.80,
+...     threshold=0.0,
 ... )
+>>> tbr_df = results.tbr_dataframe()
+>>> summary_df = results.summary()
 >>>
 >>> # Validate the TBR model
 >>> validation = validate_tbr_model(tbr_df, summary_df)
@@ -42,9 +52,10 @@ Examples
 Comprehensive diagnostic workflow:
 
 >>> from tbr.analysis.diagnostics import diagnose_tbr_analysis
->>> diagnostics = diagnose_tbr_analysis(tbr_df, summary_df, learning_data)
->>> print(f"R-squared: {diagnostics['goodness_of_fit']['r_squared']:.3f}")
->>> print(f"Normality p-value: {diagnostics['assumption_tests']['normality']['p_value']:.4f}")
+>>> diagnostics = diagnose_tbr_analysis(tbr_df, summary_df)
+>>> validation = diagnostics['model_validation']
+>>> print(f"R-squared: {validation['goodness_of_fit']['r_squared']:.3f}")
+>>> print(f"Assumptions valid: {validation['assumption_tests']['all_assumptions_valid']}")
 
 Performance assessment:
 
@@ -159,9 +170,11 @@ def validate_tbr_model(
 
     Examples
     --------
-    Basic model validation:
+    Basic model validation. ``tbr_df`` is the daily TBR output,
+    ``tbr_summary`` is the summary table, and ``learning_data`` contains
+    learning-period columns ``x`` and ``y``:
 
-    >>> validation = validate_tbr_model(tbr_df, tbr_summary)
+    >>> validation = validate_tbr_model(tbr_df, tbr_summary, learning_data)
     >>> if validation['overall_validity']:
     ...     print("Model validation passed")
     ... else:
@@ -173,7 +186,7 @@ def validate_tbr_model(
 
     >>> validation = validate_tbr_model(tbr_df, tbr_summary, learning_data)
     >>> print(f"R²: {validation['goodness_of_fit']['r_squared']:.3f}")
-    >>> print(f"Normality p-value: {validation['assumption_tests']['normality']['p_value']:.4f}")
+    >>> print(f"Normality valid: {validation['assumption_tests']['normality_valid']}")
     >>> print(f"Outliers detected: {len(validation['residual_analysis']['outliers'])}")
     """
     # Validate input DataFrames
@@ -383,7 +396,7 @@ def diagnose_tbr_analysis(
     tbr_df : pd.DataFrame
         TBR analysis results DataFrame
     tbr_summary : pd.DataFrame
-        TBR summary statistics DataFrame
+        TBR summary statistics DataFrame.
     learning_data : pd.DataFrame, optional
         Original learning period data. If not provided, extracted from tbr_df.
     include_performance : bool, default True
@@ -403,9 +416,16 @@ def diagnose_tbr_analysis(
         - 'recommendations' : List[str]
             Actionable recommendations based on diagnostic results
 
+    Notes
+    -----
+    This helper combines lower-level validation, assumption checks, residual
+    diagnostics, and optional performance metrics. A failed diagnostic does not
+    necessarily make a TBR analysis unusable; it identifies model assumptions or
+    data quality issues that should be reviewed before interpreting results.
+
     Examples
     --------
-    >>> diagnostics = diagnose_tbr_analysis(tbr_df, tbr_summary)
+    >>> diagnostics = diagnose_tbr_analysis(tbr_df, tbr_summary, learning_data)
     >>> print(f"Overall model validity: {diagnostics['model_validation']['overall_validity']}")
     >>> print("Recommendations:")
     >>> for rec in diagnostics['recommendations']:
@@ -504,22 +524,41 @@ def check_tbr_assumptions(
     tbr_df : pd.DataFrame
         TBR analysis results DataFrame
     tbr_summary : pd.DataFrame
-        TBR summary statistics DataFrame
+        TBR summary statistics DataFrame.
     learning_data : pd.DataFrame, optional
-        Learning period data for assumption testing
+        Learning period data for assumption testing. Must contain columns
+        ``x`` and ``y`` when provided directly.
     alpha : float, default 0.05
         Significance level for statistical tests
 
     Returns
     -------
     Dict[str, Union[bool, float, str]]
-        Assumption test results with pass/fail status and test statistics
+        Assumption test results with pass/fail status and test statistics.
+        Important keys include:
+
+        - 'all_assumptions_valid' : bool
+            Whether all checked assumptions passed.
+        - 'normality_valid' : bool
+            Whether residual normality passed at the requested alpha.
+        - 'homoscedasticity_valid' : bool
+            Whether residual variance appears stable.
+        - 'independence_valid' : bool
+            Whether residual independence appears acceptable.
+        - 'linearity_valid' : bool
+            Whether the fitted relationship appears sufficiently linear.
+
+    Notes
+    -----
+    Failed assumptions are diagnostic warnings, not automatic proof that the
+    treatment effect is invalid. They should guide review of model fit, data
+    quality, and whether TBR assumptions are appropriate for the experiment.
 
     Examples
     --------
-    >>> assumptions = check_tbr_assumptions(tbr_df, tbr_summary)
+    >>> assumptions = check_tbr_assumptions(tbr_df, tbr_summary, learning_data)
     >>> print(f"All assumptions valid: {assumptions['all_assumptions_valid']}")
-    >>> print(f"Normality p-value: {assumptions['normality_p_value']:.4f}")
+    >>> print(f"Normality valid: {assumptions['normality_valid']}")
     """
     if learning_data is None:
         learning_data = tbr_df[tbr_df["period"] == 0].copy()
@@ -557,18 +596,39 @@ def analyze_tbr_residuals(
     tbr_df : pd.DataFrame
         TBR analysis results DataFrame
     tbr_summary : pd.DataFrame
-        TBR summary statistics DataFrame
+        TBR summary statistics DataFrame.
     learning_data : pd.DataFrame, optional
-        Learning period data for residual calculation
+        Learning period data for residual calculation. Must contain columns
+        ``x`` and ``y`` when provided directly.
 
     Returns
     -------
     Dict[str, Union[np.ndarray, List, float]]
-        Residual analysis results including residuals, outliers, and diagnostics
+        Residual analysis results including residuals, outliers, and diagnostics:
+
+        - 'residuals' : np.ndarray
+            Raw learning-period residuals.
+        - 'standardized_residuals' : np.ndarray
+            Residuals scaled by residual standard deviation.
+        - 'studentized_residuals' : np.ndarray
+            Studentized residuals for outlier detection.
+        - 'outliers' : List[int]
+            Integer positions whose absolute studentized residual exceeds the
+            outlier threshold.
+        - 'residual_stats' : Dict[str, float]
+            Summary statistics for the residual distribution.
+        - 'residual_std' : float
+            Residual standard deviation.
+
+    Notes
+    -----
+    Outliers are flagged using studentized residuals with a default absolute
+    threshold of 2.5. Treat them as review candidates rather than automatic
+    exclusions.
 
     Examples
     --------
-    >>> residuals = analyze_tbr_residuals(tbr_df, tbr_summary)
+    >>> residuals = analyze_tbr_residuals(tbr_df, tbr_summary, learning_data)
     >>> print(f"Outliers detected: {len(residuals['outliers'])}")
     >>> print(f"Residual std: {residuals['residual_std']:.3f}")
     """
@@ -644,7 +704,25 @@ def assess_tbr_performance(
     Returns
     -------
     Dict[str, Union[float, int, Dict]]
-        Performance assessment results including accuracy and efficiency metrics
+        Performance assessment results including accuracy and efficiency metrics:
+
+        - 'data_metrics' : Dict[str, float]
+            Observation counts and learning/test ratio.
+        - 'prediction_metrics' : Dict[str, float]
+            Test-period prediction error metrics such as MAE, RMSE, MAPE, and
+            prediction interval coverage.
+        - 'model_complexity' : Dict[str, float]
+            Degrees of freedom, sigma, and a simple R-squared proxy.
+        - 'efficiency_score' : float
+            Composite score summarizing prediction quality and data sufficiency.
+        - 'performance_summary' : Dict[str, str]
+            Human-readable labels for data quality, prediction quality, and
+            overall performance.
+
+    Notes
+    -----
+    The efficiency score is a diagnostic summary, not a formal statistical
+    measure. Use it to identify analyses that deserve closer review.
 
     Examples
     --------
@@ -780,11 +858,29 @@ def create_tbr_diagnostic_report(
     Returns
     -------
     Dict[str, Union[str, Dict, List]]
-        Comprehensive diagnostic report with summary and detailed results
+        Comprehensive diagnostic report with summary and detailed results:
+
+        - 'executive_summary' : str
+            Human-readable model validation summary.
+        - 'overall_validity' : bool
+            Whether model validation passed.
+        - 'warnings_count' : int
+            Number of validation warnings.
+        - 'key_findings' : List[str]
+            Short diagnostic findings suitable for reporting.
+        - 'recommendations' : List[str]
+            Suggested follow-up actions.
+        - 'detailed_results' : Dict
+            Full diagnostic outputs when requested.
+
+    Notes
+    -----
+    The report is intended for review and communication. It should not replace
+    inspection of the underlying diagnostics when assumptions fail.
 
     Examples
     --------
-    >>> report = create_tbr_diagnostic_report(tbr_df, tbr_summary)
+    >>> report = create_tbr_diagnostic_report(tbr_df, tbr_summary, learning_data)
     >>> print(report['executive_summary'])
     >>> print("Key findings:")
     >>> for finding in report['key_findings']:
