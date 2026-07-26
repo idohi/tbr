@@ -119,6 +119,91 @@ class TestValidateTbrModel:
         assert isinstance(result, dict)
         assert "overall_validity" in result
 
+    def test_validate_tbr_model_preserves_goodness_of_fit_metrics(self):
+        """Regression test for the analysis/core goodness-of-fit key contract."""
+        x = np.linspace(100.0, 200.0, 44)
+        residual_pattern = np.sin(np.arange(44)) * 0.5
+        pred = 5.0 + 1.05 * x
+        y = pred + residual_pattern
+        dif = y - pred
+
+        tbr_df = pd.DataFrame(
+            {
+                "period": [0] * 30 + [1] * 14,
+                "y": y,
+                "x": x,
+                "pred": pred,
+                "predsd": np.full(44, 2.0),
+                "dif": dif,
+                "cumdif": np.cumsum(dif),
+                "cumsd": np.sqrt(np.arange(1, 45)),
+                "estsd": np.full(44, 0.5),
+            }
+        )
+        tbr_summary = pd.DataFrame(
+            {
+                "alpha": [5.0],
+                "beta": [1.05],
+                "sigma": [float(np.std(dif[:30], ddof=2))],
+                "var_alpha": [0.01],
+                "var_beta": [0.001],
+                "alpha_beta_cov": [0.0],
+                "t_dist_df": [28],
+            }
+        )
+
+        result = validate_tbr_model(tbr_df, tbr_summary)
+
+        assert not any(
+            "goodness of fit calculation failed" in warning.lower()
+            for warning in result["warnings"]
+        )
+        assert result["goodness_of_fit"]["r_squared"] > 0.99
+        assert "f_p_value" in result["goodness_of_fit"]
+        assert "f_statistic_p_value" not in result["goodness_of_fit"]
+
+    def test_validate_tbr_model_rejects_missing_goodness_of_fit_keys(
+        self, sample_tbr_data
+    ):
+        """Internal goodness-of-fit schema mismatches should fail loudly."""
+        tbr_df, tbr_summary = sample_tbr_data
+
+        with patch("tbr.analysis.diagnostics.calculate_goodness_of_fit") as mock_gof:
+            mock_gof.return_value = {
+                "r_squared": 0.8,
+                "adj_r_squared": 0.79,
+                "f_statistic": 20.0,
+                "mse": 1.0,
+                "rmse": 1.0,
+            }
+
+            with pytest.raises(KeyError, match="Missing goodness-of-fit metric"):
+                validate_tbr_model(tbr_df, tbr_summary)
+
+    def test_validate_tbr_model_handles_expected_goodness_of_fit_failure(
+        self, sample_tbr_data
+    ):
+        """Expected numerical fit failures still produce the canonical fallback."""
+        tbr_df, tbr_summary = sample_tbr_data
+
+        with patch("tbr.analysis.diagnostics.calculate_goodness_of_fit") as mock_gof:
+            mock_gof.side_effect = ValueError("insufficient variation")
+
+            result = validate_tbr_model(tbr_df, tbr_summary)
+
+        assert any(
+            "goodness of fit calculation failed" in warning.lower()
+            for warning in result["warnings"]
+        )
+        assert result["goodness_of_fit"] == {
+            "r_squared": 0.0,
+            "adj_r_squared": 0.0,
+            "f_statistic": 0.0,
+            "f_p_value": 1.0,
+            "mse": 0.0,
+            "rmse": 0.0,
+        }
+
     def test_validate_tbr_model_input_validation(self, sample_tbr_data):
         """Test input validation for validate_tbr_model."""
         tbr_df, tbr_summary = sample_tbr_data
@@ -973,7 +1058,11 @@ class TestComprehensiveCoverageScenarios:
             # Test low R² warning (line 226-227)
             mock_gof.return_value = {
                 "r_squared": 0.2,  # Below 0.5 threshold
-                "f_statistic_p_value": 0.01,
+                "adj_r_squared": 0.15,
+                "f_statistic": 10.0,
+                "f_p_value": 0.01,
+                "mse": 1.0,
+                "rmse": 1.0,
             }
 
             result = validate_tbr_model(tbr_df, tbr_summary)
@@ -982,7 +1071,11 @@ class TestComprehensiveCoverageScenarios:
             # Test non-significant F-statistic warning (line 228-229)
             mock_gof.return_value = {
                 "r_squared": 0.8,
-                "f_statistic_p_value": 0.10,  # Above 0.05 threshold
+                "adj_r_squared": 0.79,
+                "f_statistic": 2.0,
+                "f_p_value": 0.10,  # Above 0.05 threshold
+                "mse": 1.0,
+                "rmse": 1.0,
             }
 
             result = validate_tbr_model(tbr_df, tbr_summary, alpha=0.05)
@@ -1062,8 +1155,30 @@ class TestComprehensiveCoverageScenarios:
         assert "error" in result["prediction_quality"]
         assert result["prediction_quality"]["error"] == "No test period data available"
 
-        # Test prediction quality error handling (line 291-293)
-        with patch("numpy.mean") as mock_mean:
+        # Test prediction quality error handling (line 291-293). Keep earlier
+        # diagnostic stages mocked so this broad NumPy patch targets prediction
+        # quality only.
+        with patch(
+            "tbr.analysis.diagnostics.validate_model_assumptions"
+        ) as mock_assumptions, patch(
+            "tbr.analysis.diagnostics.calculate_goodness_of_fit"
+        ) as mock_gof, patch(
+            "numpy.mean"
+        ) as mock_mean:
+            mock_assumptions.return_value = {
+                "normality_valid": True,
+                "homoscedasticity_valid": True,
+                "independence_valid": True,
+                "all_assumptions_valid": True,
+            }
+            mock_gof.return_value = {
+                "r_squared": 0.8,
+                "adj_r_squared": 0.79,
+                "f_statistic": 20.0,
+                "f_p_value": 0.01,
+                "mse": 1.0,
+                "rmse": 1.0,
+            }
             mock_mean.side_effect = Exception("Prediction calculation error")
 
             result = validate_tbr_model(tbr_df, tbr_summary)
