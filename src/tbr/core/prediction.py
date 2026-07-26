@@ -284,8 +284,30 @@ def compute_interval_estimate_and_ci(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> from tbr.core.prediction import compute_interval_estimate_and_ci
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summaries, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")

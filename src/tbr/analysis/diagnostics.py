@@ -23,19 +23,29 @@ create_tbr_diagnostic_report : Comprehensive diagnostic reporting
 
 Examples
 --------
+>>> import numpy as np
 >>> import pandas as pd
 >>> from tbr.analysis.diagnostics import validate_tbr_model
 >>> from tbr.functional import perform_tbr_analysis
 >>>
->>> # Perform TBR analysis
+>>> # Build example data and perform TBR analysis
+>>> rng = np.random.default_rng(0)
+>>> control = rng.normal(1000, 50, size=44)
+>>> data = pd.DataFrame(
+...     {
+...         "date": pd.date_range("2023-01-01", periods=44),
+...         "control": control,
+...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+...     }
+... )
 >>> results = perform_tbr_analysis(
 ...     data=data,
 ...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
 ...     pretest_start=pd.Timestamp('2023-01-01'),
-...     test_start=pd.Timestamp('2023-02-15'),
-...     test_end=pd.Timestamp('2023-03-01'),
+...     test_start=pd.Timestamp('2023-01-31'),
+...     test_end=pd.Timestamp('2023-02-14'),
 ...     level=0.80,
 ...     threshold=0.0,
 ... )
@@ -179,6 +189,28 @@ def validate_tbr_model(
     ``tbr_summary`` is the summary table, and ``learning_data`` contains
     learning-period columns ``x`` and ``y``:
 
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
+    >>> learning_data = tbr_df[tbr_df["period"] == 0]
     >>> validation = validate_tbr_model(tbr_df, tbr_summary, learning_data)
     >>> if validation['overall_validity']:
     ...     print("Model validation passed")
@@ -435,6 +467,28 @@ def diagnose_tbr_analysis(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
+    >>> learning_data = tbr_df[tbr_df["period"] == 0]
     >>> diagnostics = diagnose_tbr_analysis(tbr_df, tbr_summary, learning_data)
     >>> print(f"Overall model validity: {diagnostics['model_validation']['overall_validity']}")
     >>> print("Recommendations:")
@@ -566,6 +620,28 @@ def check_tbr_assumptions(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
+    >>> learning_data = tbr_df[tbr_df["period"] == 0]
     >>> assumptions = check_tbr_assumptions(tbr_df, tbr_summary, learning_data)
     >>> print(f"All assumptions valid: {assumptions['all_assumptions_valid']}")
     >>> print(f"Normality valid: {assumptions['normality_valid']}")
@@ -638,6 +714,28 @@ def analyze_tbr_residuals(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
+    >>> learning_data = tbr_df[tbr_df["period"] == 0]
     >>> residuals = analyze_tbr_residuals(tbr_df, tbr_summary, learning_data)
     >>> print(f"Outliers detected: {len(residuals['outliers'])}")
     >>> print(f"Residual std: {residuals['residual_std']:.3f}")
@@ -736,6 +834,27 @@ def assess_tbr_performance(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
     >>> performance = assess_tbr_performance(tbr_df, tbr_summary)
     >>> print(f"Prediction MAPE: {performance['prediction_metrics']['mape']:.2f}%")
     >>> print(f"Efficiency score: {performance['efficiency_score']:.2f}")
@@ -890,6 +1009,28 @@ def create_tbr_diagnostic_report(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
+    >>> learning_data = tbr_df[tbr_df["period"] == 0]
     >>> report = create_tbr_diagnostic_report(tbr_df, tbr_summary, learning_data)
     >>> print(report['executive_summary'])
     >>> print("Key findings:")

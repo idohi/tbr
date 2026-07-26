@@ -14,7 +14,11 @@ create_tbr_summary : Create single-row TBR summary with credible intervals
 
 Examples
 --------
+>>> import pandas as pd
 >>> from tbr.analysis.summary import create_tbr_summary
+>>> tbr_dataframe = pd.DataFrame(
+...     {"period": [1, 1], "cumdif": [5.0, 8.0], "cumsd": [2.0, 3.0]}
+... )
 >>> summary = create_tbr_summary(
 ...     tbr_dataframe, alpha=50, beta=0.95, sigma=25,
 ...     var_alpha=100, var_beta=0.001, cov_alpha_beta=-0.05,
