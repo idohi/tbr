@@ -54,13 +54,14 @@ Performance assessment:
 >>> print(f"Computational efficiency: {performance['efficiency_score']:.2f}")
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
 
 # Import core diagnostic functions
 from tbr.core.diagnostics import (
+    GoodnessOfFitMetrics,
     calculate_goodness_of_fit,
     calculate_residuals,
     calculate_standardized_residuals,
@@ -73,13 +74,26 @@ from tbr.core.diagnostics import (
 # Import validation utilities
 from tbr.utils.validation import validate_required_columns
 
+_GOODNESS_OF_FIT_KEYS = frozenset(GoodnessOfFitMetrics.__annotations__)
+
+
+def _validate_goodness_of_fit_metrics(
+    goodness_of_fit: Mapping[str, object],
+) -> GoodnessOfFitMetrics:
+    """Validate the internal goodness-of-fit schema before exposing results."""
+    missing_keys = _GOODNESS_OF_FIT_KEYS - goodness_of_fit.keys()
+    if missing_keys:
+        missing = ", ".join(sorted(missing_keys))
+        raise KeyError(f"Missing goodness-of-fit metric(s): {missing}")
+    return cast(GoodnessOfFitMetrics, goodness_of_fit)
+
 
 def validate_tbr_model(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
     learning_data: Optional[pd.DataFrame] = None,
     alpha: float = 0.05,
-) -> Dict[str, Union[bool, List[str], Dict]]:
+) -> Dict[str, Any]:
     """
     Comprehensive TBR model validation with assumption checking and diagnostics.
 
@@ -236,27 +250,33 @@ def validate_tbr_model(
         assumption_tests = {"error": str(e)}
 
     # 2. Goodness of Fit Analysis
+    goodness_of_fit: GoodnessOfFitMetrics
     try:
-        goodness_of_fit = calculate_goodness_of_fit(
-            learning_data, model_params, "x", "y"
+        goodness_of_fit = _validate_goodness_of_fit_metrics(
+            calculate_goodness_of_fit(learning_data, model_params, "x", "y")
         )
 
         if goodness_of_fit["r_squared"] < 0.5:
             warnings_list.append(
                 f"Low R² ({goodness_of_fit['r_squared']:.3f}) - model explains little variance"
             )
-        if goodness_of_fit["f_statistic_p_value"] > alpha:
+        if goodness_of_fit["f_p_value"] > alpha:
             warnings_list.append(
                 "F-statistic not significant - overall model may not be meaningful"
             )
 
-    except Exception as e:
+    except (
+        ValueError,
+        FloatingPointError,
+        ZeroDivisionError,
+        np.linalg.LinAlgError,
+    ) as e:
         warnings_list.append(f"Goodness of fit calculation failed: {str(e)}")
         goodness_of_fit = {
             "r_squared": 0.0,
             "adj_r_squared": 0.0,
             "f_statistic": 0.0,
-            "f_statistic_p_value": 1.0,
+            "f_p_value": 1.0,
             "mse": 0.0,
             "rmse": 0.0,
         }
@@ -666,13 +686,15 @@ def assess_tbr_performance(
     model_complexity = {
         "degrees_freedom": int(summary_row["t_dist_df"]),
         "sigma": float(summary_row["sigma"]),
-        "r_squared_proxy": 1.0
-        - (
-            float(summary_row["sigma"]) ** 2
-            / np.var(tbr_df[tbr_df["period"] == 0]["y"])
-        )
-        if learning_observations > 0
-        else 0.0,
+        "r_squared_proxy": (
+            1.0
+            - (
+                float(summary_row["sigma"]) ** 2
+                / np.var(tbr_df[tbr_df["period"] == 0]["y"])
+            )
+            if learning_observations > 0
+            else 0.0
+        ),
     }
 
     # Efficiency score (composite metric)
@@ -709,18 +731,24 @@ def assess_tbr_performance(
         "efficiency_score": float(efficiency_score),
         "performance_summary": {
             "data_quality": "Good" if learning_observations >= 20 else "Limited",
-            "prediction_quality": "Good"
-            if prediction_metrics.get("mape", 100) < 10
-            else "Moderate"
-            if prediction_metrics.get("mape", 100) < 25
-            else "Poor",
-            "overall_performance": "Excellent"
-            if efficiency_score > 0.8
-            else "Good"
-            if efficiency_score > 0.6
-            else "Moderate"
-            if efficiency_score > 0.4
-            else "Poor",
+            "prediction_quality": (
+                "Good"
+                if prediction_metrics.get("mape", 100) < 10
+                else "Moderate"
+                if prediction_metrics.get("mape", 100) < 25
+                else "Poor"
+            ),
+            "overall_performance": (
+                "Excellent"
+                if efficiency_score > 0.8
+                else (
+                    "Good"
+                    if efficiency_score > 0.6
+                    else "Moderate"
+                    if efficiency_score > 0.4
+                    else "Poor"
+                )
+            ),
         },
     }
 

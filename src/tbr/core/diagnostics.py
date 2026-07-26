@@ -80,10 +80,21 @@ class IndependenceTestResult(TypedDict):
     test_name: str
 
 
+class GoodnessOfFitMetrics(TypedDict):
+    """Goodness-of-fit metrics for a fitted TBR regression model."""
+
+    r_squared: float
+    adj_r_squared: float
+    f_statistic: float
+    f_p_value: float
+    mse: float
+    rmse: float
+
+
 class DiagnosticSummary(TypedDict):
     """Comprehensive diagnostic summary result."""
 
-    goodness_of_fit: Dict[str, float]
+    goodness_of_fit: GoodnessOfFitMetrics
     information_criteria: Dict[str, float]
     normality_test: NormalityTestResult
     homoscedasticity_test: HomoscedasticityTestResult
@@ -102,6 +113,7 @@ __all__ = [
     "check_normality",
     "check_homoscedasticity",
     "check_independence",
+    "GoodnessOfFitMetrics",
     "create_diagnostic_summary",
     "validate_model_assumptions",
 ]
@@ -286,7 +298,7 @@ def calculate_goodness_of_fit(
     model_params: Dict[str, float],
     control_col: str,
     test_col: str,
-) -> Dict[str, float]:
+) -> GoodnessOfFitMetrics:
     """
     Calculate comprehensive goodness-of-fit metrics for TBR regression model.
 
