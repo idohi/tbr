@@ -17,24 +17,34 @@ Examples
 --------
 >>> import pandas as pd
 >>> import numpy as np
->>> from tbr.core.diagnostics import calculate_goodness_of_fit, test_normality
+>>> from tbr.core.diagnostics import (
+...     calculate_goodness_of_fit,
+...     calculate_information_criteria,
+...     calculate_residuals,
+...     check_normality,
+... )
 >>> from tbr.core.regression import fit_regression_model
 >>>
 >>> # Fit regression model
+>>> rng = np.random.default_rng(0)
+>>> control = rng.normal(1000, 50, 30)
 >>> learning_data = pd.DataFrame({
-...     'control': np.random.normal(1000, 50, 30),
-...     'test': np.random.normal(1020, 55, 30)
+...     'control': control,
+...     'test': 1.02 * control + rng.normal(0, 10, 30)
 ... })
 >>> model_params = fit_regression_model(learning_data, 'control', 'test')
 >>>
 >>> # Calculate goodness-of-fit metrics
 >>> gof_metrics = calculate_goodness_of_fit(learning_data, model_params, 'control', 'test')
 >>> print(f"R-squared: {gof_metrics['r_squared']:.3f}")
->>> print(f"AIC: {gof_metrics['aic']:.2f}")
 >>>
->>> # Test normality of residuals
+>>> # Information criteria are computed separately
+>>> criteria = calculate_information_criteria(learning_data, model_params, 'control', 'test')
+>>> print(f"AIC: {criteria['aic']:.2f}")
+>>>
+>>> # Check normality of residuals
 >>> residuals = calculate_residuals(learning_data, model_params, 'control', 'test')
->>> normality_result = test_normality(residuals)
+>>> normality_result = check_normality(residuals)
 >>> print(f"Normality p-value: {normality_result['p_value']:.4f}")
 
 Notes
@@ -218,7 +228,16 @@ def calculate_standardized_residuals(
 
     Examples
     --------
-    >>> # Using same data as calculate_residuals example
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> std_residuals = calculate_standardized_residuals(data, model_params, 'control', 'test')
     >>> print(f"Std deviation of standardized residuals: {np.std(std_residuals):.3f}")
     """
@@ -264,7 +283,16 @@ def calculate_studentized_residuals(
 
     Examples
     --------
-    >>> # Using same data as previous examples
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> student_residuals = calculate_studentized_residuals(data, model_params, 'control', 'test')
     >>> print(f"Max absolute studentized residual: {np.max(np.abs(student_residuals)):.3f}")
     """
@@ -329,6 +357,16 @@ def calculate_goodness_of_fit(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> gof = calculate_goodness_of_fit(data, model_params, 'control', 'test')
     >>> print(f"Model explains {gof['r_squared']*100:.1f}% of variance")
     >>> if gof['f_p_value'] < 0.05:
@@ -418,6 +456,16 @@ def calculate_information_criteria(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> ic = calculate_information_criteria(data, model_params, 'control', 'test')
     >>> print(f"AIC: {ic['aic']:.2f}, BIC: {ic['bic']:.2f}")
     """
@@ -477,8 +525,10 @@ def check_normality(residuals: np.ndarray) -> NormalityTestResult:
 
     Examples
     --------
-    >>> residuals = np.random.normal(0, 1, 50)  # Normal residuals
-    >>> result = test_normality(residuals)
+    >>> import numpy as np
+    >>> rng = np.random.default_rng(0)
+    >>> residuals = rng.normal(0, 1, 50)  # Normal residuals
+    >>> result = check_normality(residuals)
     >>> print(f"Normality test p-value: {result['p_value']:.4f}")
     >>> print(f"Residuals are normal: {result['is_normal']}")
     """
@@ -535,7 +585,17 @@ def check_homoscedasticity(
 
     Examples
     --------
-    >>> result = test_homoscedasticity(data, model_params, 'control', 'test')
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
+    >>> result = check_homoscedasticity(data, model_params, 'control', 'test')
     >>> print(f"Homoscedasticity p-value: {result['p_value']:.4f}")
     >>> if not result['is_homoscedastic']:
     ...     print("Warning: Heteroscedasticity detected")
@@ -602,8 +662,10 @@ def check_independence(residuals: np.ndarray) -> IndependenceTestResult:
 
     Examples
     --------
-    >>> # Residuals should be in time order for this test
-    >>> result = test_independence(residuals)
+    >>> import numpy as np
+    >>> rng = np.random.default_rng(0)
+    >>> residuals = rng.normal(0, 1, 50)  # Residuals must be in time order
+    >>> result = check_independence(residuals)
     >>> print(f"Durbin-Watson statistic: {result['statistic']:.3f}")
     >>> print(f"Interpretation: {result['interpretation']}")
     """
@@ -671,6 +733,16 @@ def create_diagnostic_summary(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> summary = create_diagnostic_summary(data, model_params, 'control', 'test')
     >>> print(f"Model R²: {summary['goodness_of_fit']['r_squared']:.3f}")
     >>> print(f"Overall valid: {summary['overall_validity']}")
@@ -763,10 +835,20 @@ def validate_model_assumptions(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30)
+    ... })
+    >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> validation = validate_model_assumptions(data, model_params, 'control', 'test')
     >>> if validation['all_assumptions_valid']:
     ...     print("All regression assumptions satisfied")
-    >>> else:
+    ... else:
     ...     print("Some assumptions violated:", validation['validation_summary'])
     """
     # Calculate residuals

@@ -336,9 +336,11 @@ def calculate_prediction_variance(
     --------
     >>> import numpy as np
     >>> # First calculate model variances
+    >>> x_vals = np.array([100, 110, 120])
+    >>> sum_sq_dev = calculate_sum_x_squared_deviations(x_vals)
     >>> model_vars = calculate_model_variance(
-    ...     np.array([100, 110, 120]), x_mean=105, sigma=10,
-    ...     n_pretest=30, var_beta=0.001
+    ...     x_vals, pretest_x_mean=110, sigma=10, n_pretest=30,
+    ...     pretest_sum_x_squared_deviations=sum_sq_dev
     ... )
     >>> # Then add residual variance
     >>> pred_vars = calculate_prediction_variance(model_vars, sigma=10)

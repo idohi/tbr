@@ -14,29 +14,46 @@ Examples
 --------
 Export functional API results to JSON:
 
+>>> import numpy as np
+>>> import pandas as pd
 >>> from tbr.functional import perform_tbr_analysis
 >>> from tbr.utils.export import export_to_json, export_to_csv
->>> results = perform_tbr_analysis(data, ...)
+>>>
+>>> rng = np.random.default_rng(0)
+>>> control = rng.normal(1000, 50, size=44)
+>>> data = pd.DataFrame({
+...     'date': pd.date_range('2023-01-01', periods=44),
+...     'control': control,
+...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+... })
+>>> boundaries = dict(
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-01-31'),
+...     test_end=pd.Timestamp('2023-02-14'),
+... )
+>>> results = perform_tbr_analysis(
+...     data, 'date', 'control', 'test', level=0.80, threshold=0.0, **boundaries
+... )
 >>>
 >>> # Export summary to JSON
->>> export_to_json(results.summary(), 'summary.json')
+>>> export_to_json(results.summary(), 'summary.json')  # doctest: +SKIP
 >>>
 >>> # Export full TBR dataframe to CSV
->>> export_to_csv(results.tbr_dataframe(), 'tbr_results.csv')
+>>> export_to_csv(results.tbr_dataframe(), 'tbr_results.csv')  # doctest: +SKIP
 
 Export OOP API results:
 
 >>> from tbr import TBRAnalysis
->>> model = TBRAnalysis()
->>> model.fit(data, ...)
+>>> model = TBRAnalysis(level=0.80, threshold=0.0)
+>>> model.fit(data, 'date', 'control', 'test', **boundaries)
 >>>
 >>> # Export summary result
 >>> summary = model.summarize()
->>> export_to_json(summary, 'summary.json')
+>>> export_to_json(summary, 'summary.json')  # doctest: +SKIP
 >>>
 >>> # Export predictions
 >>> predictions = model.predict()
->>> export_to_csv(predictions.predictions, 'predictions.csv')
+>>> export_to_csv(predictions.predictions, 'predictions.csv')  # doctest: +SKIP
 """
 
 import json
@@ -159,14 +176,28 @@ def export_to_json(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
     >>> from tbr import TBRAnalysis
-    >>> model = TBRAnalysis()
-    >>> model.fit(data, ...)
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame({
+    ...     'date': pd.date_range('2023-01-01', periods=44),
+    ...     'control': control,
+    ...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+    ... })
+    >>> model = TBRAnalysis(level=0.80, threshold=0.0)
+    >>> model.fit(
+    ...     data, 'date', 'control', 'test',
+    ...     pretest_start=pd.Timestamp('2023-01-01'),
+    ...     test_start=pd.Timestamp('2023-01-31'),
+    ...     test_end=pd.Timestamp('2023-02-14'),
+    ... )
     >>> summary = model.summarize()
-    >>> export_to_json(summary, 'summary.json')
+    >>> export_to_json(summary, 'summary.json')  # doctest: +SKIP
 
     >>> # Export with compact formatting
-    >>> export_to_json(summary, 'summary_compact.json', indent=None)
+    >>> export_to_json(summary, 'summary_compact.json', indent=None)  # doctest: +SKIP
 
     Notes
     -----
@@ -233,20 +264,34 @@ def export_to_csv(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
     >>> from tbr import TBRAnalysis
-    >>> model = TBRAnalysis()
-    >>> model.fit(data, ...)
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame({
+    ...     'date': pd.date_range('2023-01-01', periods=44),
+    ...     'control': control,
+    ...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+    ... })
+    >>> model = TBRAnalysis(level=0.80, threshold=0.0)
+    >>> model.fit(
+    ...     data, 'date', 'control', 'test',
+    ...     pretest_start=pd.Timestamp('2023-01-01'),
+    ...     test_start=pd.Timestamp('2023-01-31'),
+    ...     test_end=pd.Timestamp('2023-02-14'),
+    ... )
     >>>
     >>> # Export summary as CSV
     >>> summary = model.summarize()
-    >>> export_to_csv(summary, 'summary.csv')
+    >>> export_to_csv(summary, 'summary.csv')  # doctest: +SKIP
     >>>
     >>> # Export predictions
     >>> predictions = model.predict()
-    >>> export_to_csv(predictions.predictions, 'predictions.csv', index=False)
+    >>> export_to_csv(predictions.predictions, 'predictions.csv', index=False)  # doctest: +SKIP
 
     >>> # Export with custom separator
-    >>> export_to_csv(summary, 'summary.tsv', sep='\\t')
+    >>> export_to_csv(summary, 'summary.tsv', sep='\\t')  # doctest: +SKIP
 
     Notes
     -----
@@ -293,8 +338,8 @@ def load_json(filepath: Union[str, Path]) -> Dict[str, Any]:
 
     Examples
     --------
-    >>> data = load_json('summary.json')
-    >>> if 'type' in data:
+    >>> data = load_json('summary.json')  # doctest: +SKIP
+    >>> if 'type' in data:  # doctest: +SKIP
     ...     print(f"Object type: {data['type']}")
     ...     content = data['data']
     ... else:

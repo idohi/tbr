@@ -84,7 +84,10 @@ def validate_required_columns(
     >>> import pandas as pd
     >>> df = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
     >>> validate_required_columns(df, ['a', 'b'], 'test_data')  # No error
-    >>> validate_required_columns(df, ['a', 'c'], 'test_data')  # Raises ValueError
+    >>> validate_required_columns(df, ['a', 'c'], 'test_data')
+    Traceback (most recent call last):
+        ...
+    ValueError: Missing required columns in test_data: ['c']
     """
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
@@ -116,7 +119,10 @@ def validate_no_nulls(df: pd.DataFrame, cols: List[str], df_name: str) -> None:
     >>> df = pd.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
     >>> validate_no_nulls(df, ['a', 'b'], 'clean_data')  # No error
     >>> df_with_nulls = pd.DataFrame({'a': [1, np.nan], 'b': [3, 4]})
-    >>> validate_no_nulls(df_with_nulls, ['a'], 'dirty_data')  # Raises ValueError
+    >>> validate_no_nulls(df_with_nulls, ['a'], 'dirty_data')
+    Traceback (most recent call last):
+        ...
+    ValueError: Null values found in dirty_data: {'a': 1}
     """
     null_counts = df[cols].isnull().sum()
     if null_counts.any():
@@ -158,7 +164,10 @@ def validate_metric_columns(
     ...     'control': ['low', 'medium', 'high'],
     ...     'test': [105, 115, 125]
     ... })
-    >>> validate_metric_columns(df_bad, 'control', 'test')  # Raises ValueError
+    >>> validate_metric_columns(df_bad, 'control', 'test')
+    Traceback (most recent call last):
+        ...
+    ValueError: Control column 'control' must be numeric
     """
     if not pd.api.types.is_numeric_dtype(data[control_col]):
         raise ValueError(f"Control column '{control_col}' must be numeric")
@@ -439,7 +448,10 @@ def validate_period_data(
     >>> validate_period_data(pretest, test)  # No error
 
     >>> empty_df = pd.DataFrame()
-    >>> validate_period_data(empty_df, test)  # Raises ValueError
+    >>> validate_period_data(empty_df, test)
+    Traceback (most recent call last):
+        ...
+    ValueError: No pretest data found - check pretest period dates
     """
     if pretest_data.empty:
         raise ValueError("No pretest data found - check pretest period dates")
@@ -483,7 +495,10 @@ def validate_learning_set(
 
     >>> # Insufficient data
     >>> small_df = pd.DataFrame({'control': [100], 'test': [105]})
-    >>> validate_learning_set(small_df, 'control', 'test')  # Raises ValueError
+    >>> validate_learning_set(small_df, 'control', 'test')
+    Traceback (most recent call last):
+        ...
+    ValueError: Insufficient learning data: 1 observations. Need at least 3.
     """
     # Check minimum data requirements for regression
     if len(learning_df) < 3:
@@ -530,8 +545,14 @@ def validate_probability_level(
     --------
     >>> validate_probability_level(0.80)  # No error
     >>> validate_probability_level(0.95, "probability level")  # No error
-    >>> validate_probability_level(1.2)  # Raises ValueError
-    >>> validate_probability_level(-0.1)  # Raises ValueError
+    >>> validate_probability_level(1.2)
+    Traceback (most recent call last):
+        ...
+    ValueError: probability level must be between 0 and 1 (exclusive), got 1.2
+    >>> validate_probability_level(-0.1)
+    Traceback (most recent call last):
+        ...
+    ValueError: probability level must be between 0 and 1 (exclusive), got -0.1
 
     Notes
     -----
@@ -566,8 +587,14 @@ def validate_threshold_parameter(
     --------
     >>> validate_threshold_parameter(0.0)  # No error
     >>> validate_threshold_parameter(5.5, "effect threshold")  # No error
-    >>> validate_threshold_parameter(float('inf'))  # Raises ValueError
-    >>> validate_threshold_parameter(float('nan'))  # Raises ValueError
+    >>> validate_threshold_parameter(float('inf'))
+    Traceback (most recent call last):
+        ...
+    ValueError: threshold must be finite, got inf
+    >>> validate_threshold_parameter(float('nan'))
+    Traceback (most recent call last):
+        ...
+    ValueError: threshold must be finite, got nan
     """
     if not np.isfinite(threshold):
         raise ValueError(f"{param_name} must be finite, got {threshold}")
@@ -593,8 +620,14 @@ def validate_degrees_freedom(df: int, param_name: str = "degrees of freedom") ->
     --------
     >>> validate_degrees_freedom(10)  # No error
     >>> validate_degrees_freedom(1, "residual df")  # No error
-    >>> validate_degrees_freedom(0)  # Raises ValueError
-    >>> validate_degrees_freedom(-5)  # Raises ValueError
+    >>> validate_degrees_freedom(0)
+    Traceback (most recent call last):
+        ...
+    ValueError: degrees of freedom must be positive, got 0
+    >>> validate_degrees_freedom(-5)
+    Traceback (most recent call last):
+        ...
+    ValueError: degrees of freedom must be positive, got -5
     """
     if df <= 0:
         raise ValueError(f"{param_name} must be positive, got {df}")
@@ -618,8 +651,14 @@ def validate_variance_parameters(**variances: float) -> None:
     --------
     >>> validate_variance_parameters(var_alpha=0.01, var_beta=0.005)  # No error
     >>> validate_variance_parameters(sigma_squared=100.0)  # No error
-    >>> validate_variance_parameters(var_alpha=-0.01)  # Raises ValueError
-    >>> validate_variance_parameters(var_beta=float('nan'))  # Raises ValueError
+    >>> validate_variance_parameters(var_alpha=-0.01)
+    Traceback (most recent call last):
+        ...
+    ValueError: var_alpha must be non-negative, got -0.01
+    >>> validate_variance_parameters(var_beta=float('nan'))
+    Traceback (most recent call last):
+        ...
+    ValueError: var_beta must be finite, got nan
     """
     for param_name, variance in variances.items():
         if not np.isfinite(variance):
@@ -655,7 +694,10 @@ def validate_dataframe_not_empty(df: pd.DataFrame, df_name: str) -> None:
     >>> df = pd.DataFrame({'a': [1, 2, 3]})
     >>> validate_dataframe_not_empty(df, 'test_data')  # No error
     >>> empty_df = pd.DataFrame()
-    >>> validate_dataframe_not_empty(empty_df, 'empty_data')  # Raises ValueError
+    >>> validate_dataframe_not_empty(empty_df, 'empty_data')
+    Traceback (most recent call last):
+        ...
+    ValueError: empty_data cannot be empty
     """
     if df.empty:
         raise ValueError(f"{df_name} cannot be empty")
@@ -685,7 +727,10 @@ def validate_column_types(df: pd.DataFrame, column_types: Dict[str, str]) -> Non
     ...     'value': [1.0, 2.0, 3.0]
     ... })
     >>> validate_column_types(df, {'value': 'float64'})  # No error
-    >>> validate_column_types(df, {'value': 'int64'})  # May raise ValueError
+    >>> validate_column_types(df, {'value': 'int64'})
+    Traceback (most recent call last):
+        ...
+    ValueError: Column 'value' has dtype 'float64', expected 'int64'
     """
     for col, expected_type in column_types.items():
         if col not in df.columns:
@@ -875,7 +920,9 @@ def validate_no_reserved_column_conflicts(
     ...     'control': [100, 110, 120],
     ...     'pred': [102, 112, 122]  # 'pred' is reserved!
     ... })
-    >>> validate_no_reserved_column_conflicts(data_conflict, 'date', 'control', 'pred')
+    >>> validate_no_reserved_column_conflicts(
+    ...     data_conflict, 'date', 'control', 'pred'
+    ... )  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
     ValueError: Column name(s) {'pred'} are reserved for TBR output...

@@ -524,13 +524,29 @@ def validate_subinterval_parameters(
     --------
     Validate parameters before analysis:
 
-    >>> try:
-    ...     validate_subinterval_parameters(
-    ...         tbr_results, tbr_summary, start_day=5, end_day=10, ci_level=0.80
-    ...     )
-    ...     print("Parameters are valid")
-    ... except ValueError as e:
-    ...     print(f"Validation error: {e}")
+    >>> import pandas as pd
+    >>> from tbr.analysis.subinterval import validate_subinterval_parameters
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
+    ... )
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> validate_subinterval_parameters(
+    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ... )  # No error
+
+    An out-of-range day raises ``ValueError``:
+
+    >>> validate_subinterval_parameters(
+    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    ... )  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    ValueError: ...
     """
     # Validate DataFrame types
     if not isinstance(tbr_df, pd.DataFrame):

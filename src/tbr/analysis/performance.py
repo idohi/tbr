@@ -17,7 +17,17 @@ The module includes:
 
 Examples
 --------
+>>> import numpy as np
+>>> import pandas as pd
 >>> from tbr.analysis.performance import TBRPerformanceAnalyzer
+>>>
+>>> rng = np.random.default_rng(0)
+>>> control = rng.normal(1000, 50, size=44)
+>>> data = pd.DataFrame({
+...     'date': pd.date_range('2023-01-01', periods=44),
+...     'control': control,
+...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+... })
 >>>
 >>> # Analyze TBR workflow performance
 >>> analyzer = TBRPerformanceAnalyzer()
@@ -26,14 +36,15 @@ Examples
 ...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
-...     pretest_start='2023-01-01',
-...     test_start='2023-02-15',
-...     test_end='2023-03-01'
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-01-31'),
+...     test_end=pd.Timestamp('2023-02-14'),
 ... )
 >>>
 >>> # Get optimization recommendations
 >>> recommendations = analyzer.get_optimization_recommendations(performance_report)
->>> print(recommendations.summary())
+>>> for action in recommendations['priority_actions']:
+...     print(action)
 """
 
 from typing import Any, Dict, List, Optional, Union
@@ -59,12 +70,24 @@ class TBRPerformanceAnalyzer:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.analysis.performance import TBRPerformanceAnalyzer
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame({
+    ...     'date': pd.date_range('2023-01-01', periods=44),
+    ...     'control': control,
+    ...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+    ... })
     >>> analyzer = TBRPerformanceAnalyzer()
     >>>
     >>> # Analyze complete TBR workflow performance
     >>> report = analyzer.analyze_tbr_performance(
     ...     data=data, time_col='date', control_col='control', test_col='test',
-    ...     pretest_start='2023-01-01', test_start='2023-02-15', test_end='2023-03-01'
+    ...     pretest_start=pd.Timestamp('2023-01-01'),
+    ...     test_start=pd.Timestamp('2023-01-31'),
+    ...     test_end=pd.Timestamp('2023-02-14'),
     ... )
     >>>
     >>> # Get detailed recommendations
