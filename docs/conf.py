@@ -72,6 +72,10 @@ autodoc_default_options = {
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
 
+# Keep `# doctest: +SKIP` markers out of the rendered examples (Sphinx default,
+# pinned explicitly because the published examples rely on it).
+trim_doctest_flags = True
+
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_use_param = True

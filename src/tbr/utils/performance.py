@@ -16,21 +16,41 @@ The module includes:
 
 Examples
 --------
->>> from tbr.core.performance import PerformanceProfiler, EfficiencyMetrics
+>>> import numpy as np
+>>> import pandas as pd
+>>> from tbr.functional import perform_tbr_analysis
+>>> from tbr.utils.performance import PerformanceProfiler, EfficiencyMetrics
+>>>
+>>> rng = np.random.default_rng(0)
+>>> control = rng.normal(1000, 50, size=44)
+>>> data = pd.DataFrame({
+...     'date': pd.date_range('2023-01-01', periods=44),
+...     'control': control,
+...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+... })
 >>>
 >>> # Profile a TBR analysis workflow
 >>> profiler = PerformanceProfiler()
 >>> with profiler.profile_context("tbr_analysis"):
-...     # Run TBR analysis
-...     results = perform_tbr_analysis(data, ...)
+...     results = perform_tbr_analysis(
+...         data, 'date', 'control', 'test',
+...         pretest_start=pd.Timestamp('2023-01-01'),
+...         test_start=pd.Timestamp('2023-01-31'),
+...         test_end=pd.Timestamp('2023-02-14'),
+...         level=0.80, threshold=0.0,
+...     )
 >>>
 >>> # Get performance metrics
 >>> metrics = profiler.get_metrics()
->>> print(f"Analysis took {metrics['tbr_analysis']['duration']:.3f} seconds")
+>>> print(f"Analysis took {metrics['tbr_analysis'].duration:.3f} seconds")
 >>>
 >>> # Analyze computational efficiency
 >>> efficiency = EfficiencyMetrics()
->>> report = efficiency.analyze_workflow_efficiency(data, results)
+>>> report = efficiency.analyze_workflow_efficiency(
+...     data_size=len(data),
+...     operation_metrics=metrics,
+...     operation_name="tbr_analysis",
+... )
 >>> print(report.summary())
 """
 
@@ -108,16 +128,30 @@ class PerformanceProfiler:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> from tbr.utils.performance import PerformanceProfiler
+    >>>
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 30)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 30),
+    ... })
     >>> profiler = PerformanceProfiler()
     >>>
     >>> # Context manager usage
     >>> with profiler.profile_context("regression_fitting"):
-    ...     model = fit_regression_model(data, "control", "test")
+    ...     model_params = fit_regression_model(data, "control", "test")
     >>>
     >>> # Decorator usage
     >>> @profiler.profile_function
-    >>> def my_analysis_function(data):
-    ...     return perform_tbr_analysis(data, ...)
+    ... def fit_twice(df):
+    ...     fit_regression_model(df, "control", "test")
+    ...     return fit_regression_model(df, "control", "test")
+    >>>
+    >>> params = fit_twice(data)
     >>>
     >>> # Get detailed metrics
     >>> metrics = profiler.get_metrics()
@@ -401,18 +435,38 @@ class EfficiencyMetrics:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.core.regression import fit_regression_model
+    >>> from tbr.utils.performance import EfficiencyMetrics, PerformanceProfiler
+    >>>
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, 500)
+    >>> data = pd.DataFrame({
+    ...     'control': control,
+    ...     'test': 1.02 * control + rng.normal(0, 10, 500),
+    ... })
+    >>> profiler = PerformanceProfiler()
+    >>> with profiler.profile_context("regression_fitting"):
+    ...     model_params = fit_regression_model(data, "control", "test")
+    >>>
     >>> efficiency = EfficiencyMetrics()
     >>>
     >>> # Analyze workflow efficiency
     >>> report = efficiency.analyze_workflow_efficiency(
-    ...     data_size=10000,
-    ...     operation_metrics=profiler.get_metrics()
+    ...     data_size=len(data),
+    ...     operation_metrics=profiler.get_metrics(),
+    ...     operation_name="regression_fitting",
     ... )
+    >>> print(report.summary())
     >>>
-    >>> # Get scaling analysis
+    >>> # Get scaling analysis (test data of each size is generated internally,
+    >>> # so only the remaining arguments of the function are passed through)
     >>> scaling = efficiency.analyze_scaling_behavior(
     ...     function=fit_regression_model,
-    ...     data_sizes=[100, 500, 1000, 5000]
+    ...     data_sizes=[100, 200, 500],
+    ...     control_col="control",
+    ...     test_col="test",
     ... )
     """
 
@@ -842,11 +896,30 @@ class PerformanceMonitor:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional import perform_tbr_analysis
+    >>> from tbr.utils.performance import PerformanceMonitor
+    >>>
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame({
+    ...     'date': pd.date_range('2023-01-01', periods=44),
+    ...     'control': control,
+    ...     'test': 1.05 * control + rng.normal(0, 10, size=44),
+    ... })
+    >>>
     >>> monitor = PerformanceMonitor()
     >>> monitor.start_monitoring()
     >>>
     >>> # Run TBR analysis
-    >>> results = perform_tbr_analysis(data, ...)
+    >>> results = perform_tbr_analysis(
+    ...     data, 'date', 'control', 'test',
+    ...     pretest_start=pd.Timestamp('2023-01-01'),
+    ...     test_start=pd.Timestamp('2023-01-31'),
+    ...     test_end=pd.Timestamp('2023-02-14'),
+    ...     level=0.80, threshold=0.0,
+    ... )
     >>>
     >>> monitor.stop_monitoring()
     >>> report = monitor.get_monitoring_report()

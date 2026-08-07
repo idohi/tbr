@@ -25,14 +25,15 @@ Examples
 >>> from tbr.functional.tbr_functions import perform_tbr_analysis
 >>>
 >>> # Create time series data (control vs test groups)
+>>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
 ...     'date': pd.date_range('2023-01-01', periods=90),
-...     'control': np.random.normal(1000, 50, 90),  # Control group metric
-...     'test': np.random.normal(1020, 55, 90)      # Test group metric
+...     'control': rng.normal(1000, 50, 90),  # Control group metric
+...     'test': rng.normal(1020, 55, 90)      # Test group metric
 ... })
 >>>
->>> # Analyze treatment effect
->>> results, summaries = perform_tbr_analysis(
+>>> # Analyze treatment effect (returns a single TBRResults object)
+>>> results = perform_tbr_analysis(
 ...     data=data,
 ...     time_col='date',
 ...     control_col='control',
@@ -45,9 +46,8 @@ Examples
 ... )
 >>>
 >>> # Get treatment effect and credible interval
->>> final_summary = summaries.iloc[-1]
->>> print(f"Effect: {final_summary['estimate']:.2f}")
->>> print(f"80% CI: [{final_summary['lower']:.2f}, {final_summary['upper']:.2f}]")
+>>> print(f"Effect: {results.estimate:.2f}")
+>>> print(f"80% CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
 
 Notes
 -----
@@ -336,9 +336,11 @@ def calculate_prediction_variance(
     --------
     >>> import numpy as np
     >>> # First calculate model variances
+    >>> x_vals = np.array([100, 110, 120])
+    >>> sum_sq_dev = calculate_sum_x_squared_deviations(x_vals)
     >>> model_vars = calculate_model_variance(
-    ...     np.array([100, 110, 120]), x_mean=105, sigma=10,
-    ...     n_pretest=30, var_beta=0.001
+    ...     x_vals, pretest_x_mean=110, sigma=10, n_pretest=30,
+    ...     pretest_sum_x_squared_deviations=sum_sq_dev
     ... )
     >>> # Then add residual variance
     >>> pred_vars = calculate_prediction_variance(model_vars, sigma=10)
@@ -534,8 +536,30 @@ def compute_interval_estimate_and_ci(
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr.functional.tbr_functions import perform_tbr_analysis
+    >>> from tbr.functional.tbr_functions import compute_interval_estimate_and_ci
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data=data, time_col="date", control_col="control", test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.90, threshold=0.0,
+    ... )
+    >>> tbr_df = results.tbr_dataframe()
+    >>> tbr_summary = results.summary()
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summaries, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -612,11 +636,15 @@ def create_tbr_summary(
 
     Examples
     --------
+    >>> import pandas as pd
+    >>> from tbr.functional.tbr_functions import create_tbr_summary
+    >>> tbr_dataframe = pd.DataFrame(
+    ...     {"period": [1, 1], "cumdif": [5.0, 8.0], "cumsd": [2.0, 3.0]}
+    ... )
     >>> summary = create_tbr_summary(
-    ...     tbr_results, alpha=50, beta=0.95, sigma=25,
+    ...     tbr_dataframe, alpha=50, beta=0.95, sigma=25,
     ...     var_alpha=100, var_beta=0.001, cov_alpha_beta=-0.05,
-    ...     degrees_freedom=43, level=0.80, threshold=0.0,
-    ...     model_name='experiment_analysis'
+    ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
     >>> print(f"Effect estimate: {summary['estimate'].iloc[0]:.2f}")
     """
@@ -697,8 +725,13 @@ def create_incremental_tbr_summaries(
 
     Examples
     --------
+    >>> import pandas as pd
+    >>> from tbr.functional.tbr_functions import create_incremental_tbr_summaries
+    >>> tbr_dataframe = pd.DataFrame(
+    ...     {"period": [1, 1, 1], "cumdif": [5.0, 8.0, 11.0], "cumsd": [2.0, 3.0, 4.0]}
+    ... )
     >>> incremental_summaries = create_incremental_tbr_summaries(
-    ...     tbr_results, alpha=50, beta=0.95, sigma=25,
+    ...     tbr_dataframe, alpha=50, beta=0.95, sigma=25,
     ...     var_alpha=100, var_beta=0.001, cov_alpha_beta=-0.05,
     ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
@@ -782,8 +815,6 @@ def perform_tbr_analysis(
         Credibility level for credible intervals (e.g., 0.80 for 80% credible interval)
     threshold : float
         Threshold for probability calculation (typically 0.0 for positive effect testing)
-    test_end_inclusive : bool, default False
-        Whether to include test_end date in the analysis period
 
     Returns
     -------
@@ -805,6 +836,14 @@ def perform_tbr_analysis(
         If input validation fails, column names conflict with reserved names,
         or insufficient data for analysis
 
+    Notes
+    -----
+    This pipeline follows the methodology described in the
+    :doc:`mathematical methodology guide </mathematical_methodology>`: fit the
+    pretest-period regression model, generate counterfactual predictions for
+    the test period, estimate cumulative treatment effects, and compute
+    t-distribution credible intervals and posterior probabilities.
+
     Examples
     --------
     Basic usage with marketing campaign data:
@@ -813,11 +852,12 @@ def perform_tbr_analysis(
     >>> import numpy as np
     >>>
     >>> # Create sample time series data with datetime64[ns] (pandas native)
+    >>> rng = np.random.default_rng(42)
     >>> dates = pd.date_range('2023-01-01', periods=90)
     >>> data = pd.DataFrame({
     ...     'date': dates,
-    ...     'control': np.random.normal(1000, 50, 90),
-    ...     'test': np.random.normal(1020, 55, 90)
+    ...     'control': rng.normal(1000, 50, 90),
+    ...     'test': rng.normal(1020, 55, 90)
     ... })
     >>>
     >>> # Run TBR analysis - returns TBRResults object
@@ -853,15 +893,16 @@ def perform_tbr_analysis(
     >>>
     >>> # Get comprehensive TBR dataframe
     >>> tbr_df = results.tbr_dataframe()
-    >>> tbr_df.to_csv('tbr_results.csv', index=False)
+    >>> tbr_df.to_csv('tbr_results.csv', index=False)  # doctest: +SKIP
 
     Integer time example (hours since start):
 
     >>> # Integer time column example
+    >>> rng = np.random.default_rng(123)
     >>> hourly_data = pd.DataFrame({
     ...     'hour': range(1, 49),  # Hours 1-48
-    ...     'control': np.random.normal(500, 25, 48),
-    ...     'test': np.random.normal(520, 30, 48)
+    ...     'control': rng.normal(500, 25, 48),
+    ...     'test': rng.normal(520, 30, 48)
     ... })
     >>>
     >>> results = perform_tbr_analysis(
@@ -881,10 +922,11 @@ def perform_tbr_analysis(
     Medical trial example:
 
     >>> # Medical trial data with integer time (days since start)
+    >>> rng = np.random.default_rng(456)
     >>> medical_data = pd.DataFrame({
     ...     'day': range(1, 121),  # Days 1-120
-    ...     'control_recovery_rate': np.random.normal(0.75, 0.05, 120),
-    ...     'treatment_recovery_rate': np.random.normal(0.82, 0.06, 120)
+    ...     'control_recovery_rate': rng.normal(0.75, 0.05, 120),
+    ...     'treatment_recovery_rate': rng.normal(0.82, 0.06, 120)
     ... })
     >>>
     >>> results = perform_tbr_analysis(

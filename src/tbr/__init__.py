@@ -15,26 +15,31 @@ Features
 
 Quick Start
 -----------
+>>> import numpy as np
 >>> import pandas as pd
 >>> from tbr.functional import perform_tbr_analysis
 >>>
 >>> # Your time series data with columns: date, control, test
+>>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
 ...     'date': pd.date_range('2023-01-01', periods=100),
-...     'control': np.random.normal(100, 10, 100),
-...     'test': np.random.normal(105, 10, 100)
+...     'control': rng.normal(100, 10, 100),
+...     'test': rng.normal(105, 10, 100)
 ... })
 >>>
->>> # Perform TBR analysis
->>> tbr_df, summary_df = perform_tbr_analysis(
+>>> # Perform TBR analysis (returns a single TBRResults object)
+>>> results = perform_tbr_analysis(
 ...     data=data,
 ...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
-...     pretest_start='2023-01-01',
-...     test_start='2023-02-15',
-...     test_end='2023-04-10'
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-04-10'),
+...     level=0.90,
+...     threshold=0.0,
 ... )
+>>> print(f"Effect: {results.estimate:.2f}")
 
 See Also
 --------

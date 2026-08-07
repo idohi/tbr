@@ -21,19 +21,29 @@ validate_subinterval_parameters : Validate subinterval analysis parameters
 
 Examples
 --------
+>>> import pandas as pd
 >>> from tbr.analysis.subinterval import compute_interval_estimate_and_ci
->>> result = compute_interval_estimate_and_ci(
-...     tbr_results, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+>>> tbr_df = pd.DataFrame(
+...     {
+...         "period": [1, 1, 1],
+...         "y": [110.0, 115.0, 118.0],
+...         "pred": [105.0, 108.0, 112.0],
+...         "estsd": [2.0, 2.1, 2.2],
+...     }
 ... )
->>> print(f"Days 5-10 effect: {result['estimate']:.2f}")
+>>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+>>> result = compute_interval_estimate_and_ci(
+...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+... )
+>>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
 >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
 
 Analyze multiple subintervals:
 
 >>> from tbr.analysis.subinterval import analyze_multiple_subintervals
->>> intervals = [(1, 7), (8, 14), (1, 14)]  # Week 1, Week 2, Full period
+>>> intervals = [(1, 2), (2, 3), (1, 3)]
 >>> results = analyze_multiple_subintervals(
-...     tbr_results, tbr_summary, intervals, ci_level=0.80
+...     tbr_df, tbr_summary, intervals, ci_level=0.80
 ... )
 >>> for i, result in enumerate(results):
 ...     start, end = intervals[i]
@@ -44,7 +54,7 @@ Create comprehensive summary:
 
 >>> from tbr.analysis.subinterval import create_subinterval_summary
 >>> summary = create_subinterval_summary(
-...     tbr_results, tbr_summary, intervals=[(1, 7), (8, 14)], ci_level=0.80
+...     tbr_df, tbr_summary, intervals=[(1, 2), (2, 3)], ci_level=0.80
 ... )
 >>> print(summary[['interval', 'estimate', 'lower', 'upper', 'significant']])
 """
@@ -139,31 +149,45 @@ def compute_interval_estimate_and_ci(
     where y_i is the observed value and pred_i is the counterfactual prediction
     for day i within the subinterval.
 
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the section on subinterval analysis.
+
     Examples
     --------
-    Analyze effect for days 5-10 of test period:
+    Analyze effect for the first two days of a test period:
 
-    >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    >>> import pandas as pd
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
     ... )
-    >>> print(f"Days 5-10 effect: {result['estimate']:.2f}")
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> result = compute_interval_estimate_and_ci(
+    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ... )
+    >>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
     >>> print(f"Precision: ±{result['precision']:.2f}")
 
     Analyze single day effect:
 
-    >>> day_7_result = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=7, end_day=7, ci_level=0.95
+    >>> day_3_result = compute_interval_estimate_and_ci(
+    ...     tbr_df, tbr_summary, start_day=3, end_day=3, ci_level=0.95
     ... )
-    >>> print(f"Day 7 effect: {day_7_result['estimate']:.2f}")
+    >>> print(f"Day 3 effect: {day_3_result['estimate']:.2f}")
 
     Compare different credibility levels:
 
     >>> result_80 = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=1, end_day=14, ci_level=0.80
+    ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
     ... )
     >>> result_95 = compute_interval_estimate_and_ci(
-    ...     tbr_results, tbr_summary, start_day=1, end_day=14, ci_level=0.95
+    ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.95
     ... )
     >>> print(f"80% CI width: {result_80['upper'] - result_80['lower']:.2f}")
     >>> print(f"95% CI width: {result_95['upper'] - result_95['lower']:.2f}")
@@ -233,21 +257,31 @@ def analyze_multiple_subintervals(
 
     Examples
     --------
-    Compare weekly effects during a 2-week test:
+    Compare effects across multiple windows:
 
-    >>> intervals = [(1, 7), (8, 14)]  # Week 1, Week 2
+    >>> import pandas as pd
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
+    ... )
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> intervals = [(1, 2), (2, 3)]
     >>> results = analyze_multiple_subintervals(
-    ...     tbr_results, tbr_summary, intervals, ci_level=0.80
+    ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> for i, result in enumerate(results, 1):
-    ...     print(f"Week {i}: {result['estimate']:.2f} "
+    ...     print(f"Window {i}: {result['estimate']:.2f} "
     ...           f"[{result['lower']:.2f}, {result['upper']:.2f}]")
 
     Analyze overlapping intervals:
 
-    >>> intervals = [(1, 7), (4, 10), (7, 14)]  # Overlapping windows
+    >>> intervals = [(1, 2), (1, 3), (2, 3)]  # Overlapping windows
     >>> results = analyze_multiple_subintervals(
-    ...     tbr_results, tbr_summary, intervals, ci_level=0.90
+    ...     tbr_df, tbr_summary, intervals, ci_level=0.90
     ... )
     >>> for i, (start, end) in enumerate(intervals):
     ...     result = results[i]
@@ -255,9 +289,9 @@ def analyze_multiple_subintervals(
 
     Compare different interval lengths:
 
-    >>> intervals = [(1, 3), (1, 7), (1, 14)]  # 3-day, 1-week, 2-week
+    >>> intervals = [(1, 1), (1, 2), (1, 3)]
     >>> results = analyze_multiple_subintervals(
-    ...     tbr_results, tbr_summary, intervals
+    ...     tbr_df, tbr_summary, intervals
     ... )
     >>> for i, (start, end) in enumerate(intervals):
     ...     days = end - start + 1
@@ -367,18 +401,28 @@ def create_subinterval_summary(
 
     Examples
     --------
-    Create summary for weekly analysis:
+    Create a summary for multiple subintervals:
 
-    >>> intervals = [(1, 7), (8, 14), (1, 14)]
+    >>> import pandas as pd
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
+    ... )
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> intervals = [(1, 2), (2, 3), (1, 3)]
     >>> summary = create_subinterval_summary(
-    ...     tbr_results, tbr_summary, intervals, ci_level=0.80
+    ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> print(summary[['interval', 'estimate', 'significant']])
 
     Analyze with custom significance threshold:
 
     >>> summary = create_subinterval_summary(
-    ...     tbr_results, tbr_summary, intervals,
+    ...     tbr_df, tbr_summary, intervals,
     ...     significance_threshold=10.0  # Effect must be > 10
     ... )
     >>> significant_intervals = summary[summary['significant']]
@@ -387,7 +431,7 @@ def create_subinterval_summary(
     Compare average daily effects:
 
     >>> summary = create_subinterval_summary(
-    ...     tbr_results, tbr_summary, [(1, 3), (1, 7), (1, 14)]
+    ...     tbr_df, tbr_summary, [(1, 1), (1, 2), (1, 3)]
     ... )
     >>> print(summary[['interval', 'avg_daily_effect']].sort_values('avg_daily_effect'))
     """
@@ -480,13 +524,29 @@ def validate_subinterval_parameters(
     --------
     Validate parameters before analysis:
 
-    >>> try:
-    ...     validate_subinterval_parameters(
-    ...         tbr_results, tbr_summary, start_day=5, end_day=10, ci_level=0.80
-    ...     )
-    ...     print("Parameters are valid")
-    ... except ValueError as e:
-    ...     print(f"Validation error: {e}")
+    >>> import pandas as pd
+    >>> from tbr.analysis.subinterval import validate_subinterval_parameters
+    >>> tbr_df = pd.DataFrame(
+    ...     {
+    ...         "period": [1, 1, 1],
+    ...         "y": [110.0, 115.0, 118.0],
+    ...         "pred": [105.0, 108.0, 112.0],
+    ...         "estsd": [2.0, 2.1, 2.2],
+    ...     }
+    ... )
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> validate_subinterval_parameters(
+    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ... )  # No error
+
+    An out-of-range day raises ``ValueError``:
+
+    >>> validate_subinterval_parameters(
+    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    ... )  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    ValueError: ...
     """
     # Validate DataFrame types
     if not isinstance(tbr_df, pd.DataFrame):

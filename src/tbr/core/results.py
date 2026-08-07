@@ -21,18 +21,19 @@ Basic usage with functional API:
 >>> import pandas as pd
 >>> import numpy as np
 >>>
+>>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
 ...     'date': pd.date_range('2023-01-01', periods=90),
-...     'control': np.random.normal(1000, 50, 90),
-...     'test': np.random.normal(1020, 55, 90)
+...     'control': rng.normal(1000, 50, 90),
+...     'test': rng.normal(1020, 55, 90)
 ... })
 >>>
 >>> # Run analysis - returns TBRResults object
 >>> results = perform_tbr_analysis(
 ...     data, 'date', 'control', 'test',
-...     pretest_start='2023-01-01',
-...     test_start='2023-02-15',
-...     test_end='2023-03-01',
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-03-01'),
 ...     level=0.80, threshold=0.0
 ... )
 >>>
@@ -41,7 +42,6 @@ Basic usage with functional API:
 >>> print(f"CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
 >>>
 >>> # Access time series (all indexed by time)
->>> results.cumulative_effect.plot()
 >>> results.effects.head()
 >>>
 >>> # Get daily summary table
@@ -53,8 +53,16 @@ Basic usage with functional API:
 Object-oriented API:
 
 >>> from tbr import TBRAnalysis
->>> model = TBRAnalysis(level=0.80)
->>> model.fit(data, 'date', 'control', 'test', ...)
+>>> model = TBRAnalysis(level=0.80, threshold=0.0)
+>>> model.fit(
+...     data=data,
+...     time_col='date',
+...     control_col='control',
+...     test_col='test',
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-03-01'),
+... )
 >>>
 >>> # Access prediction results
 >>> predictions = model.predict()
@@ -69,7 +77,7 @@ Object-oriented API:
 >>>
 >>> # Access subinterval results
 >>> week1 = model.analyze_subinterval(1, 7)
->>> print(f"Week 1 effect: {week1.estimate:.2f} ± {week1.se:.2f}")
+>>> print(f"Week 1 effect: {week1.estimate:.2f} +/- {week1.se:.2f}")
 
 Notes
 -----
@@ -109,6 +117,28 @@ class TBRPredictionResult:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr import TBRAnalysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> model = TBRAnalysis(level=0.80)
+    >>> model.fit(
+    ...     data,
+    ...     "date",
+    ...     "control",
+    ...     "test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ... )
     >>> result = model.predict()
     >>> print(result.predictions.head())
     >>> print(f"Generated {result.n_predictions} predictions")
@@ -149,8 +179,8 @@ class TBRPredictionResult:
 
         Examples
         --------
-        >>> result = model.predict()
-        >>> result.to_json('predictions.json')
+        >>> result = model.predict()  # doctest: +SKIP
+        >>> result.to_json('predictions.json')  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_json
 
@@ -169,8 +199,8 @@ class TBRPredictionResult:
 
         Examples
         --------
-        >>> result = model.predict()
-        >>> result.to_csv('predictions.csv', index=False)
+        >>> result = model.predict()  # doctest: +SKIP
+        >>> result.to_csv('predictions.csv', index=False)  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_csv
 
@@ -254,9 +284,31 @@ class TBRSummaryResult:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr import TBRAnalysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> model = TBRAnalysis(level=0.80)
+    >>> model.fit(
+    ...     data,
+    ...     "date",
+    ...     "control",
+    ...     "test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ... )
     >>> result = model.summarize()
     >>> print(f"Effect: {result.estimate:.2f}")
-    >>> print(f"95% CI: [{result.lower:.2f}, {result.upper:.2f}]")
+    >>> print(f"80% CI: [{result.lower:.2f}, {result.upper:.2f}]")
     >>> print(f"Significant: {result.prob > 0.95}")
     """
 
@@ -327,8 +379,8 @@ class TBRSummaryResult:
 
         Examples
         --------
-        >>> summary = model.summarize()
-        >>> summary.to_json('summary.json')
+        >>> summary = model.summarize()  # doctest: +SKIP
+        >>> summary.to_json('summary.json')  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_json
 
@@ -347,8 +399,8 @@ class TBRSummaryResult:
 
         Examples
         --------
-        >>> summary = model.summarize()
-        >>> summary.to_csv('summary.csv', index=False)
+        >>> summary = model.summarize()  # doctest: +SKIP
+        >>> summary.to_csv('summary.csv', index=False)  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_csv
 
@@ -411,6 +463,28 @@ class TBRSubintervalResult:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> from tbr import TBRAnalysis
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> model = TBRAnalysis(level=0.80)
+    >>> model.fit(
+    ...     data,
+    ...     "date",
+    ...     "control",
+    ...     "test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ... )
     >>> result = model.analyze_subinterval(1, 7)
     >>> print(f"Week 1 effect: {result.estimate:.2f}")
     >>> print(f"CI: [{result.lower:.2f}, {result.upper:.2f}]")
@@ -461,8 +535,8 @@ class TBRSubintervalResult:
 
         Examples
         --------
-        >>> result = model.analyze_subinterval(1, 7)
-        >>> result.to_json('week1_results.json')
+        >>> result = model.analyze_subinterval(1, 7)  # doctest: +SKIP
+        >>> result.to_json('week1_results.json')  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_json
 
@@ -481,8 +555,8 @@ class TBRSubintervalResult:
 
         Examples
         --------
-        >>> result = model.analyze_subinterval(1, 7)
-        >>> result.to_csv('week1_results.csv', index=False)
+        >>> result = model.analyze_subinterval(1, 7)  # doctest: +SKIP
+        >>> result.to_csv('week1_results.csv', index=False)  # doctest: +SKIP
         """
         df = pd.DataFrame([self.to_dict()])
         df.to_csv(filepath, **kwargs)
@@ -599,8 +673,29 @@ class TBRResults:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import pandas as pd
     >>> from tbr.functional import perform_tbr_analysis
-    >>> results = perform_tbr_analysis(data, 'date', 'control', 'test', ...)
+    >>> rng = np.random.default_rng(0)
+    >>> control = rng.normal(1000, 50, size=44)
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "control": control,
+    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...     }
+    ... )
+    >>> results = perform_tbr_analysis(
+    ...     data,
+    ...     "date",
+    ...     "control",
+    ...     "test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-31"),
+    ...     test_end=pd.Timestamp("2023-02-14"),
+    ...     level=0.80,
+    ...     threshold=0.0,
+    ... )
     >>>
     >>> # Access scalar summary
     >>> print(f"Effect: {results.estimate:.2f}")
@@ -608,8 +703,8 @@ class TBRResults:
     >>> print(f"P-value: {results.pvalue:.3f}")
     >>>
     >>> # Access time series (all indexed by time)
-    >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')
     >>> results.effects.describe()
+    >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')  # doctest: +SKIP
     >>>
     >>> # Get daily summary table
     >>> daily_summary = results.summary()
@@ -1134,10 +1229,31 @@ class TBRResults:
 
         Examples
         --------
-        >>> results = perform_tbr_analysis(...)
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr.functional import perform_tbr_analysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> results = perform_tbr_analysis(
+        ...     data,
+        ...     "date",
+        ...     "control",
+        ...     "test",
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ...     level=0.80,
+        ...     threshold=0.0,
+        ... )
         >>> summary = results.summary()
         >>> print(summary.tail())  # Last 5 days
-        >>> summary.plot(x='test_day', y=['estimate', 'lower', 'upper'])
         """
         return self._summary_df.copy()
 
@@ -1165,9 +1281,31 @@ class TBRResults:
 
         Examples
         --------
-        >>> results = perform_tbr_analysis(...)
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr.functional import perform_tbr_analysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> results = perform_tbr_analysis(
+        ...     data,
+        ...     "date",
+        ...     "control",
+        ...     "test",
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ...     level=0.80,
+        ...     threshold=0.0,
+        ... )
         >>> tbr_df = results.tbr_dataframe()
-        >>> tbr_df.to_csv('tbr_results.csv', index=False)
+        >>> tbr_df.to_csv('tbr_results.csv', index=False)  # doctest: +SKIP
         >>>
         >>> # Filter to test period only
         >>> test_period = tbr_df[tbr_df['period'] == 1]
@@ -1201,7 +1339,29 @@ class TBRResults:
 
         Examples
         --------
-        >>> results = perform_tbr_analysis(..., level=0.80)
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr.functional import perform_tbr_analysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> results = perform_tbr_analysis(
+        ...     data,
+        ...     "date",
+        ...     "control",
+        ...     "test",
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ...     level=0.80,
+        ...     threshold=0.0,
+        ... )
         >>> ci = results.conf_int()  # Uses 0.80
         >>> ci_95 = results.conf_int(level=0.95)  # Override to 0.95
         """

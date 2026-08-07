@@ -12,10 +12,11 @@ Examples
 >>> import numpy as np
 >>>
 >>> # Create sample data
+>>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
 ...     'date': pd.date_range('2023-01-01', periods=90),
-...     'control': np.random.normal(1000, 50, 90),
-...     'test': np.random.normal(1020, 55, 90)
+...     'control': rng.normal(1000, 50, 90),
+...     'test': rng.normal(1020, 55, 90)
 ... })
 >>>
 >>> # Initialize and fit model
@@ -25,9 +26,9 @@ Examples
 ...     time_col='date',
 ...     control_col='control',
 ...     test_col='test',
-...     pretest_start='2023-01-01',
-...     test_start='2023-02-15',
-...     test_end='2023-03-01'
+...     pretest_start=pd.Timestamp('2023-01-01'),
+...     test_start=pd.Timestamp('2023-02-15'),
+...     test_end=pd.Timestamp('2023-03-01'),
 ... )
 >>>
 >>> # Access results
@@ -95,26 +96,49 @@ class TBRAnalysis:
     --------
     Basic workflow:
 
+    >>> import pandas as pd
+    >>> from tbr import TBRAnalysis
+    >>> data = pd.DataFrame(
+    ...     {
+    ...         "date": pd.date_range("2023-01-01", periods=8),
+    ...         "control": [100, 110, 120, 130, 140, 150, 160, 170],
+    ...         "test": [101, 112, 121, 134, 143, 156, 166, 177],
+    ...     }
+    ... )
     >>> model = TBRAnalysis(level=0.80, threshold=0.0)
-    >>> model.fit(data, 'date', 'control', 'test',
-    ...           pretest_start='2023-01-01',
-    ...           test_start='2023-02-15',
-    ...           test_end='2023-03-01')
-    >>> print(model.summaries_.iloc[-1])
+    >>> model.fit(
+    ...     data=data,
+    ...     time_col="date",
+    ...     control_col="control",
+    ...     test_col="test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-06"),
+    ...     test_end=pd.Timestamp("2023-01-08"),
+    ... )
+    >>> summary = model.summarize()
+    >>> print(f"Effect: {summary.estimate:.2f}")
 
     Custom configuration:
 
-    >>> model = TBRAnalysis(level=0.95, threshold=5.0, test_end_inclusive=True)
-    >>> model.fit(data, 'date', 'control', 'test',
-    ...           pretest_start='2023-01-01',
-    ...           test_start='2023-02-15',
-    ...           test_end='2023-02-15')  # Same-day analysis
+    >>> same_day_model = TBRAnalysis(
+    ...     level=0.95, threshold=5.0, test_end_inclusive=True
+    ... )
+    >>> same_day_model.fit(
+    ...     data, "date", "control", "test",
+    ...     pretest_start=pd.Timestamp("2023-01-01"),
+    ...     test_start=pd.Timestamp("2023-01-06"),
+    ...     test_end=pd.Timestamp("2023-01-06"),
+    ... )
 
     Notes
     -----
     Configuration parameters are stored in __init__. Call fit() to perform
     analysis. Access fitted results via underscore-suffixed attributes
     (results_, summaries_, params_), which validate fitted state before access.
+    For mathematical background, see the
+    :doc:`mathematical methodology guide </mathematical_methodology>`,
+    especially the sections on the statistical model, prediction uncertainty,
+    treatment effect estimation, and statistical inference.
 
     See Also
     --------
@@ -224,21 +248,32 @@ class TBRAnalysis:
         --------
         Basic fitting:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis(level=0.80, threshold=0.0)
-        >>> model.fit(data, 'date', 'control', 'test',
-        ...           pretest_start='2023-01-01',
-        ...           test_start='2023-02-15',
-        ...           test_end='2023-03-01')
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> print(f"Final effect: {model.summaries_.iloc[-1]['estimate']:.2f}")
 
         Method chaining:
 
-        >>> results = (TBRAnalysis(level=0.95)
-        ...            .fit(data, 'date', 'control', 'test',
-        ...                 pretest_start='2023-01-01',
-        ...                 test_start='2023-02-15',
-        ...                 test_end='2023-03-01')
-        ...            .results_)
+        >>> results = TBRAnalysis(level=0.95).fit(
+        ...     data, "date", "control", "test", **b
+        ... ).results_
 
         Notes
         -----
@@ -391,10 +426,11 @@ class TBRAnalysis:
 
         Examples
         --------
+        >>> from tbr import TBRAnalysis
         >>> model = TBRAnalysis(level=0.90, threshold=5.0)
         >>> params = model.get_params()
         >>> print(params)
-        {'level': 0.90, 'threshold': 5.0, 'test_end_inclusive': False}
+        {'level': 0.9, 'threshold': 5.0, 'test_end_inclusive': False}
 
         See Also
         --------
@@ -440,6 +476,9 @@ class TBRAnalysis:
         --------
         Update configuration:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
         >>> model = TBRAnalysis()
         >>> model.set_params(level=0.95, threshold=10.0)
         >>> print(model.get_params())
@@ -447,10 +486,23 @@ class TBRAnalysis:
 
         Method chaining:
 
-        >>> summary = (TBRAnalysis()
-        ...            .set_params(level=0.95)
-        ...            .fit(data, 'date', 'control', 'test', ...)
-        ...            .summarize())
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
+        >>> summary = TBRAnalysis().set_params(level=0.95).fit(
+        ...     data, "date", "control", "test", **b
+        ... ).summarize()
 
         See Also
         --------
@@ -536,18 +588,35 @@ class TBRAnalysis:
         --------
         Create a copy with same configuration:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
         >>> model1 = TBRAnalysis(level=0.90, threshold=5.0)
         >>> model2 = model1.copy()
         >>> print(model2.get_params())
-        {'level': 0.90, 'threshold': 5.0, 'test_end_inclusive': False}
+        {'level': 0.9, 'threshold': 5.0, 'test_end_inclusive': False}
 
         Copy for comparison:
 
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model1 = TBRAnalysis(level=0.80)
-        >>> model1.fit(data1, ...)
+        >>> model1.fit(data, "date", "control", "test", **b)
         >>> model2 = model1.copy()
         >>> model2.set_params(level=0.95)
-        >>> model2.fit(data2, ...)
+        >>> model2.fit(data, "date", "control", "test", **b)
 
         Notes
         -----
@@ -607,11 +676,23 @@ class TBRAnalysis:
         --------
         One-line prediction without storing model:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
         >>> predictions = TBRAnalysis().fit_predict(
-        ...     data, 'date', 'control', 'test',
-        ...     pretest_start='2023-01-01',
-        ...     test_start='2023-02-15',
-        ...     test_end='2023-03-01'
+        ...     data, "date", "control", "test",
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
         ... )
         >>> print(f"Mean prediction: {predictions.mean_pred:.2f}")
 
@@ -668,21 +749,34 @@ class TBRAnalysis:
         --------
         One-line summary without storing model:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> summary = TBRAnalysis(level=0.95).fit_summarize(
-        ...     data, 'date', 'control', 'test',
-        ...     pretest_start='2023-01-01',
-        ...     test_start='2023-02-15',
-        ...     test_end='2023-03-01'
+        ...     data, "date", "control", "test", **b
         ... )
         >>> print(f"Effect: {summary.estimate:.2f}")
         >>> print(f"Significant: {summary.is_significant()}")
 
         Quick analysis with method chaining:
 
-        >>> effect = (TBRAnalysis()
-        ...           .set_params(level=0.90, threshold=5.0)
-        ...           .fit_summarize(data, 'date', 'control', 'test', ...)
-        ...           .estimate)
+        >>> effect = TBRAnalysis().set_params(
+        ...     level=0.90, threshold=5.0
+        ... ).fit_summarize(data, "date", "control", "test", **b).estimate
 
         Notes
         -----
@@ -733,8 +827,25 @@ class TBRAnalysis:
         --------
         Predict using fitted test period data:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis(level=0.80)
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> result = model.predict()
         >>> print(result.predictions.head())
         >>> print(f"Generated {result.n_predictions} predictions")
@@ -870,8 +981,25 @@ class TBRAnalysis:
         --------
         Get final summary:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis(level=0.80, threshold=0.0)
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> result = model.summarize()
         >>> print(f"Effect: {result.estimate:.2f}")
         >>> print(f"CI: [{result.lower:.2f}, {result.upper:.2f}]")
@@ -955,16 +1083,33 @@ class TBRAnalysis:
         --------
         Get incremental summaries:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis(level=0.90, threshold=0.0)
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> incremental = model.summarize_incremental()
         >>> print(incremental[['test_day', 'estimate', 'lower', 'upper']])
 
         Plot progression over time:
 
-        >>> import matplotlib.pyplot as plt
-        >>> plt.plot(incremental['test_day'], incremental['estimate'])
-        >>> plt.fill_between(incremental['test_day'],
+        >>> import matplotlib.pyplot as plt  # doctest: +SKIP
+        >>> plt.plot(incremental['test_day'], incremental['estimate'])  # doctest: +SKIP
+        >>> plt.fill_between(incremental['test_day'],  # doctest: +SKIP
         ...                  incremental['lower'], incremental['upper'], alpha=0.3)
 
         See Also
@@ -1035,8 +1180,25 @@ class TBRAnalysis:
         --------
         Analyze first week of test period:
 
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis(level=0.80)
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> result = model.analyze_subinterval(start_day=1, end_day=7)
         >>> print(f"Week 1 effect: {result.estimate:.2f}")
         >>> print(f"Week 1 CI: [{result.lower:.2f}, {result.upper:.2f}]")
@@ -1165,8 +1327,25 @@ class TBRAnalysis:
 
         Examples
         --------
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis()
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> summary = model.final_summary
         >>> print(f"Effect: {summary.estimate:.2f}")
         """
@@ -1189,8 +1368,25 @@ class TBRAnalysis:
 
         Examples
         --------
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis()
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> print(f"Treatment effect: {model.final_effect:.2f}")
         """
         return self.final_summary.estimate
@@ -1230,8 +1426,25 @@ class TBRAnalysis:
 
         Examples
         --------
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis()
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> results = model.results_
         >>> test_period_results = results[results['period'] == 1]
         """
@@ -1270,8 +1483,25 @@ class TBRAnalysis:
 
         Examples
         --------
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis()
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> summaries = model.summaries_
         >>> final_effect = summaries.iloc[-1]['estimate']
         >>> is_significant = summaries.iloc[-1]['lower'] > 0
@@ -1310,8 +1540,25 @@ class TBRAnalysis:
 
         Examples
         --------
+        >>> import numpy as np
+        >>> import pandas as pd
+        >>> from tbr import TBRAnalysis
+        >>> rng = np.random.default_rng(0)
+        >>> control = rng.normal(1000, 50, size=44)
+        >>> data = pd.DataFrame(
+        ...     {
+        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "control": control,
+        ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+        ...     }
+        ... )
+        >>> b = dict(
+        ...     pretest_start=pd.Timestamp("2023-01-01"),
+        ...     test_start=pd.Timestamp("2023-01-31"),
+        ...     test_end=pd.Timestamp("2023-02-14"),
+        ... )
         >>> model = TBRAnalysis()
-        >>> model.fit(data, 'date', 'control', 'test', ...)
+        >>> model.fit(data, "date", "control", "test", **b)
         >>> params = model.params_
         >>> print(f"Beta coefficient: {params['beta']:.4f}")
         >>> print(f"Residual std error: {params['sigma']:.4f}")

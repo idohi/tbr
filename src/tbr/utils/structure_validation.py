@@ -22,7 +22,7 @@ Examples
 ...     'cov_alpha_beta': -0.05,
 ...     'degrees_freedom': 43,
 ...     'n_pretest': 45,
-        ...     'pretest_x_mean': 1000.0
+...     'pretest_x_mean': 1000.0
 ... }
 >>> validate_model_parameters_dict(params)  # No error if valid
 """
@@ -68,13 +68,15 @@ def validate_model_parameters_dict(
     ...     'cov_alpha_beta': -0.05,
     ...     'degrees_freedom': 43,
     ...     'n_pretest': 45,
-        ...     'pretest_x_mean': 1000.0
+    ...     'pretest_x_mean': 1000.0
     ... }
     >>> validate_model_parameters_dict(params)  # No error
 
-    >>> # Missing required key
     >>> incomplete_params = {'alpha': 50.0, 'beta': 0.95}
-    >>> validate_model_parameters_dict(incomplete_params)  # Raises ValueError
+    >>> validate_model_parameters_dict(incomplete_params)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    ValueError: Missing required model parameters: [...]
     """
     # Type validation
     if not isinstance(params, dict):
@@ -242,7 +244,10 @@ def validate_analysis_results_tuple(
     >>> validate_analysis_results_tuple(results)  # No error
 
     >>> # Invalid: wrong length
-    >>> validate_analysis_results_tuple((df1,), expected_length=2)  # Raises ValueError
+    >>> validate_analysis_results_tuple((df1,), expected_length=2)
+    Traceback (most recent call last):
+        ...
+    ValueError: Expected tuple of length 2, got length 1
     """
     # Type validation
     if not isinstance(results, tuple):
@@ -314,7 +319,10 @@ def validate_nested_dict_structure(
     >>> validate_nested_dict_structure(
     ...     incomplete_config,
     ...     required_keys=['level', 'threshold']
-    ... )  # Raises ValueError
+    ... )
+    Traceback (most recent call last):
+        ...
+    ValueError: Missing required keys: ['threshold']
     """
     # Type validation
     if not isinstance(data, dict):
