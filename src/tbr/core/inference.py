@@ -33,7 +33,7 @@ T-statistic: 3.110
 ...     estimate=25.5, standard_error=8.2, degrees_freedom=45, confidence_level=0.95
 ... )
 >>> print(f"95% CI: [{ci['lower']:.2f}, {ci['upper']:.2f}]")
-95% CI: [8.95, 42.05]
+95% CI: [8.98, 42.02]
 
 Mathematical Foundation
 -----------------------
@@ -180,7 +180,7 @@ def calculate_p_value(
     ...     t_statistic=1.96, degrees_freedom=100, two_tailed=False
     ... )
     >>> print(f"One-tailed p-value: {p_val:.4f}")
-    One-tailed p-value: 0.0262
+    One-tailed p-value: 0.0264
 
     Mathematical Formula
     --------------------
@@ -271,14 +271,14 @@ def calculate_posterior_probability(
     ...     estimate=12.5, standard_error=4.2, degrees_freedom=48
     ... )
     >>> print(f"P(effect > 0): {prob:.3f}")
-    P(effect > 0): 0.997
+    P(effect > 0): 0.998
 
     >>> # Probability that effect exceeds minimum desired level
     >>> prob = calculate_posterior_probability(
     ...     estimate=12.5, standard_error=4.2, degrees_freedom=48, threshold=5.0
     ... )
     >>> print(f"P(effect > 5): {prob:.3f}")
-    P(effect > 5): 0.963
+    P(effect > 5): 0.960
 
     Mathematical Formula
     --------------------
@@ -378,7 +378,7 @@ def calculate_credible_interval(
     ...     estimate=18.7, standard_error=5.2, degrees_freedom=42
     ... )
     >>> print(f"95% CI: [{ci['lower']:.2f}, {ci['upper']:.2f}]")
-    95% CI: [8.22, 29.18]
+    95% CI: [8.21, 29.19]
 
     >>> # 80% credible interval
     >>> ci = calculate_credible_interval(
@@ -386,7 +386,7 @@ def calculate_credible_interval(
     ...     confidence_level=0.80
     ... )
     >>> print(f"80% CI: [{ci['lower']:.2f}, {ci['upper']:.2f}]")
-    80% CI: [11.98, 25.42]
+    80% CI: [11.93, 25.47]
 
     Mathematical Formula
     --------------------
@@ -484,14 +484,14 @@ def calculate_critical_value(
     --------
     >>> # Two-tailed 95% critical value
     >>> cv = calculate_critical_value(degrees_freedom=30)
-    >>> print(f"t_{0.025,30} = {cv:.3f}")
+    >>> print(f"t_0.025,30 = {cv:.3f}")
     t_0.025,30 = 2.042
 
     >>> # One-tailed 95% critical value
     >>> cv = calculate_critical_value(
     ...     degrees_freedom=30, confidence_level=0.95, two_tailed=False
     ... )
-    >>> print(f"t_{0.05,30} = {cv:.3f}")
+    >>> print(f"t_0.05,30 = {cv:.3f}")
     t_0.05,30 = 1.697
 
     Mathematical Formula

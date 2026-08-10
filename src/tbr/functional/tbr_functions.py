@@ -884,7 +884,7 @@ def perform_tbr_analysis(
     >>> print(f"Significant Positive Effect: {is_significant}")
     >>>
     >>> # Access time series (all indexed by date)
-    >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')
+    >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')  # doctest: +SKIP
     >>> print(results.effects.describe())
     >>>
     >>> # Get daily summary table

@@ -362,7 +362,7 @@ def calculate_sum_squared_deviations(x: np.ndarray) -> float:
     >>> x = np.array([1, 2, 3, 4, 5])
     >>> ssd = calculate_sum_squared_deviations(x)
     >>> print(f"Sum squared deviations: {ssd}")
-    10.0
+    Sum squared deviations: 10.0
     """
     x_mean = np.mean(x)
     return float(np.sum((x - x_mean) ** 2))
@@ -426,7 +426,7 @@ def convert_to_integer(value: float, param_name: str) -> int:
     --------
     >>> degrees_freedom = convert_to_integer(43.0, "degrees_freedom")
     >>> print(f"Degrees of freedom: {degrees_freedom}")
-    43
+    Degrees of freedom: 43
     >>> convert_to_integer(43.999999999999, "degrees_freedom")
     44
     >>> convert_to_integer(43.5, "degrees_freedom")  # doctest: +ELLIPSIS

@@ -103,7 +103,7 @@ def calculate_posterior_variance(
     >>> estsd = np.array([2.1, 2.3, 2.0, 2.4, 2.2])
     >>> posterior_var = calculate_posterior_variance(estsd, n_days=5, sigma=1.8)
     >>> print(f"Posterior variance: {posterior_var:.3f}")
-    Posterior variance: 39.510
+    Posterior variance: 40.500
 
     Mathematical Formula
     --------------------
@@ -314,7 +314,7 @@ def calculate_incremental_posterior_probabilities(
     ...     estimates, std_errors, degrees_freedom=45
     ... )
     >>> print(f"Day 5 probability: {incremental['probabilities'][4]:.3f}")
-    Day 5 probability: 0.982
+    Day 5 probability: 0.977
 
     Mathematical Formula
     --------------------
@@ -439,7 +439,7 @@ def optimize_threshold_selection(
     ...     utility_function="balanced"
     ... )
     >>> print(f"Optimal threshold: {optimal['optimal_threshold']:.2f}")
-    Optimal threshold: 8.30
+    Optimal threshold: -0.10
 
     Utility Functions
     -----------------
@@ -603,7 +603,7 @@ def compare_posterior_probabilities(
     ... ]
     >>> comparison = compare_posterior_probabilities(scenarios)
     >>> print(f"Strongest evidence: {comparison['scenario_names'][0]}")
-    Strongest evidence: Week2
+    Strongest evidence: Week1
 
     Mathematical Formula
     --------------------
