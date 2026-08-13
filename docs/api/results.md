@@ -417,7 +417,7 @@ with open('complete_analysis.json', 'w') as f:
 
 ## See Also
 
-- **[API Reference](api_reference.md)** - Complete API documentation
+- **[API Reference](api_reference.rst)** - Complete API documentation
 - **[Quick Start](quickstart.md)** - Getting started guide
 - **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Practical examples
 - **[Common Patterns](patterns.md)** - Best practices

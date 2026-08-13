@@ -114,6 +114,7 @@ def create_incremental_tbr_summaries(
         Each row represents cumulative statistics up to that test day.
 
         Columns include all standard summary statistics plus:
+
         - 'test_day' : int
             Test day number (1, 2, 3, ...)
         - All columns from create_tbr_summary() for each incremental period
