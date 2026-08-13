@@ -183,7 +183,7 @@ class TestValidateTbrModel:
     def test_validate_tbr_model_handles_expected_goodness_of_fit_failure(
         self, sample_tbr_data
     ):
-        """Expected numerical fit failures still produce the canonical fallback."""
+        """Expected numerical fit failures are reported without fake metrics."""
         tbr_df, tbr_summary = sample_tbr_data
 
         with patch("tbr.analysis.diagnostics.calculate_goodness_of_fit") as mock_gof:
@@ -195,14 +195,19 @@ class TestValidateTbrModel:
             "goodness of fit calculation failed" in warning.lower()
             for warning in result["warnings"]
         )
-        assert result["goodness_of_fit"] == {
-            "r_squared": 0.0,
-            "adj_r_squared": 0.0,
-            "f_statistic": 0.0,
-            "f_p_value": 1.0,
-            "mse": 0.0,
-            "rmse": 0.0,
-        }
+        assert result["goodness_of_fit"] == {"error": "insufficient variation"}
+
+    def test_validate_tbr_model_surfaces_unexpected_goodness_of_fit_failure(
+        self, sample_tbr_data
+    ):
+        """Unexpected goodness-of-fit failures should not become fake metrics."""
+        tbr_df, tbr_summary = sample_tbr_data
+
+        with patch("tbr.analysis.diagnostics.calculate_goodness_of_fit") as mock_gof:
+            mock_gof.side_effect = RuntimeError("internal bug")
+
+            with pytest.raises(RuntimeError, match="internal bug"):
+                validate_tbr_model(tbr_df, tbr_summary)
 
     def test_validate_tbr_model_input_validation(self, sample_tbr_data):
         """Test input validation for validate_tbr_model."""
@@ -259,15 +264,17 @@ class TestValidateTbrModel:
             )
             assert not result["overall_validity"]
 
-    def test_validate_tbr_model_error_handling(self, sample_tbr_data):
-        """Test error handling in validate_tbr_model."""
+    def test_validate_tbr_model_expected_assumption_error_handling(
+        self, sample_tbr_data
+    ):
+        """Expected assumption-test failures are reported as warnings."""
         tbr_df, tbr_summary = sample_tbr_data
 
         # Mock function to raise exception
         with patch(
             "tbr.analysis.diagnostics.validate_model_assumptions"
         ) as mock_assumptions:
-            mock_assumptions.side_effect = Exception("Test error")
+            mock_assumptions.side_effect = ValueError("Test error")
 
             result = validate_tbr_model(tbr_df, tbr_summary)
 
@@ -275,6 +282,20 @@ class TestValidateTbrModel:
             assert "assumption_tests" in result
             assert "error" in result["assumption_tests"]
             assert len(result["warnings"]) > 0
+
+    def test_validate_tbr_model_surfaces_unexpected_assumption_failure(
+        self, sample_tbr_data
+    ):
+        """Unexpected assumption-test failures should fail loudly."""
+        tbr_df, tbr_summary = sample_tbr_data
+
+        with patch(
+            "tbr.analysis.diagnostics.validate_model_assumptions"
+        ) as mock_assumptions:
+            mock_assumptions.side_effect = RuntimeError("internal assumption bug")
+
+            with pytest.raises(RuntimeError, match="internal assumption bug"):
+                validate_tbr_model(tbr_df, tbr_summary)
 
 
 class TestDiagnoseTbrAnalysis:
@@ -1084,8 +1105,8 @@ class TestComprehensiveCoverageScenarios:
                 for warning in result["warnings"]
             )
 
-    def test_residual_analysis_error_handling_coverage(self):
-        """Test residual analysis error handling (lines 257-259)."""
+    def test_residual_analysis_expected_error_handling_coverage(self):
+        """Test expected residual analysis error handling."""
         np.random.seed(42)
 
         tbr_df = pd.DataFrame(
@@ -1114,9 +1135,9 @@ class TestComprehensiveCoverageScenarios:
             }
         )
 
-        # Mock residual calculation to raise exception
+        # Mock residual calculation to raise an expected numerical/data error.
         with patch("tbr.analysis.diagnostics.calculate_residuals") as mock_residuals:
-            mock_residuals.side_effect = Exception("Residual calculation error")
+            mock_residuals.side_effect = ValueError("Residual calculation error")
 
             result = validate_tbr_model(tbr_df, tbr_summary)
 
@@ -1127,6 +1148,42 @@ class TestComprehensiveCoverageScenarios:
                 "residual analysis failed" in warning.lower()
                 for warning in result["warnings"]
             )
+
+    def test_residual_analysis_unexpected_error_surfaces(self):
+        """Unexpected residual analysis errors should not be swallowed."""
+        np.random.seed(42)
+
+        tbr_df = pd.DataFrame(
+            {
+                "period": [0] * 20,
+                "y": np.random.normal(1000, 50, 20),
+                "x": np.random.normal(950, 45, 20),
+                "pred": np.random.normal(950, 45, 20),
+                "predsd": [15] * 20,
+                "dif": np.random.normal(50, 25, 20),
+                "cumdif": np.cumsum(np.random.normal(50, 25, 20)),
+                "cumsd": np.sqrt(np.arange(1, 21) * 25**2),
+                "estsd": [15] * 20,
+            }
+        )
+
+        tbr_summary = pd.DataFrame(
+            {
+                "alpha": [50.0],
+                "beta": [0.95],
+                "sigma": [25.0],
+                "var_alpha": [100.0],
+                "var_beta": [0.001],
+                "alpha_beta_cov": [-0.05],
+                "t_dist_df": [18],
+            }
+        )
+
+        with patch("tbr.analysis.diagnostics.calculate_residuals") as mock_residuals:
+            mock_residuals.side_effect = RuntimeError("internal residual bug")
+
+            with pytest.raises(RuntimeError, match="internal residual bug"):
+                validate_tbr_model(tbr_df, tbr_summary)
 
     def test_prediction_quality_warnings_and_errors_coverage(self, poor_coverage_data):
         """Test prediction quality warnings and error handling (lines 277-293)."""
@@ -1155,9 +1212,8 @@ class TestComprehensiveCoverageScenarios:
         assert "error" in result["prediction_quality"]
         assert result["prediction_quality"]["error"] == "No test period data available"
 
-        # Test prediction quality error handling (line 291-293). Keep earlier
-        # diagnostic stages mocked so this broad NumPy patch targets prediction
-        # quality only.
+        # Test expected prediction quality error handling. Keep earlier diagnostic
+        # stages mocked so this broad NumPy patch targets prediction quality only.
         with patch(
             "tbr.analysis.diagnostics.validate_model_assumptions"
         ) as mock_assumptions, patch(
@@ -1179,7 +1235,7 @@ class TestComprehensiveCoverageScenarios:
                 "mse": 1.0,
                 "rmse": 1.0,
             }
-            mock_mean.side_effect = Exception("Prediction calculation error")
+            mock_mean.side_effect = ValueError("Prediction calculation error")
 
             result = validate_tbr_model(tbr_df, tbr_summary)
 
@@ -1189,8 +1245,38 @@ class TestComprehensiveCoverageScenarios:
                 for warning in result["warnings"]
             )
 
-    def test_diagnostic_summary_error_handling_coverage(self):
-        """Test diagnostic summary error handling (lines 378-379)."""
+    def test_prediction_quality_unexpected_error_surfaces(self, poor_coverage_data):
+        """Unexpected prediction quality errors should not be swallowed."""
+        tbr_df, tbr_summary = poor_coverage_data
+
+        with patch(
+            "tbr.analysis.diagnostics.validate_model_assumptions"
+        ) as mock_assumptions, patch(
+            "tbr.analysis.diagnostics.calculate_goodness_of_fit"
+        ) as mock_gof, patch(
+            "numpy.mean"
+        ) as mock_mean:
+            mock_assumptions.return_value = {
+                "normality_valid": True,
+                "homoscedasticity_valid": True,
+                "independence_valid": True,
+                "all_assumptions_valid": True,
+            }
+            mock_gof.return_value = {
+                "r_squared": 0.8,
+                "adj_r_squared": 0.79,
+                "f_statistic": 20.0,
+                "f_p_value": 0.01,
+                "mse": 1.0,
+                "rmse": 1.0,
+            }
+            mock_mean.side_effect = RuntimeError("internal prediction bug")
+
+            with pytest.raises(RuntimeError, match="internal prediction bug"):
+                validate_tbr_model(tbr_df, tbr_summary)
+
+    def test_diagnostic_summary_expected_error_handling_coverage(self):
+        """Test expected diagnostic summary error handling."""
         np.random.seed(42)
 
         tbr_df = pd.DataFrame(
@@ -1219,19 +1305,59 @@ class TestComprehensiveCoverageScenarios:
             }
         )
 
-        # Mock create_diagnostic_summary to raise exception
+        # Mock create_diagnostic_summary to raise an expected numerical/data error.
         with patch(
             "tbr.analysis.diagnostics.create_diagnostic_summary"
         ) as mock_summary:
-            mock_summary.side_effect = Exception("Diagnostic summary error")
+            mock_summary.side_effect = ValueError("Diagnostic summary error")
 
             result = diagnose_tbr_analysis(tbr_df, tbr_summary)
 
         # Should handle error gracefully
         assert "diagnostic_summary" in result
+        assert result["diagnostic_summary"]["error"] == "Diagnostic summary error"
+        assert "goodness_of_fit" not in result["diagnostic_summary"]
         assert (
             "Diagnostic summary failed" in result["diagnostic_summary"]["warnings"][0]
         )
+
+    def test_diagnostic_summary_unexpected_error_surfaces(self):
+        """Unexpected diagnostic summary errors should not fabricate metrics."""
+        np.random.seed(42)
+
+        tbr_df = pd.DataFrame(
+            {
+                "period": [0] * 20,
+                "y": np.random.normal(1000, 50, 20),
+                "x": np.random.normal(950, 45, 20),
+                "pred": np.random.normal(950, 45, 20),
+                "predsd": [15] * 20,
+                "dif": np.random.normal(50, 25, 20),
+                "cumdif": np.cumsum(np.random.normal(50, 25, 20)),
+                "cumsd": np.sqrt(np.arange(1, 21) * 25**2),
+                "estsd": [15] * 20,
+            }
+        )
+
+        tbr_summary = pd.DataFrame(
+            {
+                "alpha": [50.0],
+                "beta": [0.95],
+                "sigma": [25.0],
+                "var_alpha": [100.0],
+                "var_beta": [0.001],
+                "alpha_beta_cov": [-0.05],
+                "t_dist_df": [18],
+            }
+        )
+
+        with patch(
+            "tbr.analysis.diagnostics.create_diagnostic_summary"
+        ) as mock_summary:
+            mock_summary.side_effect = RuntimeError("internal summary bug")
+
+            with pytest.raises(RuntimeError, match="internal summary bug"):
+                diagnose_tbr_analysis(tbr_df, tbr_summary)
 
     def test_performance_assessment_edge_cases_coverage(self):
         """Test performance assessment edge cases (lines 609-613)."""

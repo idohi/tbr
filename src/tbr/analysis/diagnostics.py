@@ -96,6 +96,13 @@ from tbr.core.diagnostics import (
 from tbr.utils.validation import validate_required_columns
 
 _GOODNESS_OF_FIT_KEYS = frozenset(GoodnessOfFitMetrics.__annotations__)
+_EXPECTED_DIAGNOSTIC_ERRORS = (
+    ValueError,
+    FloatingPointError,
+    RuntimeWarning,
+    ZeroDivisionError,
+    np.linalg.LinAlgError,
+)
 
 
 def _validate_goodness_of_fit_metrics(
@@ -295,15 +302,17 @@ def validate_tbr_model(
                 "Residuals show autocorrelation - independence assumption violated"
             )
 
-    except Exception as e:
+    except _EXPECTED_DIAGNOSTIC_ERRORS as e:
         warnings_list.append(f"Assumption testing failed: {str(e)}")
         assumption_tests = {"error": str(e)}
 
     # 2. Goodness of Fit Analysis
-    goodness_of_fit: GoodnessOfFitMetrics
+    goodness_of_fit: Dict[str, Any]
     try:
-        goodness_of_fit = _validate_goodness_of_fit_metrics(
-            calculate_goodness_of_fit(learning_data, model_params, "x", "y")
+        goodness_of_fit = dict(
+            _validate_goodness_of_fit_metrics(
+                calculate_goodness_of_fit(learning_data, model_params, "x", "y")
+            )
         )
 
         if goodness_of_fit["r_squared"] < 0.5:
@@ -315,21 +324,9 @@ def validate_tbr_model(
                 "F-statistic not significant - overall model may not be meaningful"
             )
 
-    except (
-        ValueError,
-        FloatingPointError,
-        ZeroDivisionError,
-        np.linalg.LinAlgError,
-    ) as e:
+    except _EXPECTED_DIAGNOSTIC_ERRORS as e:
         warnings_list.append(f"Goodness of fit calculation failed: {str(e)}")
-        goodness_of_fit = {
-            "r_squared": 0.0,
-            "adj_r_squared": 0.0,
-            "f_statistic": 0.0,
-            "f_p_value": 1.0,
-            "mse": 0.0,
-            "rmse": 0.0,
-        }
+        goodness_of_fit = {"error": str(e)}
 
     # 3. Residual Analysis
     try:
@@ -359,7 +356,7 @@ def validate_tbr_model(
             "outlier_percentage": len(outliers) / len(learning_data) * 100,
         }
 
-    except Exception as e:
+    except _EXPECTED_DIAGNOSTIC_ERRORS as e:
         warnings_list.append(f"Residual analysis failed: {str(e)}")
         residual_analysis = {"error": str(e)}
 
@@ -397,7 +394,7 @@ def validate_tbr_model(
         else:
             prediction_quality = {"error": "No test period data available"}
 
-    except Exception as e:
+    except _EXPECTED_DIAGNOSTIC_ERRORS as e:
         warnings_list.append(f"Prediction quality assessment failed: {str(e)}")
         prediction_quality = {"error": str(e)}
 
@@ -514,39 +511,14 @@ def diagnose_tbr_analysis(
         "degrees_freedom": int(summary_row["t_dist_df"]),
     }
 
+    diagnostic_summary: Dict[str, Any]
     try:
-        diagnostic_summary = create_diagnostic_summary(
-            learning_data, model_params, "x", "y"
+        diagnostic_summary = dict(
+            create_diagnostic_summary(learning_data, model_params, "x", "y")
         )
-    except Exception as e:
+    except _EXPECTED_DIAGNOSTIC_ERRORS as e:
         diagnostic_summary = {
-            "goodness_of_fit": {
-                "r_squared": 0.0,
-                "adj_r_squared": 0.0,
-                "f_statistic": 0.0,
-                "f_p_value": 1.0,
-                "mse": 0.0,
-                "rmse": 0.0,
-            },
-            "information_criteria": {"aic": 0.0, "bic": 0.0},
-            "normality_test": {
-                "statistic": 0.0,
-                "p_value": 1.0,
-                "is_normal": False,
-                "test_name": "error",
-            },
-            "homoscedasticity_test": {
-                "statistic": 0.0,
-                "p_value": 1.0,
-                "is_homoscedastic": False,
-                "test_name": "error",
-            },
-            "independence_test": {
-                "statistic": 0.0,
-                "interpretation": "error",
-                "is_independent": False,
-                "test_name": "error",
-            },
+            "error": str(e),
             "overall_validity": False,
             "warnings": [f"Diagnostic summary failed: {str(e)}"],
         }
