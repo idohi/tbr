@@ -3,10 +3,22 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from pathlib import Path
+
+try:
+    from sphinx.deprecation import RemovedInSphinx10Warning
+except ImportError:  # pragma: no cover - depends on installed Sphinx version
+    RemovedInSphinx10Warning = None
+else:
+    warnings.filterwarnings(
+        "ignore",
+        category=RemovedInSphinx10Warning,
+        module=r"sphinx_autodoc_typehints\._parser",
+    )
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -31,6 +43,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinxcontrib.bibtex",
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
@@ -71,6 +84,8 @@ autodoc_default_options = {
 
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
+autosummary_generate = True
+autosummary_generate_overwrite = True
 
 # Keep `# doctest: +SKIP` markers out of the rendered examples (Sphinx default,
 # pinned explicitly because the published examples rely on it).
@@ -80,6 +95,7 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_use_param = True
 napoleon_use_rtype = True
+napoleon_use_ivar = True
 
 
 # Cross-project references

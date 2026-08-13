@@ -551,7 +551,7 @@ if summary.is_significant():
 
 ## See Also
 
-- **[API Reference](api_reference.md)** - Complete API documentation
+- **[API Reference](api_reference.rst)** - Complete API documentation
 - **[Quick Start](quickstart.md)** - Getting started guide
 - **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Practical examples
 - **[Result Objects](results.md)** - Understanding results

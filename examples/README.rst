@@ -199,7 +199,7 @@ Additional Resources
 --------------------
 
 - **Quick Start Guide** (``docs/api/quickstart.md``) - Fast introduction to TBR
-- **API Reference** (``docs/api/api_reference.md``) - Complete API documentation
+- **API Reference** (``docs/api/api_reference.rst``) - Complete API documentation
 - **Common Patterns** (``docs/api/patterns.md``) - Best practices and patterns
 - **Result Objects** (``docs/api/results.md``) - Understanding result structures
 

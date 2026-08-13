@@ -39,7 +39,7 @@ Notes
 -----
 Configuration parameters are stored in __init__. Analysis is performed via
 the fit() method. Fitted results are accessed via underscore-suffixed
-attributes (results_, summaries_, params_), which validate fitted state
+attributes (``results_``, ``summaries_``, ``params_``), which validate fitted state
 before access.
 """
 
@@ -134,7 +134,7 @@ class TBRAnalysis:
     -----
     Configuration parameters are stored in __init__. Call fit() to perform
     analysis. Access fitted results via underscore-suffixed attributes
-    (results_, summaries_, params_), which validate fitted state before access.
+    (``results_``, ``summaries_``, ``params_``), which validate fitted state before access.
     For mathematical background, see the
     :doc:`mathematical methodology guide </mathematical_methodology>`,
     especially the sections on the statistical model, prediction uncertainty,
@@ -279,7 +279,7 @@ class TBRAnalysis:
         -----
         Uses the stored configuration (level, threshold, test_end_inclusive)
         from initialization. Call fit() to perform analysis before accessing
-        results_, summaries_, or params_ properties.
+        ``results_``, ``summaries_``, or ``params_`` properties.
         """
         # Lazy imports to minimize loading overhead
         from tbr.functional import perform_tbr_analysis
