@@ -14,7 +14,6 @@ Test Categories
 5. Integration Testing - Module imports and workflow integration
 """
 
-
 import pandas as pd
 import pytest
 
@@ -84,8 +83,7 @@ class TestCreateTbrSummary:
             "sigma",
             "t_dist_df",
         ]
-        for col in expected_cols:
-            assert col in summary.columns
+        assert list(summary.columns) == expected_cols
 
         # Validate values
         assert summary["estimate"].iloc[0] == 20.8  # Final cumdif

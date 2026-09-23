@@ -94,12 +94,47 @@ class TestValidateTbrModel:
 
         # Check return structure
         assert isinstance(result, dict)
-        assert "overall_validity" in result
-        assert "warnings" in result
-        assert "assumption_tests" in result
-        assert "goodness_of_fit" in result
-        assert "residual_analysis" in result
-        assert "prediction_quality" in result
+        assert set(result) == {
+            "overall_validity",
+            "warnings",
+            "assumption_tests",
+            "goodness_of_fit",
+            "residual_analysis",
+            "prediction_quality",
+        }
+        assert set(result["assumption_tests"]) == {
+            "linearity_valid",
+            "normality_valid",
+            "homoscedasticity_valid",
+            "independence_valid",
+            "all_assumptions_valid",
+            "significance_level",
+            "validation_summary",
+        }
+        assert set(result["goodness_of_fit"]) == {
+            "r_squared",
+            "adj_r_squared",
+            "f_statistic",
+            "f_p_value",
+            "mse",
+            "rmse",
+        }
+        assert set(result["residual_analysis"]) == {
+            "residuals",
+            "standardized_residuals",
+            "studentized_residuals",
+            "outliers",
+            "outlier_threshold",
+            "outlier_percentage",
+        }
+        assert set(result["prediction_quality"]) == {
+            "mae",
+            "mse",
+            "rmse",
+            "mape",
+            "prediction_interval_coverage",
+            "n_predictions",
+        }
 
         # Check types
         assert isinstance(result["overall_validity"], bool)
@@ -342,10 +377,21 @@ class TestDiagnoseTbrAnalysis:
 
         # Check return structure
         assert isinstance(result, dict)
-        assert "model_validation" in result
-        assert "diagnostic_summary" in result
-        assert "performance_metrics" in result
-        assert "recommendations" in result
+        assert set(result) == {
+            "model_validation",
+            "diagnostic_summary",
+            "performance_metrics",
+            "recommendations",
+        }
+        assert set(result["diagnostic_summary"]) == {
+            "goodness_of_fit",
+            "information_criteria",
+            "normality_test",
+            "homoscedasticity_test",
+            "independence_test",
+            "overall_validity",
+            "warnings",
+        }
 
         # Check types
         assert isinstance(result["model_validation"], dict)
@@ -417,8 +463,15 @@ class TestCheckTbrAssumptions:
 
         # Should return assumption test results
         assert isinstance(result, dict)
-        # The exact keys depend on validate_model_assumptions implementation
-        assert len(result) > 0
+        assert set(result) == {
+            "linearity_valid",
+            "normality_valid",
+            "homoscedasticity_valid",
+            "independence_valid",
+            "all_assumptions_valid",
+            "significance_level",
+            "validation_summary",
+        }
 
     def test_check_tbr_assumptions_with_alpha(self, sample_data):
         """Test check_tbr_assumptions with custom alpha level."""
@@ -482,7 +535,7 @@ class TestAnalyzeTbrResiduals:
 
         # Check return structure
         assert isinstance(result, dict)
-        expected_keys = [
+        expected_keys = {
             "residuals",
             "standardized_residuals",
             "studentized_residuals",
@@ -492,9 +545,17 @@ class TestAnalyzeTbrResiduals:
             "residual_stats",
             "residual_std",
             "n_observations",
-        ]
-        for key in expected_keys:
-            assert key in result
+        }
+        assert set(result) == expected_keys
+        assert set(result["residual_stats"]) == {
+            "mean",
+            "std",
+            "min",
+            "max",
+            "q25",
+            "median",
+            "q75",
+        }
 
         # Check types and values
         assert isinstance(result["residuals"], np.ndarray)
@@ -623,15 +684,39 @@ class TestAssessTbrPerformance:
 
         # Check return structure
         assert isinstance(result, dict)
-        expected_keys = [
+        expected_keys = {
             "data_metrics",
             "prediction_metrics",
             "model_complexity",
             "efficiency_score",
             "performance_summary",
-        ]
-        for key in expected_keys:
-            assert key in result
+        }
+        assert set(result) == expected_keys
+        assert set(result["data_metrics"]) == {
+            "total_observations",
+            "learning_observations",
+            "test_observations",
+            "learning_test_ratio",
+        }
+        assert set(result["prediction_metrics"]) == {
+            "mae",
+            "mse",
+            "rmse",
+            "mape",
+            "mean_error",
+            "std_error",
+            "interval_coverage",
+        }
+        assert set(result["model_complexity"]) == {
+            "degrees_freedom",
+            "sigma",
+            "r_squared_proxy",
+        }
+        assert set(result["performance_summary"]) == {
+            "data_quality",
+            "prediction_quality",
+            "overall_performance",
+        }
 
         # Check data metrics
         data_metrics = result["data_metrics"]
@@ -763,7 +848,7 @@ class TestCreateTbrDiagnosticReport:
 
         # Check return structure
         assert isinstance(result, dict)
-        expected_keys = [
+        expected_keys = {
             "executive_summary",
             "overall_validity",
             "warnings_count",
@@ -771,9 +856,8 @@ class TestCreateTbrDiagnosticReport:
             "recommendations",
             "detailed_results",
             "report_timestamp",
-        ]
-        for key in expected_keys:
-            assert key in result
+        }
+        assert set(result) == expected_keys
 
         # Check types
         assert isinstance(result["executive_summary"], str)

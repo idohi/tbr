@@ -74,6 +74,7 @@ class TestCreateIncrementalTbrSummaries:
 
         # Verify has standard summary columns
         expected_columns = [
+            "test_day",
             "estimate",
             "precision",
             "lower",
@@ -82,10 +83,15 @@ class TestCreateIncrementalTbrSummaries:
             "level",
             "thres",
             "prob",
-            "test_day",
+            "alpha",
+            "beta",
+            "alpha_beta_cov",
+            "var_alpha",
+            "var_beta",
+            "sigma",
+            "t_dist_df",
         ]
-        for col in expected_columns:
-            assert col in result.columns
+        assert list(result.columns) == expected_columns
 
         # Verify test_day progression
         assert result["test_day"].tolist() == [1, 2, 3]

@@ -845,13 +845,13 @@ def validate_posterior_assumptions(
 
     return {
         "normality_valid": bool(normality_valid),
-        "normality_pvalue": float(normality_pvalue)
-        if not np.isnan(normality_pvalue)
-        else None,
+        "normality_pvalue": (
+            float(normality_pvalue) if not np.isnan(normality_pvalue) else None
+        ),
         "independence_valid": bool(independence_valid),
-        "independence_pvalue": float(independence_pvalue)
-        if not np.isnan(independence_pvalue)
-        else None,
+        "independence_pvalue": (
+            float(independence_pvalue) if not np.isnan(independence_pvalue) else None
+        ),
         "sample_size_adequate": bool(sample_size_adequate),
         "overall_validity": overall_validity,
         "recommendations": recommendations,

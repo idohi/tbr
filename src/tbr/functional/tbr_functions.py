@@ -367,7 +367,7 @@ def generate_counterfactual_predictions(
     control_col: str,
     time_col: str,
 ) -> pd.DataFrame:
-    """
+    r"""
     Generate counterfactual predictions and prediction uncertainties for TBR test period.
 
     This function provides a wrapper around the core prediction implementation,
@@ -504,65 +504,66 @@ def compute_interval_estimate_and_ci(
     end_day: int,
     ci_level: float,
 ) -> Dict[str, float]:
-    """
-    Compute cumulative treatment effect estimate and credible interval for a subinterval.
+    r"""
+    Compute a subinterval effect estimate and credible interval.
 
-    Calculates the cumulative treatment effect over a specified subinterval within
-    the test period, along with its credible interval using t-distribution. This
-    enables analysis of treatment effects for specific time ranges rather than
-    the entire test period.
+    Bounds are inclusive one-based positions among rows with ``period == 1``.
 
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'
+        Daily output containing ``period``, ``y``, ``pred``, and ``estsd``.
+        Test rows must be in test-day order.
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' (degrees of freedom) parameters
+        Non-empty summary containing ``sigma`` and legacy degrees-of-freedom
+        column ``t_dist_df``; values are read from its last row.
     start_day : int
-        Start day of subinterval (1-indexed within test period)
+        Requested one-based start :math:`a`; not validated by this helper.
     end_day : int
-        End day of subinterval (inclusive)
+        Requested inclusive one-based end :math:`b`; not validated by this
+        helper.
     ci_level : float
-        Credible interval level (e.g., 0.80 for 80% interval)
+        Credibility level. This direct helper does not validate its range.
 
     Returns
     -------
     Dict[str, float]
-        Dictionary containing:
-        - 'estimate': Cumulative treatment effect for the subinterval
-        - 'precision': Half-width of credible interval
-        - 'lower': Lower bound of credible interval
-        - 'upper': Upper bound of credible interval
+        Mapping with these stable keys:
+
+        ``estimate`` : floating-point scalar
+            Cumulative effect :math:`\Delta(a,b)`.
+        ``precision`` : floating-point scalar
+            Credible-interval half-width.
+        ``lower`` : floating-point scalar
+            Lower credible bound.
+        ``upper`` : floating-point scalar
+            Upper credible bound.
+
+    Raises
+    ------
+    KeyError
+        If a required input column is absent.
+    IndexError
+        If ``tbr_summary`` has no rows.
 
     Examples
     --------
-    >>> import numpy as np
     >>> import pandas as pd
-    >>> from tbr.functional.tbr_functions import perform_tbr_analysis
-    >>> from tbr.functional.tbr_functions import compute_interval_estimate_and_ci
-    >>> rng = np.random.default_rng(0)
-    >>> control = rng.normal(1000, 50, size=44)
-    >>> data = pd.DataFrame(
+    >>> from tbr import compute_interval_estimate_and_ci
+    >>> tbr_df = pd.DataFrame(
     ...     {
-    ...         "date": pd.date_range("2023-01-01", periods=44),
-    ...         "control": control,
-    ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
+    ...         "period": [1, 1],
+    ...         "y": [110.0, 115.0],
+    ...         "pred": [105.0, 108.0],
+    ...         "estsd": [2.0, 2.1],
     ...     }
     ... )
-    >>> results = perform_tbr_analysis(
-    ...     data=data, time_col="date", control_col="control", test_col="test",
-    ...     pretest_start=pd.Timestamp("2023-01-01"),
-    ...     test_start=pd.Timestamp("2023-01-31"),
-    ...     test_end=pd.Timestamp("2023-02-14"),
-    ...     level=0.90, threshold=0.0,
-    ... )
-    >>> tbr_df = results.tbr_dataframe()
-    >>> tbr_summary = results.summary()
+    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
-    >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
+    >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
     """
     from tbr.core.prediction import (
         compute_interval_estimate_and_ci as _compute_interval_estimate_and_ci,
@@ -589,55 +590,82 @@ def create_tbr_summary(
     level: float,
     threshold: float,
 ) -> pd.DataFrame:
-    """
-    Create TBR summary statistics DataFrame with credible intervals and probabilities.
-
-    This function generates a single-row summary DataFrame containing all key
-    statistics for the TBR analysis, including the cumulative effect estimate,
-    credible intervals, and model parameters.
+    r"""
+    Create a single-row TBR summary.
 
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Complete TBR dataframe with all periods and statistics
+        Daily output containing ``period``, ``cumdif``, and ``cumsd``. The last
+        row with ``period == 1`` supplies the cumulative estimate and its
+        standard error (Student-t scale).
     alpha : float
-        Regression intercept coefficient (α)
+        Regression intercept, mapped to mathematical :math:`\beta_0`.
     beta : float
-        Regression slope coefficient (β)
+        Regression slope, mapped to mathematical :math:`\beta_1`.
     sigma : float
-        Residual standard deviation from the model prediction over the learning set (σ)
+        Positive residual standard deviation :math:`\sigma`.
     var_alpha : float
-        Variance of intercept estimate (α)
+        Variance of the intercept estimate.
     var_beta : float
-        Variance of slope estimate (β)
+        Variance of the slope estimate.
     cov_alpha_beta : float
-        Covariance between intercept and slope estimates
+        Covariance between intercept and slope estimates.
     degrees_freedom : int
-        Residual degrees of freedom from regression
+        Positive regression degrees of freedom :math:`\nu`.
     level : float
-        Credibility level for credible intervals
+        Credibility level in ``[0, 1]``.
     threshold : float
-        Threshold for probability calculation
+        Effect threshold for the posterior exceedance probability.
 
     Returns
     -------
     pd.DataFrame
-        Single-row DataFrame with TBR summary statistics including:
-        - 'estimate': Cumulative treatment effect
-        - 'precision': Half-width of credible interval
-        - 'lower', 'upper': Credible interval bounds
-        - 'prob': Posterior probability of exceeding threshold
-        - Model parameters and metadata
+        One row with these ``float64`` columns:
+
+        ``estimate`` : ``float64``
+            Final cumulative-effect estimate.
+        ``precision`` : ``float64``
+            Credible-interval half-width.
+        ``lower`` : ``float64``
+            Lower credible bound.
+        ``upper`` : ``float64``
+            Upper credible bound.
+        ``se`` : ``float64``
+            Final ``cumsd`` Student-t scale used as the standard error of the
+            cumulative-effect estimate.
+        ``level`` : ``float64``
+            Credibility level.
+        ``thres`` : ``float64``
+            Legacy column name for input ``threshold``.
+        ``prob`` : ``float64``
+            Posterior threshold-exceedance probability.
+        ``alpha`` : ``float64``
+            Regression intercept :math:`\beta_0`.
+        ``beta`` : ``float64``
+            Regression slope :math:`\beta_1`.
+        ``alpha_beta_cov`` : ``float64``
+            Legacy column name for input ``cov_alpha_beta``.
+        ``var_alpha`` : ``float64``
+            Intercept-estimate variance.
+        ``var_beta`` : ``float64``
+            Slope-estimate variance.
+        ``sigma`` : ``float64``
+            Residual standard deviation.
+        ``t_dist_df`` : ``float64``
+            Summary representation of input ``degrees_freedom``.
 
     Raises
     ------
     ValueError
-        If input validation fails or required data is missing
+        If ``tbr_dataframe`` is empty or lacks ``period``, ``cumdif``, or
+        ``cumsd``; ``level`` is outside ``[0, 1]``; ``degrees_freedom`` or
+        ``sigma`` is not positive; or no row has ``period == 1``.
 
     Examples
     --------
     >>> import pandas as pd
-    >>> from tbr.functional.tbr_functions import create_tbr_summary
+    >>> from tbr import create_tbr_summary
     >>> tbr_dataframe = pd.DataFrame(
     ...     {"period": [1, 1], "cumdif": [5.0, 8.0], "cumsd": [2.0, 3.0]}
     ... )
@@ -676,57 +704,86 @@ def create_incremental_tbr_summaries(
     level: float,
     threshold: float,
 ) -> pd.DataFrame:
-    """
-    Create incremental TBR summary statistics for each test period day.
+    r"""
+    Create one cumulative TBR summary per test day.
 
-    This function generates summary statistics for incremental test periods:
-    - Day 1: Summary for first day only
-    - Day 2: Summary for first two days (cumulative)
-    - Day 3: Summary for first three days (cumulative)
-    - ...and so on
-
-    This enables day-by-day analysis of cumulative treatment effects during the
-    test period, providing insights into when effects become detectable and stable.
+    Test rows are consumed in input order. The helper reports cumulative
+    estimates, intervals, and posterior probabilities; it does not define a
+    stopping rule or a universal significance threshold.
 
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Complete TBR dataframe with all periods and statistics
+        Daily output containing ``period``, ``cumdif``, and ``cumsd``.
     alpha : float
-        Regression intercept coefficient (α)
+        Regression intercept :math:`\beta_0`.
     beta : float
-        Regression slope coefficient (β)
+        Regression slope :math:`\beta_1`.
     sigma : float
-        Residual standard deviation from the model prediction over the learning set (σ)
+        Positive residual standard deviation :math:`\sigma`.
     var_alpha : float
-        Variance of intercept estimate (α)
+        Variance of the intercept estimate.
     var_beta : float
-        Variance of slope estimate (β)
+        Variance of the slope estimate.
     cov_alpha_beta : float
-        Covariance between intercept and slope estimates
+        Covariance between intercept and slope estimates.
     degrees_freedom : int
-        Residual degrees of freedom from regression
+        Positive regression degrees of freedom :math:`\nu`.
     level : float
-        Credibility level for credible intervals
+        Credibility level in ``[0, 1]``.
     threshold : float
-        Threshold for probability calculation
+        Effect threshold for the posterior exceedance probability.
 
     Returns
     -------
     pd.DataFrame
-        Multi-row DataFrame with incremental TBR summary statistics.
-        Each row represents cumulative statistics up to that test day.
-        Includes an additional 'test_day' column indicating the incremental period.
+        One row per cumulative test day, with columns in the order below.
+
+        ``test_day`` : integer
+            One-based cumulative test-day number, normally ``int64``.
+        ``estimate`` : ``float64``
+            Cumulative-effect estimate :math:`\hat{\Delta}(T)`.
+        ``precision`` : ``float64``
+            Credible-interval half-width.
+        ``lower`` : ``float64``
+            Lower credible bound.
+        ``upper`` : ``float64``
+            Upper credible bound.
+        ``se`` : ``float64``
+            Student-t scale used as the standard error of the cumulative-effect
+            estimate.
+        ``level`` : ``float64``
+            Credibility level.
+        ``thres`` : ``float64``
+            Legacy column name for input ``threshold``.
+        ``prob`` : ``float64``
+            Posterior threshold-exceedance probability.
+        ``alpha`` : ``float64``
+            Regression intercept :math:`\beta_0`.
+        ``beta`` : ``float64``
+            Regression slope :math:`\beta_1`.
+        ``alpha_beta_cov`` : ``float64``
+            Legacy column name for input ``cov_alpha_beta``.
+        ``var_alpha`` : ``float64``
+            Intercept-estimate variance.
+        ``var_beta`` : ``float64``
+            Slope-estimate variance.
+        ``sigma`` : ``float64``
+            Residual standard deviation.
+        ``t_dist_df`` : ``float64``
+            Summary representation of input ``degrees_freedom``.
 
     Raises
     ------
     ValueError
-        If input validation fails or no test period data is found
+        If ``tbr_dataframe`` is empty or lacks ``period``, ``cumdif``, or
+        ``cumsd``; ``level`` is outside ``[0, 1]``; ``degrees_freedom`` or
+        ``sigma`` is not positive; or no row has ``period == 1``.
 
     Examples
     --------
     >>> import pandas as pd
-    >>> from tbr.functional.tbr_functions import create_incremental_tbr_summaries
+    >>> from tbr import create_incremental_tbr_summaries
     >>> tbr_dataframe = pd.DataFrame(
     ...     {"period": [1, 1, 1], "cumdif": [5.0, 8.0, 11.0], "cumsd": [2.0, 3.0, 4.0]}
     ... )
@@ -767,8 +824,8 @@ def perform_tbr_analysis(
     threshold: float,
     test_end_inclusive: bool = False,
 ) -> TBRResults:
-    """
-    Execute complete TBR analysis pipeline for domain-agnostic time series data.
+    r"""
+    Execute the complete Time-Based Regression analysis pipeline.
 
     This is the main function that orchestrates the entire TBR analysis process
     for any treatment/control time series experiment. The input should be
@@ -777,64 +834,60 @@ def perform_tbr_analysis(
     Parameters
     ----------
     data : pd.DataFrame
-        Time series data with time, control, and test columns.
-        Should contain pre-aggregated metrics for control and test groups.
-        Time column must be one of the supported types (see time_col parameter).
+        Non-empty pre-aggregated time-series data containing distinct time,
+        control, and treatment/test columns. Required columns must be numeric
+        where applicable and contain no nulls.
     time_col : str
-        Name of the time column. Supported pandas native dtypes only:
-        - datetime64[ns]: Pandas native datetime (use pd.to_datetime())
-        - datetime64[ns, timezone]: Timezone-aware variants (any timezone)
-        - int64: Epochs, hours, days since start, etc.
-        - float64: Fractional time units, decimal hours, etc.
-
-        Note: Object dtypes are not supported (including Python date/datetime objects).
-        Convert all date/time data using pd.to_datetime() first.
+        Name of the time column. Supported pandas-native dtypes are
+        ``datetime64[ns]`` (including timezone-aware datetime), ``int64``, and
+        ``float64``. Object dtypes, including Python date and datetime objects,
+        are unsupported; convert date/time data with ``pd.to_datetime()``.
     control_col : str
-        Name of control column
+        Name of the numeric control metric column containing :math:`x_t`.
     test_col : str
-        Name of test column
+        Name of the numeric treatment/test metric column containing
+        :math:`y_t`.
     pretest_start : Union[pd.Timestamp, int, float]
-        Start time of pretest period (always inclusive)
+        Inclusive pretest start, with scalar type matching ``time_col``.
     test_start : Union[pd.Timestamp, int, float]
-        Start time of test period (always inclusive)
+        Inclusive test start, with scalar type matching ``time_col``.
     test_end : Union[pd.Timestamp, int, float]
-        End time of test period
-    test_end_inclusive : bool, default False
-        Whether to include the test_end boundary in the test period.
-
-        - False (default): Exclusive end boundary (data < test_end)
-        - True: Inclusive end boundary (data <= test_end)
-
-        Examples for test_end_inclusive:
-        - For same-day analysis: set test_end_inclusive=True
-        - For precise time ranges: set test_end_inclusive=False
-
-        Note: This parameter works consistently across all time column types
-        (datetime64[ns], int64, float64).
+        Test end, with scalar type matching ``time_col``. Inclusivity is
+        controlled by ``test_end_inclusive``.
     level : float
-        Credibility level for credible intervals (e.g., 0.80 for 80% credible interval)
+        Credibility level used for the returned credible intervals. The live
+        functional path accepts values in the closed interval ``[0, 1]``;
+        endpoints can produce degenerate or unbounded intervals.
     threshold : float
-        Threshold for probability calculation (typically 0.0 for positive effect testing)
+        Effect threshold :math:`\theta` used for
+        :math:`P(\Delta(T)>\theta\mid\mathrm{data})`. The value is converted
+        to ``float`` when summaries are built; no range or finiteness check is
+        performed.
+    test_end_inclusive : bool, default False
+        Whether to include the ``test_end`` boundary in the test period.
+        ``False`` uses ``data < test_end``; ``True`` uses
+        ``data <= test_end``. Use ``True`` for same-day analysis and ``False``
+        for an exclusive end boundary. The behavior is consistent for
+        ``datetime64[ns]``, ``int64``, and ``float64`` time columns.
 
     Returns
     -------
     TBRResults
-        Comprehensive result object with all analysis outputs accessible via
-        properties and methods, with complete separation of inputs and outputs.
-
-        Key properties:
-        - estimate: Final cumulative effect
-        - conf_int_lower, conf_int_upper: Credible interval bounds
-        - pvalue: Posterior probability
-        - cumulative_effect, effects: Time-indexed Series
-        - summary(): Daily incremental summary statistics
-        - tbr_dataframe(): Get comprehensive TBR dataframe
+        Comprehensive analysis output. See
+        :class:`tbr.core.results.TBRResults`.
 
     Raises
     ------
+    TypeError
+        If ``level`` cannot be compared with numeric interval bounds or
+        ``threshold`` does not support the numeric posterior calculation.
     ValueError
-        If input validation fails, column names conflict with reserved names,
-        or insufficient data for analysis
+        If data is empty; required columns are missing, duplicated by role, or
+        use reserved output names; the time dtype or boundary types are
+        unsupported; boundaries are misordered; required values are null;
+        metric columns are nonnumeric; pretest or test periods are empty;
+        ``level`` is outside ``[0, 1]``; or pretest data cannot support a
+        finite, nondegenerate regression.
 
     Notes
     -----
@@ -842,7 +895,32 @@ def perform_tbr_analysis(
     :doc:`mathematical methodology guide </mathematical_methodology>`: fit the
     pretest-period regression model, generate counterfactual predictions for
     the test period, estimate cumulative treatment effects, and compute
-    t-distribution credible intervals and posterior probabilities.
+    Student's :math:`t` credible intervals and posterior probabilities.
+
+    Selected result interfaces are:
+
+    ``estimate`` : float
+        Final cumulative effect.
+    ``conf_int_lower`` : float
+        Lower credible bound.
+    ``conf_int_upper`` : float
+        Upper credible bound.
+    ``pvalue`` : float
+        Legacy property storing the posterior threshold-exceedance probability,
+        not a frequentist p-value.
+    ``predictions`` : pd.Series
+        Time-indexed counterfactual predictions.
+    ``effects`` : pd.Series
+        Time-indexed pointwise effects.
+    ``cumulative_effect`` : pd.Series
+        Time-indexed cumulative effects.
+    ``summary()`` : pd.DataFrame
+        Incremental summary copy with the complete schema documented on
+        :class:`tbr.core.results.TBRResults`.
+    ``tbr_dataframe()`` : pd.DataFrame
+        Comprehensive daily-output copy.
+    ``conf_int()`` : pd.DataFrame
+        Single-row credible-interval copy.
 
     Examples
     --------
@@ -850,6 +928,7 @@ def perform_tbr_analysis(
 
     >>> import pandas as pd
     >>> import numpy as np
+    >>> from tbr import perform_tbr_analysis
     >>>
     >>> # Create sample time series data with datetime64[ns] (pandas native)
     >>> rng = np.random.default_rng(42)
@@ -876,12 +955,15 @@ def perform_tbr_analysis(
     >>>
     >>> # Access results via clean property interface
     >>> print(f"Effect: {results.estimate:.2f}")
-    >>> print(f"80% CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
-    >>> print(f"P-value: {results.pvalue:.3f}")
+    >>> print(
+    ...     f"80% credible interval: "
+    ...     f"[{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]"
+    ... )
+    >>> print(f"Posterior prob > threshold: {results.pvalue:.3f}")
     >>>
-    >>> # Check significance
-    >>> is_significant = results.conf_int_lower > 0
-    >>> print(f"Significant Positive Effect: {is_significant}")
+    >>> # Check whether the credible interval is entirely above zero
+    >>> interval_positive = results.conf_int_lower > 0
+    >>> print(f"Credible interval entirely positive: {interval_positive}")
     >>>
     >>> # Access time series (all indexed by date)
     >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')  # doctest: +SKIP

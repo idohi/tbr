@@ -7,7 +7,7 @@ analysis results.
 
 Examples
 --------
->>> from tbr.core.model import TBRAnalysis
+>>> from tbr import TBRAnalysis
 >>> import pandas as pd
 >>> import numpy as np
 >>>
@@ -52,7 +52,7 @@ from tbr.core.results import TBRPredictionResult, TBRSubintervalResult, TBRSumma
 
 
 class TBRAnalysis:
-    """
+    r"""
     Time-Based Regression Analysis with stateful interface.
 
     Wraps the functional TBR API to store configuration, fitted parameters,
@@ -64,13 +64,13 @@ class TBRAnalysis:
         Credibility level for credible intervals (e.g., 0.80 for 80% credible interval).
         Must be between 0 and 1 exclusive.
     threshold : float, default=0.0
-        Threshold for probability calculation. Typically 0.0 for testing
-        positive effects. Can be any finite float value.
+        Effect threshold for the posterior exceedance probability. Typically
+        ``0.0`` for positive effects. Numeric values are converted to
+        ``float``; no range or finiteness check is performed.
     test_end_inclusive : bool, default=False
-        Whether to include the test_end boundary in the test period.
-
-        - False (default): Exclusive end boundary (data < test_end)
-        - True: Inclusive end boundary (data <= test_end)
+        Whether to include the ``test_end`` boundary in the test period.
+        ``False`` uses the exclusive condition ``data < test_end``; ``True``
+        uses the inclusive condition ``data <= test_end``.
 
     Attributes
     ----------
@@ -80,17 +80,23 @@ class TBRAnalysis:
         Threshold for probability calculation.
     test_end_inclusive : bool
         Whether test_end is inclusive.
-    fitted_ : bool
+    fitted\_ : bool
         Whether the model has been fitted.
-    results_ : pd.DataFrame
-        TBR DataFrame with predictions, effects, and uncertainties.
-        Available after calling fit().
-    summaries_ : pd.DataFrame
-        Incremental summaries with daily progression of effects.
-        Available after calling fit().
-    params_ : dict
-        Regression model parameters (alpha, beta, sigma, variances, etc.).
-        Available after calling fit().
+    results\_ : pd.DataFrame
+        Comprehensive daily TBR DataFrame. It contains original source columns
+        plus ``period``, ``y``, ``x``, ``pred``, ``predsd``, ``dif``,
+        ``cumdif``, ``cumsd``, and ``estsd`` as documented on
+        :attr:`results_`. Available after :meth:`fit`.
+    summaries\_ : pd.DataFrame
+        Incremental summary DataFrame with the typed schema documented on
+        :attr:`summaries_`. Available after :meth:`fit`.
+    params\_ : dict
+        Fitted mapping with ``alpha : float``, ``beta : float``,
+        ``sigma : float``, ``var_alpha : float``, ``var_beta : float``,
+        ``cov_alpha_beta : float``, ``degrees_freedom : int``,
+        ``pretest_x_mean : float``, and
+        ``pretest_sum_x_squared_deviations : float``. Available after
+        :meth:`fit`.
 
     Examples
     --------
@@ -142,7 +148,7 @@ class TBRAnalysis:
 
     See Also
     --------
-    tbr.functional.perform_tbr_analysis : Functional API for TBR analysis
+    perform_tbr_analysis : Functional API for TBR analysis
     """
 
     def __init__(
@@ -422,7 +428,18 @@ class TBRAnalysis:
         Returns
         -------
         dict
-            Configuration parameters.
+            New configuration-parameter mapping. See Notes.
+
+        Notes
+        -----
+        The returned mapping has these stable keys:
+
+        ``level`` : float
+            Credibility level.
+        ``threshold`` : float
+            Effect threshold.
+        ``test_end_inclusive`` : bool
+            Whether the test-period end boundary is inclusive.
 
         Examples
         --------
@@ -455,10 +472,9 @@ class TBRAnalysis:
         Parameters
         ----------
         **params : dict
-            Configuration parameters to set. Valid parameters are:
-            - level : float between 0 and 1 exclusive
-            - threshold : numeric value
-            - test_end_inclusive : bool
+            Configuration parameters to set. Valid keys are ``level : float``
+            in the open interval ``(0, 1)``, ``threshold : float`` (with no
+            range or finiteness check), and ``test_end_inclusive : bool``.
 
         Returns
         -------
@@ -573,16 +589,16 @@ class TBRAnalysis:
 
     def copy(self) -> "TBRAnalysis":
         """
-        Create a deep copy of this estimator.
+        Create an unfitted clone of this estimator's configuration.
 
         Returns a new TBRAnalysis instance with the same configuration but
-        without fitted state. This is useful for creating multiple models
-        with the same configuration.
+        without fitted state, input data, parameters, or results. This is
+        useful for creating multiple models with the same configuration.
 
         Returns
         -------
         TBRAnalysis
-            New instance with same configuration parameters.
+            Unfitted instance with the same configuration parameters.
 
         Examples
         --------
@@ -620,8 +636,9 @@ class TBRAnalysis:
 
         Notes
         -----
-        The copy will not include any fitted state. Only configuration
-        parameters (level, threshold, test_end_inclusive) are copied.
+        This is a configuration clone, not a deep copy. Fitted state, source
+        data, parameters, summaries, and results are not copied. Only
+        ``level``, ``threshold``, and ``test_end_inclusive`` are copied.
         """
         return TBRAnalysis(
             level=self.level,
@@ -663,14 +680,16 @@ class TBRAnalysis:
             Start time of test period (inclusive).
         test_end : Union[pd.Timestamp, int, float]
             End time of test period (inclusive/exclusive based on test_end_inclusive).
-        control_values : Union[pd.Series, np.ndarray, list], optional
+        control_values : Union[pd.Series, np.ndarray], optional
             Control group values to generate predictions for. If None, uses
-            control values from the test period.
+            control values from the test period. Python sequences such as
+            lists and tuples are accepted and converted to an array.
 
         Returns
         -------
         TBRPredictionResult
-            Prediction result object with predictions and metadata.
+            Frozen counterfactual prediction result. See
+            :class:`tbr.core.results.TBRPredictionResult`.
 
         Examples
         --------
@@ -698,8 +717,8 @@ class TBRAnalysis:
 
         Notes
         -----
-        This is equivalent to calling `fit()` followed by `predict()`, but
-        more concise for workflows where only predictions are needed.
+        This is equivalent to calling :meth:`fit` followed by :meth:`predict`,
+        but more concise for workflows where only predictions are needed.
         """
         self.fit(
             data, time_col, control_col, test_col, pretest_start, test_start, test_end
@@ -743,7 +762,8 @@ class TBRAnalysis:
         Returns
         -------
         TBRSummaryResult
-            Final summary result object with all statistics.
+            Frozen final cumulative summary. See
+            :class:`tbr.core.results.TBRSummaryResult`.
 
         Examples
         --------
@@ -770,7 +790,7 @@ class TBRAnalysis:
         ...     data, "date", "control", "test", **b
         ... )
         >>> print(f"Effect: {summary.estimate:.2f}")
-        >>> print(f"Significant: {summary.is_significant()}")
+        >>> print(f"Posterior prob > threshold: {summary.prob:.3f}")
 
         Quick analysis with method chaining:
 
@@ -780,8 +800,9 @@ class TBRAnalysis:
 
         Notes
         -----
-        This is equivalent to calling `fit()` followed by `summarize()`, but
-        more concise for workflows where only the final summary is needed.
+        This is equivalent to calling :meth:`fit` followed by
+        :meth:`summarize`, but more concise for workflows where only the final
+        summary is needed.
         """
         self.fit(
             data, time_col, control_col, test_col, pretest_start, test_start, test_end
@@ -792,7 +813,7 @@ class TBRAnalysis:
         self,
         control_values: Optional[Union[pd.Series, np.ndarray]] = None,
     ) -> TBRPredictionResult:
-        """
+        r"""
         Generate counterfactual predictions using the fitted TBR model.
 
         Predicts what the test group values would have been without treatment,
@@ -800,19 +821,17 @@ class TBRAnalysis:
 
         Parameters
         ----------
-        control_values : Union[pd.Series, np.ndarray, list], optional
+        control_values : Union[pd.Series, np.ndarray], optional
             Control group values to generate predictions for. If None (default),
             uses control values from the test period of the fitted data.
-            Can be a numpy array, pandas Series, or Python list.
+            NumPy arrays, pandas Series, and Python sequences such as lists and
+            tuples are accepted.
 
         Returns
         -------
         TBRPredictionResult
-            Result object containing:
-            - predictions: DataFrame with pred and predsd columns
-            - n_predictions: Number of predictions generated
-            - model_params: Model parameters used
-            - control_values: Control values used for predictions
+            Frozen counterfactual prediction result. See
+            :class:`tbr.core.results.TBRPredictionResult`.
 
         Raises
         ------
@@ -863,11 +882,12 @@ class TBRAnalysis:
 
         Notes
         -----
-        Predictions are generated using the fitted regression model:
-        pred = alpha + beta * control_value
-
-        Prediction standard deviation includes both model and residual uncertainty:
-        predsd = sqrt(sigma^2 * (1 + 1/n + (x* - x̄)^2 / Σ(xi - x̄)^2))
+        ``pred`` is ``alpha + beta * control_value``. ``predsd`` is
+        :math:`\sqrt{\mathbb{V}[y_t^*]}` and includes both coefficient
+        uncertainty and residual variance. See the
+        :doc:`mathematical methodology guide </mathematical_methodology>` for
+        the derivation. ``TBRPredictionResult`` has no ``to_dataframe()``
+        method; use its ``predictions`` DataFrame.
         """
         # Check if model is fitted
         if not self._fitted:
@@ -966,11 +986,9 @@ class TBRAnalysis:
         Returns
         -------
         TBRSummaryResult
-            Result object containing:
-            - estimate, lower, upper: Effect estimate and credible interval
-            - se, prob, precision: Standard error, probability, precision
-            - level, threshold: Configuration parameters
-            - Model parameters (alpha, beta, sigma, variances, etc.)
+            Frozen final cumulative summary, distinct from the DataFrame
+            returned by :meth:`summarize_incremental`. See
+            :class:`tbr.core.results.TBRSummaryResult`.
 
         Raises
         ------
@@ -1002,8 +1020,8 @@ class TBRAnalysis:
         >>> model.fit(data, "date", "control", "test", **b)
         >>> result = model.summarize()
         >>> print(f"Effect: {result.estimate:.2f}")
-        >>> print(f"CI: [{result.lower:.2f}, {result.upper:.2f}]")
-        >>> print(f"Significant: {result.is_significant()}")
+        >>> print(f"Credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
+        >>> print(f"Posterior prob > threshold: {result.prob:.3f}")
 
         Access summary as DataFrame or dict:
 
@@ -1063,16 +1081,45 @@ class TBRAnalysis:
         Returns
         -------
         pd.DataFrame
-            DataFrame with columns:
-            - test_day: Day number in test period
-            - estimate: Cumulative treatment effect
-            - precision: 1/variance of the estimate
-            - lower, upper: Credible interval bounds
-            - se: Standard error of the estimate
-            - level: Credibility level used
-            - thres: Threshold used for probability calculation
-            - prob: Posterior probability of exceeding threshold
-            - Model parameters (alpha, beta, sigma, variances, covariances)
+            Copy with one row per cumulative test day. See Notes for the
+            stable columns.
+
+        Notes
+        -----
+        The returned DataFrame has these stable columns:
+
+        ``test_day`` : int64
+            One-based cumulative test-day number.
+        ``estimate`` : float64
+            Cumulative-effect estimate.
+        ``precision`` : float64
+            Credible-interval half-width.
+        ``lower`` : float64
+            Lower credible bound.
+        ``upper`` : float64
+            Upper credible bound.
+        ``se`` : float64
+            Standard error of the estimate.
+        ``level`` : float64
+            Credibility level.
+        ``thres`` : float64
+            Legacy column name for ``threshold``.
+        ``prob`` : float64
+            Posterior threshold-exceedance probability.
+        ``alpha`` : float64
+            Regression intercept.
+        ``beta`` : float64
+            Regression slope.
+        ``alpha_beta_cov`` : float64
+            Legacy column name for ``cov_alpha_beta``.
+        ``var_alpha`` : float64
+            Intercept-estimate variance.
+        ``var_beta`` : float64
+            Slope-estimate variance.
+        ``sigma`` : float64
+            Residual standard deviation.
+        ``t_dist_df`` : float64
+            Legacy column name for ``degrees_freedom``.
 
         Raises
         ------
@@ -1153,18 +1200,14 @@ class TBRAnalysis:
         end_day : int
             Ending day of the subinterval (1-indexed, inclusive).
         ci_level : float, optional
-            Credibility level for credible interval (must be between 0 and 1).
+            Credibility level for credible interval (must be between 0 and 1 exclusive).
             If None, uses the level specified during initialization.
 
         Returns
         -------
         TBRSubintervalResult
-            Result object containing:
-            - estimate: Treatment effect for the subinterval
-            - lower, upper: Credible interval bounds
-            - se: Standard error of the estimate
-            - ci_level: Credibility level used
-            - start_day, end_day, n_days: Interval specification
+            Frozen subinterval effect result. See
+            :class:`tbr.core.results.TBRSubintervalResult`.
 
         Raises
         ------
@@ -1174,7 +1217,7 @@ class TBRAnalysis:
             If start_day, end_day, or ci_level have invalid types.
         ValueError
             If start_day or end_day are invalid, start_day > end_day, days exceed
-            test period, or ci_level is not between 0 and 1.
+            test period, or ci_level is not between 0 and 1 exclusive.
 
         Examples
         --------
@@ -1201,14 +1244,14 @@ class TBRAnalysis:
         >>> model.fit(data, "date", "control", "test", **b)
         >>> result = model.analyze_subinterval(start_day=1, end_day=7)
         >>> print(f"Week 1 effect: {result.estimate:.2f}")
-        >>> print(f"Week 1 CI: [{result.lower:.2f}, {result.upper:.2f}]")
-        >>> print(f"Significant: {result.is_positive()}")
+        >>> print(f"Week 1 credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
+        >>> print(f"Interval entirely positive: {result.is_positive()}")
 
         Analyze with custom credibility level:
 
         >>> result = model.analyze_subinterval(start_day=8, end_day=14, ci_level=0.95)
         >>> if result.contains_zero():
-        ...     print("Effect not significant")
+        ...     print("Credible interval includes zero")
 
         Access underlying data:
 
@@ -1293,7 +1336,7 @@ class TBRAnalysis:
             ci_level=ci_level,
         )
 
-        # Calculate standard error from precision (half-width of CI)
+        # Preserve the legacy ``se`` field, which stores the interval half-width.
         se = result["precision"]
 
         # Create and return TBRSubintervalResult
@@ -1313,12 +1356,13 @@ class TBRAnalysis:
         """
         Get final summary as a result object (convenience property).
 
-        Equivalent to `summarize()` but more concise.
+        Equivalent to :meth:`summarize` but more concise.
 
         Returns
         -------
         TBRSummaryResult
-            Final cumulative summary with all statistics.
+            Same result as :meth:`summarize`. See
+            :class:`tbr.core.results.TBRSummaryResult`.
 
         Raises
         ------
@@ -1408,16 +1452,39 @@ class TBRAnalysis:
         """
         TBR DataFrame with predictions, effects, and uncertainties.
 
-        This DataFrame contains the complete time series with all TBR calculations:
-        - Original data (time, control, test values)
-        - Period indicators (pretest=0, test=1, cooldown=3)
-        - Counterfactual predictions (pred, predsd)
-        - Effects (dif, cumdif, cumsd, estsd)
+        This property returns the stored DataFrame itself, not a copy.
 
         Returns
         -------
         pd.DataFrame
-            Complete TBR analysis results DataFrame.
+            Stored TBR DataFrame. See Notes for the additional columns.
+
+        Notes
+        -----
+        The returned DataFrame contains the original source columns plus:
+
+        ``period`` : int64
+            ``-1`` baseline, ``0`` pretest, ``1`` test.
+        ``y`` : source-dependent
+            Observed treatment/test metric.
+        ``x`` : source-dependent
+            Observed control metric.
+        ``pred`` : float64
+            Pretest fitted value or test counterfactual prediction; missing in
+            baseline.
+        ``predsd`` : float64
+            Test prediction standard deviation; ``0.0`` in pretest and missing
+            in baseline.
+        ``dif`` : float64
+            Pretest residual or test pointwise effect; missing in baseline.
+        ``cumdif`` : float64
+            Cumulative test effect; missing outside test.
+        ``cumsd`` : float64
+            Cumulative-effect standard error (Student-t scale) under a legacy
+            column name; ``0.0`` in pretest and missing in baseline.
+        ``estsd`` : float64
+            Fitted-value standard error; present only in pretest and ``NaN`` in
+            test and baseline.
 
         Raises
         ------
@@ -1461,20 +1528,50 @@ class TBRAnalysis:
         """
         Incremental summaries with daily progression of cumulative effects.
 
-        This DataFrame contains day-by-day summaries for the test period:
-        - estimate: Cumulative treatment effect
-        - precision: 1/variance of the estimate
-        - lower, upper: Credible interval bounds
-        - se: Standard error of the estimate
-        - level: Credibility level used
-        - threshold: Threshold used for probability calculation
-        - prob: Posterior probability of exceeding threshold
-        - Model parameters (alpha, beta, sigma, variances, covariances)
+        This property returns the stored DataFrame itself, not a copy.
 
         Returns
         -------
         pd.DataFrame
-            Incremental summaries for each day of the test period.
+            Stored incremental DataFrame with one row per cumulative test day.
+            See Notes for the stable columns.
+
+        Notes
+        -----
+        The returned DataFrame has these stable columns:
+
+        ``test_day`` : int64
+            One-based cumulative test-day number.
+        ``estimate`` : float64
+            Cumulative-effect estimate.
+        ``precision`` : float64
+            Credible-interval half-width.
+        ``lower`` : float64
+            Lower credible bound.
+        ``upper`` : float64
+            Upper credible bound.
+        ``se`` : float64
+            Standard error of the estimate.
+        ``level`` : float64
+            Credibility level.
+        ``thres`` : float64
+            Legacy column name for ``threshold``.
+        ``prob`` : float64
+            Posterior threshold-exceedance probability.
+        ``alpha`` : float64
+            Regression intercept.
+        ``beta`` : float64
+            Regression slope.
+        ``alpha_beta_cov`` : float64
+            Legacy column name for ``cov_alpha_beta``.
+        ``var_alpha`` : float64
+            Intercept-estimate variance.
+        ``var_beta`` : float64
+            Slope-estimate variance.
+        ``sigma`` : float64
+            Residual standard deviation.
+        ``t_dist_df`` : float64
+            Legacy column name for ``degrees_freedom``.
 
         Raises
         ------
@@ -1519,19 +1616,35 @@ class TBRAnalysis:
         """
         Regression model parameters from TBR analysis.
 
+        This property returns the stored dictionary itself, not a copy.
+
         Returns
         -------
         dict
-            Dictionary containing regression parameters:
-            - alpha: Intercept coefficient
-            - beta: Slope coefficient
-            - sigma: Residual standard error
-            - var_alpha: Variance of alpha
-            - var_beta: Variance of beta
-            - cov_alpha_beta: Covariance between alpha and beta
-            - degrees_freedom: Degrees of freedom for t-distribution
-            - pretest_x_mean: Mean of control in pretest period
-            - pretest_sum_x_squared_deviations: Sum of squared deviations
+            Stored model-parameter mapping. See Notes for the stable schema.
+
+        Notes
+        -----
+        The returned mapping has these stable keys:
+
+        ``alpha`` : float
+            Regression intercept.
+        ``beta`` : float
+            Regression slope.
+        ``sigma`` : float
+            Residual standard deviation.
+        ``var_alpha`` : float
+            Intercept-estimate variance.
+        ``var_beta`` : float
+            Slope-estimate variance.
+        ``cov_alpha_beta`` : float
+            Intercept/slope covariance.
+        ``degrees_freedom`` : int
+            Student's :math:`t` degrees of freedom.
+        ``pretest_x_mean`` : float
+            Mean pretest control value.
+        ``pretest_sum_x_squared_deviations`` : float
+            Sum of squared pretest control deviations.
 
         Raises
         ------
@@ -1612,5 +1725,6 @@ class TBRAnalysis:
             f"  Results:\n"
             f"    Test period days: {n_test_days}\n"
             f"    Final effect estimate: {final_effect:.2f}\n"
-            f"    {int(self.level*100)}% CI: [{final_lower:.2f}, {final_upper:.2f}]"
+            f"    {int(self.level*100)}% CI: "
+            f"[{final_lower:.2f}, {final_upper:.2f}]"
         )
