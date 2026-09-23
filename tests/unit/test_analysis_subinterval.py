@@ -395,8 +395,7 @@ class TestCreateSubintervalSummary:
             "avg_daily_effect",
             "ci_level",
         ]
-        for col in expected_columns:
-            assert col in summary.columns
+        assert list(summary.columns) == expected_columns
 
     def test_summary_mathematical_properties(self, sample_data):
         """Test mathematical properties of summary results."""

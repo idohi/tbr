@@ -323,7 +323,7 @@ $$
 \mathbb{V}[\Delta(T)] = T \cdot \sigma^2 + T^2 \cdot v
 $$
 
-The posterior standard deviation of the cumulative effect is then:
+The cumulative-effect standard error (the Student's $t$ scale) is then:
 
 $$
 \text{SE} = \sqrt{\mathbb{V}[\Delta(T)]} = \sqrt{T \cdot \sigma^2 + T^2 \cdot v}
@@ -347,7 +347,7 @@ $$
 
 where:
 - $\hat{\Delta}(T) = \sum_{t=1}^{T} (y_t - \hat{y}_t^*)$ is the posterior mean (the point estimate)
-- $\text{SE} = \sqrt{\mathbb{V}[\Delta(T)]}$ is the posterior standard deviation (scale of the distribution)
+- $\text{SE} = \sqrt{\mathbb{V}[\Delta(T)]}$ is the cumulative-effect standard error and Student's $t$ scale parameter
 - $\nu = n - 2$ is the degrees of freedom, with $n$ being the number of pretest observations
 
 The use of the $t$-distribution (rather than a normal distribution) accounts for the additional uncertainty from estimating $\sigma^2$ with a finite sample. As $\nu$ increases, the $t$-distribution converges to the normal distribution.
@@ -370,7 +370,7 @@ A larger pretest period yields more degrees of freedom, which narrows the $t$-di
 
 ### Credible Intervals
 
-Given the posterior $t$-distribution, TBR constructs a symmetric two-sided credible interval at confidence level $1 - \alpha$:
+Given the posterior $t$-distribution, TBR constructs a symmetric two-sided credible interval at credibility level $1 - \alpha$:
 
 $$
 [\text{lower},\; \text{upper}] = \hat{\Delta}(T) \pm t_{\alpha/2,\;\nu} \cdot \text{SE}
@@ -598,7 +598,7 @@ The following table maps the mathematical notation used in this document to the 
 | $\sqrt{\mathbb{V}[y_t^*]}$ | Prediction standard deviation | `predsd` |
 | $\phi_t = y_t - \hat{y}_t^*$ | Pointwise treatment effect | `dif` |
 | $\sum \phi_t$ | Cumulative treatment effect | `cumdif` |
-| $\sqrt{\mathbb{V}[\Delta(T)]}$ | Cumulative effect standard deviation | `cumsd` |
+| $\sqrt{\mathbb{V}[\Delta(T)]}$ | Cumulative-effect standard error (Student's $t$ scale); legacy column name | `cumsd` |
 | $\sqrt{\mathbb{V}[\hat{y}_t^*]}$ | Model standard deviation (fitted value) | `estsd` |
 
 ### Summary Output
@@ -606,7 +606,7 @@ The following table maps the mathematical notation used in this document to the 
 | Symbol | Meaning | Field Name |
 |--------|---------|------------|
 | $\hat{\Delta}(T)$ | Cumulative treatment effect estimate | `estimate` |
-| $\text{SE}$ | Posterior standard deviation of cumulative effect | `se` |
+| $\text{SE}$ | Cumulative-effect standard error (Student's $t$ scale) | `se` |
 | $t_{\alpha/2,\nu} \cdot \text{SE}$ | Half-width of credible interval | `precision` |
 | $[\text{lower}, \text{upper}]$ | Credible interval bounds | `lower`, `upper` |
 | $1 - \alpha$ | Credible interval level | `level` |

@@ -27,7 +27,7 @@ A comprehensive Python package for Time-Based Regression (TBR) analysis. TBR com
 
 - **Domain-Agnostic**: Works with any treatment/control group time series data
 - **Comprehensive Analysis**: Lift calculation, counterfactual predictions, statistical inference
-- **Statistical Rigor**: Credible intervals, significance tests, posterior probability assessments
+- **Statistical Rigor**: Credible intervals, uncertainty decomposition, and posterior probability assessments
 - **Flexible**: Temporal and cumulative analysis, subinterval analysis, incremental analysis
 - **Well-Tested**: Type hints, 100% code coverage, comprehensive test suite
 - **Easy to Use**: Simple, intuitive API for both quick analysis and advanced workflows
@@ -68,16 +68,16 @@ model.fit(
     time_col='date',
     control_col='control',
     test_col='test',
-    pretest_start='2023-01-01',
-    test_start='2023-02-15',
-    test_end='2023-04-10'
+    pretest_start=pd.Timestamp('2023-01-01'),
+    test_start=pd.Timestamp('2023-02-15'),
+    test_end=pd.Timestamp('2023-04-10')
 )
 
 # Get results
 summary = model.summarize()
 print(f"Treatment Effect: {summary.estimate:.2f}")
-print(f"95% CI: [{summary.ci_lower:.2f}, {summary.ci_upper:.2f}]")
-print(f"Significant: {summary.is_significant()}")
+print(f"90% credible interval: [{summary.lower:.2f}, {summary.upper:.2f}]")
+print(f"Posterior probability above threshold: {summary.prob:.3f}")
 
 # Additional capabilities
 predictions = model.predict()
@@ -90,9 +90,9 @@ summary.to_json('results.json')
 
 - **Counterfactual Predictions**: Estimates what would have happened without treatment
 - **Lift Calculations**: Treatment effect with statistical uncertainty quantification
-- **Credible Intervals**: Bayesian confidence bounds using t-distribution
-- **Significance Testing**: Posterior probability of positive/negative effects
-- **Flexible Analysis**: Subinterval analysis, incremental tracking, custom confidence levels
+- **Credible Intervals**: Posterior intervals using the Student's t-distribution
+- **Posterior Probability**: Probability that an effect exceeds a chosen threshold
+- **Flexible Analysis**: Subinterval analysis, incremental tracking, and custom credibility levels
 
 ## Mathematical Foundation
 
@@ -101,7 +101,11 @@ TBR implements statistical methods for estimating causal effects in before-after
 - **Regression Modeling**: Establishes relationship between control and test groups
 - **Counterfactual Prediction**: Estimates what would have occurred without intervention
 - **Bayesian Inference**: Credible intervals with uncertainty quantification
-- **Variance Decomposition**: Proper error propagation
+- **Uncertainty Decomposition**: Separates residual and model contributions
+
+The [mathematical methodology](https://tbr.readthedocs.io/en/latest/mathematical_methodology.html)
+defines the package's canonical notation and maps mathematical quantities to
+Python parameters, result fields, and DataFrame columns.
 
 ## Documentation
 

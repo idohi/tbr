@@ -1,8 +1,15 @@
 # TBR Documentation
 
-Time-Based Regression (TBR) is a Python package for estimating treatment effects in before-after studies using treatment and control group time series data.
+Time-Based Regression (TBR) is a Python package for estimating treatment
+effects in before-after studies using treatment/test and control-group time
+series data. It reports counterfactual predictions, cumulative effects,
+credible intervals, and posterior probabilities.
 
-Use this documentation to get started with TBR, understand common analysis patterns, interpret result objects, and review the mathematical methodology behind the package.
+Use this documentation to get started with TBR, understand common analysis
+patterns, and interpret result objects. The
+[mathematical methodology](mathematical_methodology.md) is the canonical
+reference for the statistical derivations, notation, and mappings from symbols
+to Python names.
 
 ```{toctree}
 :maxdepth: 2

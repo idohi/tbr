@@ -1,6 +1,8 @@
-# TBR Quick Start Guide
+# TBR Quickstart
 
-Welcome to the Time-Based Regression (TBR) Python package! This guide will help you get started with analyzing treatment effects in time series data.
+This guide runs a complete Time-Based Regression (TBR) analysis with the
+object-oriented API. For the derivation and the complete notation-to-code
+mapping, see the [mathematical methodology](../mathematical_methodology.md).
 
 ## Installation
 
@@ -8,169 +10,148 @@ Welcome to the Time-Based Regression (TBR) Python package! This guide will help 
 pip install tbr
 ```
 
-## Basic Usage
+## Prepare reproducible data
 
-### 1. Import and Prepare Data
-
-```python
-import pandas as pd
-from tbr import TBRAnalysis
-
-# Create or load your time series data
-# Required columns: time, control group metric, test group metric
-data = pd.DataFrame({
-    'date': pd.date_range('2024-01-01', periods=90),
-    'control': [1000, 1020, 980, ...],  # Control group values
-    'test': [1010, 1035, 995, ...]      # Test group values
-})
-```
-
-### 2. Initialize the Model
+TBR requires one time column and numeric control and test metric columns. The
+time column may use a pandas datetime dtype, integers, or floats; its three
+boundary arguments must use the corresponding type.
 
 ```python
-# Create a TBR analysis instance
-model = TBRAnalysis(
-    level=0.80,        # 80% credibility level
-    threshold=0.0      # Test if effect > 0
-)
-```
-
-### 3. Fit the Model
-
-```python
-# Fit the model to your data
-model.fit(
-    data=data,
-    time_col='date',
-    control_col='control',
-    test_col='test',
-    pretest_start='2024-01-01',  # Start of pretest period
-    test_start='2024-02-15',     # Start of test period
-    test_end='2024-03-31'        # End of test period
-)
-```
-
-### 4. Get Results
-
-```python
-# Get final summary
-summary = model.summarize()
-print(f"Treatment Effect: {summary.estimate:.2f}")
-print(f"80% CI: [{summary.lower:.2f}, {summary.upper:.2f}]")
-print(f"Significant: {summary.is_significant()}")
-
-# Access detailed results
-results_df = model.results_
-predictions = model.predict()
-```
-
-## Complete Example
-
-```python
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from tbr import TBRAnalysis
 
-# Generate sample data
-np.random.seed(42)
-dates = pd.date_range('2024-01-01', periods=90)
-control = np.random.normal(1000, 50, 90)
-test = control * 1.02 + np.random.normal(0, 5, 90)  # 2% treatment effect
+rng = np.random.default_rng(42)
+dates = pd.date_range("2024-01-01", periods=60)
+control = rng.normal(1000.0, 35.0, len(dates))
+noise = rng.normal(0.0, 8.0, len(dates))
+treatment_lift = np.where(dates >= pd.Timestamp("2024-02-15"), 12.0, 0.0)
 
-data = pd.DataFrame({
-    'date': dates,
-    'control': control,
-    'test': test
-})
+data = pd.DataFrame(
+    {
+        "date": dates,
+        "control": control,
+        "test": 20.0 + 1.02 * control + noise + treatment_lift,
+    }
+)
+```
 
-# Run TBR analysis
+Here `control` is $x_t$ and `test` is $y_t$. The pretest regression estimates
+the intercept $\beta_0$ as Python `alpha`, the slope $\beta_1$ as `beta`, and
+the residual standard deviation $\sigma$ as `sigma`.
+
+## Fit and summarize
+
+By default, `test_end` is exclusive. This example therefore analyzes
+2024-02-15 through 2024-02-28.
+
+```python
 model = TBRAnalysis(level=0.80, threshold=0.0)
 model.fit(
     data=data,
-    time_col='date',
-    control_col='control',
-    test_col='test',
-    pretest_start='2024-01-01',
-    test_start='2024-02-15',
-    test_end='2024-03-31'
+    time_col="date",
+    control_col="control",
+    test_col="test",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-01"),
 )
 
-# Get results
 summary = model.summarize()
-print(f"Effect: {summary.estimate:.2f}")
-print(f"CI: [{summary.lower:.2f}, {summary.upper:.2f}]")
-print(f"P(effect > 0): {summary.prob:.3f}")
+print(f"Cumulative effect: {summary.estimate:.2f}")
+print(f"80% credible interval: [{summary.lower:.2f}, {summary.upper:.2f}]")
+print(f"Posterior P(effect > {summary.threshold:g}): {summary.prob:.3f}")
 ```
 
-## One-Liner Analysis
+The final cumulative effect $\hat{\Delta}(T)$ is `estimate`.
+`se` is the standard error. `precision` is the credible-interval half-width,
+while `lower` and `upper` are the credible-interval bounds.
+`prob` is the posterior probability
+$P(\Delta(T)>\theta\mid\mathrm{data})$, where `threshold` is $\theta$.
 
 ```python
-# Quick analysis without storing model
-summary = TBRAnalysis().fit_summarize(
-    data, 'date', 'control', 'test',
-    pretest_start='2024-01-01',
-    test_start='2024-02-15',
-    test_end='2024-03-31'
-)
-print(f"Effect: {summary.estimate:.2f}")
+print(f"Standard error: {summary.se:.2f}")
+print(f"Precision: {summary.precision:.2f}")
+assert np.isclose(summary.precision, (summary.upper - summary.lower) / 2)
 ```
 
-## Next Steps
+## Inspect predictions and daily results
 
-- **[API Reference](api_reference.rst)** - Complete API documentation
-- **[Examples](https://github.com/idohi/tbr/tree/main/examples)** - Domain-specific examples
-- **[Common Patterns](patterns.md)** - Best practices and patterns
-- **[Result Objects](results.md)** - Understanding result objects
+```python
+prediction_result = model.predict()
+prediction_frame = prediction_result.predictions
+daily_frame = model.results_
+incremental_frame = model.summarize_incremental()
 
-## Key Concepts
+print(prediction_frame[["pred", "predsd"]].head())
+print(incremental_frame[["test_day", "estimate", "lower", "upper", "prob"]].tail())
+```
 
-### Time Periods
+`pred` contains test-period counterfactual predictions $\hat{y}_t^*$.
+`predsd` contains their prediction standard deviations, including model and
+residual uncertainty. In `daily_frame`, `dif` is the pointwise effect
+$\phi_t$, `cumdif` is $\Delta(T)$, and legacy column `cumsd` is the
+cumulative-effect standard error (Student-t scale).
 
-- **Pretest Period**: Historical data used to learn the relationship between control and test
-- **Test Period**: Period where treatment is applied
-- **Counterfactual**: What the test would have been without treatment
+## One-call alternatives
 
-### Configuration Parameters
+`fit_summarize()` returns the same `TBRSummaryResult` shape as `summarize()`:
 
-- **level**: Credibility level for confidence intervals (0 < level < 1)
-- **threshold**: Minimum effect size for probability calculations
-- **test_end_inclusive**: Whether to include the end date in analysis
+```python
+one_call_summary = TBRAnalysis(level=0.80).fit_summarize(
+    data,
+    "date",
+    "control",
+    "test",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-01"),
+)
+print(one_call_summary.estimate)
+```
 
-### Result Components
+The functional API instead returns a comprehensive `TBRResults` object. Its
+scalar aliases are `estimate`, `conf_int_lower`, `conf_int_upper`, and the
+legacy property `pvalue`, which is a posterior probability rather than a
+frequentist p-value.
 
-- **estimate**: Cumulative treatment effect
-- **lower/upper**: Credible interval bounds
-- **prob**: Posterior probability that effect exceeds threshold
-- **precision**: Inverse of variance (higher = more certain)
+```python
+from tbr import perform_tbr_analysis
 
-## Common Use Cases
+results = perform_tbr_analysis(
+    data=data,
+    time_col="date",
+    control_col="control",
+    test_col="test",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-01"),
+    level=0.80,
+    threshold=0.0,
+)
+print(results.estimate, results.conf_int_lower, results.conf_int_upper)
+print(results.pvalue)
+```
 
-### Marketing Campaign Analysis
-Measure the incremental impact of a marketing campaign on sales or conversions.
+Do not confuse `results.summary()`, which is a day-by-day DataFrame, with
+`model.summarize()`, which returns one structured `TBRSummaryResult`.
 
-### A/B Testing
-Analyze treatment effects in controlled experiments with time series data.
+## Boundary and interpretation notes
 
-### Medical Trials
-Evaluate treatment effects in clinical studies with temporal components.
+- `pretest_start` and `test_start` are inclusive.
+- `test_end` is exclusive unless `test_end_inclusive=True`.
+- `TBRSummaryResult.is_significant()` checks whether `prob` meets a posterior
+  probability threshold (0.95 by default). It does not test interval exclusion.
+- An interval entirely above zero (`summary.lower > 0`) is a separate
+  interval-based criterion.
+- Conclusions are conditional on the fitted model, its assumptions, and the
+  observed data; inspect diagnostics and domain assumptions before drawing
+  causal conclusions.
 
-### Economic Policy Analysis
-Assess the impact of policy interventions on economic indicators.
+## Next steps
 
-### Feature Rollouts
-Measure the impact of new product features on user metrics.
-
-## Tips
-
-1. **Sufficient Pretest Data**: Use at least 2x the test period length for pretest
-2. **Stable Relationships**: Ensure control-test relationship is stable in pretest
-3. **Check Diagnostics**: Use model diagnostics to validate assumptions
-4. **Domain-Agnostic**: Works with any time series where you have control and test groups
-5. **Multiple Analyses**: Re-fit the same model with different periods for comparisons
-
-## Getting Help
-
-- Check the [API Reference](api_reference.rst) for detailed method documentation
-- See [Examples](https://github.com/idohi/tbr/tree/main/examples) for domain-specific use cases
-- Review [Common Patterns](patterns.md) for best practices
-- Read [Result Objects](results.md) to understand output structures
+- [API reference](api_reference.rst)
+- [Common patterns](patterns.md)
+- [Result objects and schemas](results.md)
+- [Mathematical methodology](../mathematical_methodology.md)

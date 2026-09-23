@@ -273,6 +273,7 @@ class PerformanceProfiler:
         """
 
         def wrapper(*args: Any, **kwargs: Any) -> Any:
+            """Execute the wrapped callable while collecting profiling metrics."""
             operation_name = f"{func.__module__}.{func.__name__}"
             with self.profile_context(operation_name) as metrics:
                 metrics.function_calls = 1
@@ -803,9 +804,11 @@ class EfficiencyMetrics:
 
         return {
             "duration_ratio": current_duration / baseline["total_duration"],
-            "memory_ratio": current_memory / baseline["peak_memory"]
-            if baseline["peak_memory"] > 0
-            else 1.0,
+            "memory_ratio": (
+                current_memory / baseline["peak_memory"]
+                if baseline["peak_memory"] > 0
+                else 1.0
+            ),
             "operation_ratio": len(current_metrics) / baseline["operation_count"],
         }
 

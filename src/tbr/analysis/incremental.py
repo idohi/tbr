@@ -6,9 +6,8 @@ enabling day-by-day progression analysis of treatment effects during test period
 
 The incremental analysis approach allows researchers to:
 - Track treatment effect evolution over time
-- Identify when effects become statistically significant
-- Optimize test duration for future experiments
-- Make early stopping decisions in ongoing tests
+- Track when a declared posterior-probability or interval criterion is met
+- Compare candidate test durations using explicitly chosen decision rules
 - Understand effect stability and consistency patterns
 
 Functions
@@ -37,14 +36,13 @@ Analyze effect progression:
 ...     print(f"Day {row['test_day']}: {row['estimate']:.2f} "
 ...           f"(prob={row['prob']:.3f})")
 
-Find when effect becomes significant:
+Find when posterior probability exceeds a declared threshold:
 
 >>> significant_days = incremental[incremental['prob'] > 0.8]
 >>> if not significant_days.empty:
 ...     first_sig_day = significant_days.iloc[0]['test_day']
-...     print(f"Effect significant from day {first_sig_day}")
+...     print(f"Posterior probability exceeds 0.8 from day {first_sig_day}")
 """
-
 
 import pandas as pd
 
@@ -66,82 +64,101 @@ def create_incremental_tbr_summaries(
     level: float,
     threshold: float,
 ) -> pd.DataFrame:
-    """
-    Create incremental TBR summary statistics for each test period day.
+    r"""
+    Create one cumulative TBR summary per test day.
 
-    This function generates summary statistics for incremental test periods,
-    providing day-by-day analysis of cumulative treatment effects:
-    - Day 1: Summary for first day only
-    - Day 2: Summary for first two days (cumulative)
-    - Day 3: Summary for first three days (cumulative)
-    - ...and so on
-
-    This enables progressive analysis of treatment effects during the test period,
-    providing insights into when effects become detectable, stable, and significant.
-    Each row represents the cumulative effect up to that test day.
+    Test rows are consumed in their input order. Row :math:`T` of the result
+    summarizes test days 1 through :math:`T`; this helper does not apply a
+    stopping rule or define statistical significance.
 
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Complete TBR dataframe with all periods and statistics.
-        Must contain columns: 'period', 'cumdif', 'cumsd'
+        Daily TBR output containing ``period``, ``cumdif``, and ``cumsd``.
+        Rows satisfying ``period == 1`` must be in test-day order.
     alpha : float
-        Regression intercept coefficient (α) from fitted model
+        Regression intercept :math:`\beta_0`.
     beta : float
-        Regression slope coefficient (β) from fitted model
+        Regression slope :math:`\beta_1`.
     sigma : float
-        Residual standard deviation from the model prediction over the learning set (σ).
-        Must be positive.
+        Positive residual standard deviation :math:`\sigma`.
     var_alpha : float
-        Variance of intercept estimate (Var[α̂]) from regression model
+        Variance :math:`\mathbb{V}[\hat{\beta}_0]`.
     var_beta : float
-        Variance of slope estimate (Var[β̂]) from regression model
+        Variance :math:`\mathbb{V}[\hat{\beta}_1]`.
     cov_alpha_beta : float
-        Covariance between intercept and slope estimates (Cov[α̂,β̂])
+        Covariance
+        :math:`\operatorname{Cov}(\hat{\beta}_0,\hat{\beta}_1)`.
     degrees_freedom : int
-        Residual degrees of freedom from regression model. Must be positive.
+        Positive regression degrees of freedom :math:`\nu`.
     level : float
-        Credibility level for credible intervals. Must be between 0 and 1.
-        E.g., 0.80 for 80% credible intervals.
+        Credibility level in the closed interval ``[0, 1]``.
     threshold : float
-        Threshold value for posterior probability calculation.
-        Probability calculated as P(effect > threshold).
+        Effect threshold :math:`\theta` for the posterior probability.
 
     Returns
     -------
     pd.DataFrame
-        Multi-row DataFrame with incremental TBR summary statistics.
-        Each row represents cumulative statistics up to that test day.
-
-        Columns include all standard summary statistics plus:
-
-        - 'test_day' : int
-            Test day number (1, 2, 3, ...)
-        - All columns from create_tbr_summary() for each incremental period
-
-        The DataFrame is ordered by test_day, enabling easy analysis of
-        effect progression over time.
+        Incremental summary ordered by ``test_day``. See Notes for the stable
+        columns and their order.
 
     Raises
     ------
     ValueError
-        If tbr_dataframe is empty or missing required columns
-        If level is not between 0 and 1
-        If degrees_freedom is not positive
-        If sigma is not positive
-        If no test period data found (period == 1)
+        If ``tbr_dataframe`` is empty or lacks a required column; ``level`` is
+        outside ``[0, 1]``; ``degrees_freedom`` or ``sigma`` is not positive;
+        or no row has ``period == 1``.
 
     Notes
     -----
+    The returned DataFrame has these stable columns in order:
+
+    ``test_day`` : integer
+        One-based cumulative test-day number, normally ``int64``.
+    ``estimate`` : ``float64``
+        Cumulative-effect estimate :math:`\hat{\Delta}(T)`.
+    ``precision`` : ``float64``
+        Credible-interval half-width.
+    ``lower`` : ``float64``
+        Lower credible bound.
+    ``upper`` : ``float64``
+        Upper credible bound.
+    ``se`` : ``float64``
+        ``cumsd`` Student-t scale used as the standard error of the cumulative
+        effect estimate.
+    ``level`` : ``float64``
+        Credibility level.
+    ``thres`` : ``float64``
+        Legacy summary name for input ``threshold``.
+    ``prob`` : ``float64``
+        Posterior probability
+        :math:`P(\Delta(T)>\theta\mid\mathrm{data})`.
+    ``alpha`` : ``float64``
+        Regression intercept :math:`\beta_0`.
+    ``beta`` : ``float64``
+        Regression slope :math:`\beta_1`.
+    ``alpha_beta_cov`` : ``float64``
+        Legacy summary name for input ``cov_alpha_beta``.
+    ``var_alpha`` : ``float64``
+        Intercept-estimate variance.
+    ``var_beta`` : ``float64``
+        Slope-estimate variance.
+    ``sigma`` : ``float64``
+        Residual standard deviation.
+    ``t_dist_df`` : ``float64``
+        Summary-table representation of input ``degrees_freedom``.
+
     Each row in the returned DataFrame represents the cumulative effect
     from test day 1 through the specified test day. This allows analysis
     of how treatment effects accumulate and stabilize over time.
 
     The incremental analysis is particularly useful for:
-    - Detecting when effects become statistically significant
+
+    - Identifying the first observed day meeting a declared probability or
+      interval criterion
     - Understanding effect stability and consistency
-    - Optimizing test duration for future experiments
-    - Early stopping decisions in ongoing tests
+    - Comparing candidate durations under an explicitly chosen criterion
+    - Informing the design of future experiments
 
     Mathematical Foundation
     -----------------------
@@ -168,6 +185,7 @@ def create_incremental_tbr_summaries(
     Create incremental summaries for day-by-day analysis:
 
     >>> import pandas as pd
+    >>> from tbr import create_incremental_tbr_summaries
     >>> tbr_dataframe = pd.DataFrame(
     ...     {"period": [1, 1, 1], "cumdif": [5.0, 8.0, 11.0], "cumsd": [2.0, 3.0, 4.0]}
     ... )
@@ -176,6 +194,12 @@ def create_incremental_tbr_summaries(
     ...     var_alpha=100.5, var_beta=0.001, cov_alpha_beta=-0.05,
     ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
+    >>> list(incremental["test_day"]) == [1, 2, 3]
+    True
+    >>> incremental["test_day"].dtype == "int64"
+    True
+    >>> incremental["estimate"].tolist() == [5.0, 8.0, 11.0]
+    True
     >>> print(f"Day 1 effect: {incremental.iloc[0]['estimate']:.2f}")
     >>> print(f"Day 3 effect: {incremental.iloc[2]['estimate']:.2f}")
 
@@ -186,27 +210,26 @@ def create_incremental_tbr_summaries(
     ...     print(f"Day {row['test_day']}: {row['estimate']:.2f} "
     ...           f"(prob={row['prob']:.3f})")
 
-    Find when effect becomes significant:
+    Find when posterior probability exceeds a threshold:
 
-    >>> significant_days = incremental[incremental['prob'] > 0.8]
-    >>> if not significant_days.empty:
-    ...     first_sig_day = significant_days.iloc[0]['test_day']
-    ...     print(f"Effect significant from day {first_sig_day}")
+    >>> high_prob_days = incremental[incremental['prob'] > 0.8]
+    >>> if not high_prob_days.empty:
+    ...     first_day = high_prob_days.iloc[0]['test_day']
+    ...     print(f"Posterior probability exceeds 0.8 from day {first_day}")
 
-    Track effect stability:
+    Track credible interval width over time:
 
-    >>> # Calculate effect variance across days
-    >>> effect_variance = incremental['estimate'].var()
-    >>> print(f"Effect stability (lower=more stable): {effect_variance:.3f}")
+    >>> interval_width = incremental['upper'] - incremental['lower']
+    >>> print(f"Final credible interval width: {interval_width.iloc[-1]:.3f}")
 
-    Optimize test duration:
+    Apply a declared probability rule to candidate durations:
 
-    >>> # Find minimum days for desired significance
+    >>> # Find the first observed day meeting the declared probability rule.
     >>> target_prob = 0.9
-    >>> min_days = incremental[incremental['prob'] >= target_prob]
-    >>> if not min_days.empty:
-    ...     optimal_duration = min_days.iloc[0]['test_day']
-    ...     print(f"Minimum test duration for 90% confidence: {optimal_duration} days")
+    >>> matching_days = incremental[incremental['prob'] >= target_prob]
+    >>> if not matching_days.empty:
+    ...     first_matching_day = matching_days.iloc[0]['test_day']
+    ...     print(f"First observed day meeting the 90% probability rule: {first_matching_day}")
     """
     return functional_create_incremental_tbr_summaries(
         tbr_dataframe=tbr_dataframe,

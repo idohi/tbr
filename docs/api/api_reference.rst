@@ -61,9 +61,14 @@ Diagnostics And Performance
 Constants
 ---------
 
-.. autosummary::
-   :toctree: generated
-   :nosignatures:
+.. py:data:: CONTROL_VAL
+   :type: str
+   :value: "control"
 
-   CONTROL_VAL
-   TEST_VAL
+   Public string label for the control group.
+
+.. py:data:: TEST_VAL
+   :type: str
+   :value: "test"
+
+   Public string label for the test group.

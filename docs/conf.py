@@ -24,6 +24,26 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 
+def _hide_result_container_signatures() -> None:
+    """Hide internal result-container constructors from generated API docs."""
+    from inspect import Signature
+
+    from tbr.core import results as result_objects
+
+    for class_name in (
+        "TBRPredictionResult",
+        "TBRSummaryResult",
+        "TBRSubintervalResult",
+        "TBRResults",
+    ):
+        result_class = getattr(result_objects, class_name)
+        result_class.__signature__ = Signature()
+        result_class.__init__.__signature__ = Signature()
+
+
+_hide_result_container_signatures()
+
+
 # Project information
 project = "TBR"
 author = "Ido Hirsh"

@@ -8,9 +8,9 @@ over specific subintervals within the test period.
 The subinterval analysis approach allows researchers to:
 - Analyze treatment effects for specific time ranges
 - Compare effects across different time windows
-- Identify when effects become significant during the test period
+- Apply an explicitly chosen interval-exclusion rule across time windows
 - Perform detailed temporal analysis of treatment impact
-- Validate effect consistency across different intervals
+- Review effect variation across different intervals
 
 Functions
 ---------
@@ -36,7 +36,7 @@ Examples
 ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
 ... )
 >>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
->>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
+>>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
 
 Analyze multiple subintervals:
 
@@ -75,56 +75,54 @@ def compute_interval_estimate_and_ci(
     ci_level: float,
 ) -> Dict[str, float]:
     r"""
-    Compute cumulative treatment effect estimate and credible interval for a subinterval.
+    Compute a subinterval effect estimate and credible interval.
 
-    This function calculates the cumulative treatment effect over a specified
-    subinterval within the test period, along with its credible interval using
-    t-distribution. This enables analysis of treatment effects for specific time
-    ranges rather than the entire test period, providing flexible temporal analysis
-    capabilities for TBR experiments.
+    The selected interval has inclusive one-based bounds
+    :math:`a=\mathrm{start\_day}` and :math:`b=\mathrm{end\_day}`, with
+    :math:`T_s=b-a+1`. Test rows are selected in their existing order.
 
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'.
-        Must contain test period data (period == 1).
+        Daily TBR output containing ``period``, ``y``, ``pred``, and ``estsd``.
+        Rows with ``period == 1`` must be in test-day order.
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' (degrees of freedom) parameters.
-        Used for credible interval calculations.
+        Non-empty summary containing ``sigma`` and ``t_dist_df``. Values are
+        read from the last row.
     start_day : int
-        Start day of subinterval (1-indexed within test period).
-        Must be >= 1 and <= end_day.
+        Requested one-based start :math:`a`. This direct helper does not
+        validate the value.
     end_day : int
-        End day of subinterval (inclusive, 1-indexed within test period).
-        Must be >= start_day and <= total test days.
+        Requested inclusive one-based end :math:`b`. This direct helper does
+        not validate the value.
     ci_level : float
-        Credible interval level (e.g., 0.80 for 80% interval).
-        Must be between 0 and 1.
+        Credibility level. This direct helper does not validate its range.
 
     Returns
     -------
     Dict[str, float]
-        Dictionary containing subinterval analysis results:
-
-        - 'estimate' : float
-            Cumulative treatment effect for the subinterval
-        - 'precision' : float
-            Half-width of credible interval (margin of error)
-        - 'lower' : float
-            Lower bound of credible interval
-        - 'upper' : float
-            Upper bound of credible interval
+        Subinterval result mapping. See Notes for the stable schema.
 
     Raises
     ------
-    ValueError
-        If start_day > end_day, or if days are outside valid range
-        If ci_level is not between 0 and 1
-        If required columns are missing from input DataFrames
-        If no test period data is found
+    KeyError
+        If a required input column is absent.
+    IndexError
+        If ``tbr_summary`` has no rows.
 
     Notes
     -----
+    The returned mapping has these stable keys:
+
+    ``estimate`` : floating-point scalar
+        :math:`\Delta(a,b)=\sum_{t=a}^{b}(y_t-\hat{y}_t^*)`.
+    ``precision`` : floating-point scalar
+        Credible-interval half-width.
+    ``lower`` : floating-point scalar
+        Lower credible bound, ``estimate - precision``.
+    ``upper`` : floating-point scalar
+        Upper credible bound, ``estimate + precision``.
+
     The subinterval analysis uses the same mathematical foundation as the full
     TBR analysis, with credible intervals calculated using the t-distribution:
 
@@ -134,7 +132,7 @@ def compute_interval_estimate_and_ci(
     where the standard error combines model uncertainty and residual noise:
 
     .. math::
-        se = \\sqrt{\\sum_{i=start}^{end} estsd_i^2 + n_{days} × σ^2}
+        se = \sqrt{\sum_{i=start}^{end} estsd_i^2 + n_{days} × σ^2}
 
     The posterior variance accounts for both prediction uncertainty (estsd²)
     and residual noise (σ²) over the subinterval period.
@@ -144,7 +142,7 @@ def compute_interval_estimate_and_ci(
     The subinterval estimate is calculated as:
 
     .. math::
-        estimate = \\sum_{i=start}^{end} (y_i - pred_i)
+        estimate = \sum_{i=start}^{end} (y_i - pred_i)
 
     where y_i is the observed value and pred_i is the counterfactual prediction
     for day i within the subinterval.
@@ -158,6 +156,7 @@ def compute_interval_estimate_and_ci(
     Analyze effect for the first two days of a test period:
 
     >>> import pandas as pd
+    >>> from tbr import compute_interval_estimate_and_ci
     >>> tbr_df = pd.DataFrame(
     ...     {
     ...         "period": [1, 1, 1],
@@ -170,8 +169,14 @@ def compute_interval_estimate_and_ci(
     >>> result = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )
+    >>> list(result) == ["estimate", "precision", "lower", "upper"]
+    True
+    >>> result["estimate"] == 12.0
+    True
+    >>> abs(result["precision"] - (result["upper"] - result["lower"]) / 2) < 1e-12
+    True
     >>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
-    >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
+    >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
     >>> print(f"Precision: ±{result['precision']:.2f}")
 
     Analyze single day effect:
@@ -189,8 +194,8 @@ def compute_interval_estimate_and_ci(
     >>> result_95 = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.95
     ... )
-    >>> print(f"80% CI width: {result_80['upper'] - result_80['lower']:.2f}")
-    >>> print(f"95% CI width: {result_95['upper'] - result_95['lower']:.2f}")
+    >>> print(f"80% interval width: {result_80['upper'] - result_80['lower']:.2f}")
+    >>> print(f"95% interval width: {result_95['upper'] - result_95['lower']:.2f}")
     """
     return core_compute_interval(
         tbr_df=tbr_df,
@@ -220,12 +225,14 @@ def analyze_multiple_subintervals(
     ----------
     tbr_df : pd.DataFrame
         TBR daily output with columns 'y', 'pred', 'period', 'estsd'.
-        Must contain test period data (period == 1).
+        Must contain one row per test day with ``period == 1``, ordered
+        chronologically.
     tbr_summary : pd.DataFrame
         TBR summary containing 'sigma' and 't_dist_df' parameters.
     intervals : List[Tuple[int, int]]
-        List of (start_day, end_day) tuples defining subintervals to analyze.
-        Each tuple should contain 1-indexed day numbers within the test period.
+        Non-empty list of ``(start_day, end_day)`` pairs. Bounds are inclusive
+        one-based positions. Each start must be at least 1 and no greater than
+        its end. This wrapper does not reject an end beyond the available rows.
     ci_level : float, default=0.80
         Credible interval level for all subintervals.
         Must be between 0 and 1.
@@ -233,20 +240,32 @@ def analyze_multiple_subintervals(
     Returns
     -------
     List[Dict[str, float]]
-        List of analysis results, one for each subinterval.
-        Each dictionary contains the same keys as compute_interval_estimate_and_ci():
-        'estimate', 'precision', 'lower', 'upper'.
+        Results in the same order as ``intervals``. See Notes for the stable
+        mapping schema.
 
     Raises
     ------
     ValueError
-        If any interval has start_day > end_day
-        If any day is outside the valid test period range
-        If ci_level is not between 0 and 1
-        If intervals list is empty
+        If ``intervals`` is empty, ``ci_level`` is outside ``(0, 1)``, or an
+        interval starts below 1 or starts after its end.
+    KeyError
+        Propagated when a required input column is absent.
+    IndexError
+        Propagated when ``tbr_summary`` has no rows.
 
     Notes
     -----
+    Each returned mapping has these stable keys:
+
+    ``estimate`` : floating-point scalar
+        Subinterval cumulative-effect estimate.
+    ``precision`` : floating-point scalar
+        Credible-interval half-width.
+    ``lower`` : floating-point scalar
+        Lower credible bound.
+    ``upper`` : floating-point scalar
+        Upper credible bound.
+
     This function is equivalent to calling compute_interval_estimate_and_ci()
     for each interval individually, but provides a convenient interface for
     batch analysis and ensures consistent parameter validation.
@@ -260,6 +279,7 @@ def analyze_multiple_subintervals(
     Compare effects across multiple windows:
 
     >>> import pandas as pd
+    >>> from tbr import analyze_multiple_subintervals
     >>> tbr_df = pd.DataFrame(
     ...     {
     ...         "period": [1, 1, 1],
@@ -273,6 +293,8 @@ def analyze_multiple_subintervals(
     >>> results = analyze_multiple_subintervals(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
+    >>> [result["estimate"] for result in results] == [12.0, 13.0]
+    True
     >>> for i, result in enumerate(results, 1):
     ...     print(f"Window {i}: {result['estimate']:.2f} "
     ...           f"[{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -337,63 +359,80 @@ def create_subinterval_summary(
     ci_level: float = 0.80,
     significance_threshold: float = 0.0,
 ) -> pd.DataFrame:
-    """
-    Create comprehensive summary DataFrame for multiple subinterval analyses.
+    r"""
+    Create a structured summary DataFrame for multiple subinterval analyses.
 
     This function generates a structured summary of subinterval analyses,
     providing a tabular view of treatment effects across multiple time windows.
-    The summary includes effect estimates, credible intervals, and significance
-    indicators, making it easy to compare and interpret results across different
-    temporal segments.
+    The summary includes effect estimates, credible intervals, and an explicitly
+    defined interval-exclusion flag for comparing temporal segments.
 
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'.
+        Daily TBR output containing ``period``, ``y``, ``pred``, and ``estsd``.
+        Test rows are interpreted in their existing order.
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' parameters.
+        Non-empty summary containing ``sigma`` and legacy degrees-of-freedom
+        column ``t_dist_df``.
     intervals : List[Tuple[int, int]]
-        List of (start_day, end_day) tuples defining subintervals to analyze.
+        Non-empty list of inclusive one-based ``(start_day, end_day)`` pairs.
     ci_level : float, default=0.80
         Credible interval level for all analyses.
     significance_threshold : float, default=0.0
-        Threshold for determining statistical significance.
-        An interval is considered significant if its credible interval
-        does not include this threshold value.
+        Threshold for the interval-exclusion flag. An interval is flagged when
+        its credible interval does not include this threshold value.
 
     Returns
     -------
     pd.DataFrame
-        Summary DataFrame with columns:
+        One row per input interval, preserving input order. See Notes for the
+        stable columns.
 
-        - 'interval' : str
-            String representation of the interval (e.g., "Days 1-7")
-        - 'start_day' : int
-            Start day of the interval
-        - 'end_day' : int
-            End day of the interval
-        - 'days' : int
-            Number of days in the interval
-        - 'estimate' : float
-            Cumulative treatment effect estimate
-        - 'precision' : float
-            Half-width of credible interval
-        - 'lower' : float
-            Lower bound of credible interval
-        - 'upper' : float
-            Upper bound of credible interval
-        - 'significant' : bool
-            Whether the effect is statistically significant
-        - 'avg_daily_effect' : float
-            Average daily effect (estimate / days)
-        - 'ci_level' : float
-            Credible interval level used
+    Raises
+    ------
+    ValueError
+        Propagated when ``intervals`` is empty, ``ci_level`` is outside
+        ``(0, 1)``, or a pair starts below 1 or starts after its end.
+    KeyError
+        Propagated when a required input column is absent.
+    IndexError
+        Propagated when ``tbr_summary`` has no rows.
 
     Notes
     -----
-    Statistical significance is determined by whether the credible interval
-    excludes the significance threshold. This provides a conservative test
-    of treatment effect significance.
+    The returned DataFrame has these stable columns:
+
+    ``interval`` : object
+        Label formatted as ``"Days {start_day}-{end_day}"``.
+    ``start_day`` : integer
+        Inclusive one-based start, normally ``int64``.
+    ``end_day`` : integer
+        Inclusive one-based end, normally ``int64``.
+    ``days`` : integer
+        :math:`T_s=\mathrm{end\_day}-\mathrm{start\_day}+1`, normally
+        ``int64``. Structured result objects call this value ``n_days``.
+    ``estimate`` : floating-point
+        :math:`\Delta(a,b)`, normally ``float64``.
+    ``precision`` : floating-point
+        Credible-interval half-width, normally ``float64``.
+    ``lower`` : floating-point
+        Lower credible bound, normally ``float64``.
+    ``upper`` : floating-point
+        Upper credible bound, normally ``float64``.
+    ``significant`` : Boolean
+        Whether ``lower > significance_threshold`` or
+        ``upper < significance_threshold``. Equality does not count as
+        exclusion; this is not a posterior-probability result.
+    ``avg_daily_effect`` : floating-point
+        ``estimate / days``, normally ``float64``.
+    ``ci_level`` : floating-point
+        Credibility level, normally ``float64``.
+
+    The ``significant`` column is a legacy interval-exclusion flag. It records
+    whether the credible interval lies entirely above or below
+    ``significance_threshold``. It is not a hypothesis test or a
+    posterior-probability result.
 
     The average daily effect is calculated as the total interval effect
     divided by the number of days, providing a normalized comparison
@@ -404,6 +443,7 @@ def create_subinterval_summary(
     Create a summary for multiple subintervals:
 
     >>> import pandas as pd
+    >>> from tbr import create_subinterval_summary
     >>> tbr_df = pd.DataFrame(
     ...     {
     ...         "period": [1, 1, 1],
@@ -417,16 +457,24 @@ def create_subinterval_summary(
     >>> summary = create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
+    >>> list(summary.columns) == [
+    ...     "interval", "start_day", "end_day", "days", "estimate",
+    ...     "precision", "lower", "upper", "significant",
+    ...     "avg_daily_effect", "ci_level",
+    ... ]
+    True
+    >>> summary["interval"].tolist() == ["Days 1-2", "Days 2-3", "Days 1-3"]
+    True
     >>> print(summary[['interval', 'estimate', 'significant']])
 
-    Analyze with custom significance threshold:
+    Analyze with a custom interval-exclusion threshold:
 
     >>> summary = create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals,
-    ...     significance_threshold=10.0  # Effect must be > 10
+    ...     significance_threshold=10.0  # Credible interval must exclude 10
     ... )
-    >>> significant_intervals = summary[summary['significant']]
-    >>> print(f"Significant intervals: {len(significant_intervals)}")
+    >>> flagged_intervals = summary[summary['significant']]
+    >>> print(f"Intervals excluding threshold: {len(flagged_intervals)}")
 
     Compare average daily effects:
 

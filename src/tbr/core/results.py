@@ -5,19 +5,18 @@ This module provides structured result containers for TBR analysis methods.
 User input data is kept separate from computed outputs, eliminating the
 possibility of column name conflicts.
 
-Result objects provide:
-- Type-safe attribute access
-- Rich string representations
-- Conversion methods (to_dict, to_dataframe)
-- Comprehensive metadata
-- Time-indexed Series for temporal alignment
-- Clean separation of user data from computed outputs
+Result objects provide typed attribute access, conversion and export methods,
+and time-indexed pandas objects. ``TBRPredictionResult``,
+``TBRSummaryResult``, and ``TBRSubintervalResult`` are frozen dataclasses;
+``TBRResults`` is the comprehensive result returned by
+``tbr.perform_tbr_analysis``. Only ``TBRSummaryResult`` provides
+``to_dataframe()``.
 
 Examples
 --------
 Basic usage with functional API:
 
->>> from tbr.functional import perform_tbr_analysis
+>>> from tbr import perform_tbr_analysis
 >>> import pandas as pd
 >>> import numpy as np
 >>>
@@ -39,7 +38,7 @@ Basic usage with functional API:
 >>>
 >>> # Access scalar summary
 >>> print(f"Effect: {results.estimate:.2f}")
->>> print(f"CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
+>>> print(f"Credible interval: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
 >>>
 >>> # Access time series (all indexed by time)
 >>> results.effects.head()
@@ -72,12 +71,13 @@ Object-oriented API:
 >>> # Access summary results
 >>> summary = model.summarize()
 >>> print(f"Effect: {summary.estimate:.2f}")
->>> print(f"CI: [{summary.lower:.2f}, {summary.upper:.2f}]")
+>>> print(f"Credible interval: [{summary.lower:.2f}, {summary.upper:.2f}]")
 >>> print(f"Probability: {summary.prob:.3f}")
 >>>
 >>> # Access subinterval results
 >>> week1 = model.analyze_subinterval(1, 7)
->>> print(f"Week 1 effect: {week1.estimate:.2f} +/- {week1.se:.2f}")
+>>> print(f"Week 1 effect: {week1.estimate:.2f}")
+>>> print(f"Interval half-width: {week1.se:.2f}")
 
 Notes
 -----
@@ -87,7 +87,7 @@ indexed by the time column values (datetime64[ns], int64, or float64).
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -96,7 +96,7 @@ from scipy import stats
 
 @dataclass(frozen=True)
 class TBRPredictionResult:
-    """
+    r"""
     Result container for TBR counterfactual predictions.
 
     Contains predictions with uncertainty estimates and metadata about
@@ -105,15 +105,54 @@ class TBRPredictionResult:
     Attributes
     ----------
     predictions : pd.DataFrame
-        DataFrame with columns:
-        - pred: Predicted counterfactual values
-        - predsd: Prediction standard deviations (uncertainty)
+        Floating-point counterfactual prediction output. See Notes for the
+        stable columns.
     n_predictions : int
-        Number of predictions generated
-    model_params : Dict[str, float]
-        Model parameters used (alpha, beta, sigma, etc.)
+        Number of rows in ``predictions`` and values in ``control_values``.
+    model_params : dict
+        Copy of the fitted parameter mapping used for prediction. See Notes
+        for the stable keys.
     control_values : np.ndarray
-        Control values used for predictions
+        One-dimensional copy of the control values used for prediction.
+
+    Notes
+    -----
+    The ``predictions`` DataFrame has these stable columns:
+
+    ``pred`` : float64
+        Counterfactual prediction :math:`\hat{y}_t^*`.
+    ``predsd`` : float64
+        Prediction standard deviation
+        :math:`\sqrt{\mathbb{V}[y_t^*]}`, including coefficient and residual
+        uncertainty.
+
+    The ``model_params`` mapping has these stable keys:
+
+    ``alpha`` : float
+        Regression intercept :math:`\hat{\beta}_0`.
+    ``beta`` : float
+        Regression slope :math:`\hat{\beta}_1`.
+    ``sigma`` : float
+        Residual standard deviation :math:`\sigma`.
+    ``var_alpha`` : float
+        Variance of the intercept estimate.
+    ``var_beta`` : float
+        Variance of the slope estimate.
+    ``cov_alpha_beta`` : float
+        Intercept/slope covariance.
+    ``degrees_freedom`` : int
+        Student's :math:`t` degrees of freedom.
+    ``pretest_x_mean`` : float
+        Mean pretest control value.
+    ``pretest_sum_x_squared_deviations`` : float
+        Sum of squared pretest control deviations.
+
+    ``@dataclass(frozen=True)`` provides shallow immutability: attribute
+    rebinding is blocked, but the stored DataFrame, dictionary, and ndarray
+    remain mutable. Results created by :meth:`tbr.TBRAnalysis.predict` receive
+    copies of those inputs at construction. Attribute access and
+    :meth:`to_dict` return the stored mutable objects by reference, so callers
+    should copy them before mutation.
 
     Examples
     --------
@@ -147,7 +186,7 @@ class TBRPredictionResult:
 
     predictions: pd.DataFrame
     n_predictions: int
-    model_params: Dict[str, float]
+    model_params: Dict[str, Union[float, int]]
     control_values: np.ndarray
 
     def to_dict(self) -> Dict[str, Any]:
@@ -157,7 +196,45 @@ class TBRPredictionResult:
         Returns
         -------
         dict
-            Dictionary with all result attributes
+            Prediction-result mapping. See Notes for the stable schema.
+
+        Notes
+        -----
+        The returned mapping has these stable keys:
+
+        ``predictions`` : pd.DataFrame
+            The ``pred`` and ``predsd`` floating-point DataFrame stored on the
+            result. ``pred`` contains counterfactual predictions and ``predsd``
+            contains prediction standard deviations including coefficient and
+            residual uncertainty.
+        ``n_predictions`` : int
+            Number of predictions.
+        ``model_params`` : dict
+            Fitted parameter mapping containing:
+
+            ``alpha`` : float
+                Regression intercept.
+            ``beta`` : float
+                Regression slope.
+            ``sigma`` : float
+                Residual standard deviation.
+            ``var_alpha`` : float
+                Intercept-estimate variance.
+            ``var_beta`` : float
+                Slope-estimate variance.
+            ``cov_alpha_beta`` : float
+                Intercept/slope covariance.
+            ``degrees_freedom`` : int
+                Regression degrees of freedom.
+            ``pretest_x_mean`` : float
+                Mean pretest control value.
+            ``pretest_sum_x_squared_deviations`` : float
+                Sum of squared pretest control deviations.
+        ``control_values`` : np.ndarray
+            Prediction inputs.
+
+        The contained mutable objects are returned by reference; this method
+        does not deep-copy them. This class has no ``to_dataframe()`` method.
         """
         return {
             "predictions": self.predictions,
@@ -173,13 +250,12 @@ class TBRPredictionResult:
         Parameters
         ----------
         filepath : str
-            Path to output JSON file
-        **kwargs : any
-            Additional arguments passed to export_to_json()
+            Path to the output JSON file.
+        **kwargs : Any
+            Additional arguments passed to ``export_to_json()``.
 
         Examples
         --------
-        >>> result = model.predict()  # doctest: +SKIP
         >>> result.to_json('predictions.json')  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_json
@@ -193,13 +269,12 @@ class TBRPredictionResult:
         Parameters
         ----------
         filepath : str
-            Path to output CSV file
-        **kwargs : any
-            Additional arguments passed to export_to_csv()
+            Path to the output CSV file.
+        **kwargs : Any
+            Additional arguments passed to ``export_to_csv()``.
 
         Examples
         --------
-        >>> result = model.predict()  # doctest: +SKIP
         >>> result.to_csv('predictions.csv', index=False)  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_csv
@@ -221,12 +296,12 @@ class TBRPredictionResult:
     @property
     def mean_uncertainty(self) -> float:
         """
-        Mean prediction uncertainty.
+        Mean counterfactual prediction standard deviation.
 
         Returns
         -------
         float
-            Average of prediction standard deviations
+            Average of the ``predsd`` values.
         """
         return float(self.predictions["predsd"].mean())
 
@@ -243,7 +318,7 @@ class TBRPredictionResult:
 
 @dataclass(frozen=True)
 class TBRSummaryResult:
-    """
+    r"""
     Result container for TBR summary statistics.
 
     Contains comprehensive summary statistics for TBR analysis including
@@ -280,7 +355,7 @@ class TBRSummaryResult:
     cov_alpha_beta : float
         Covariance between intercept and slope
     degrees_freedom : int
-        Degrees of freedom
+        Student's :math:`t` degrees of freedom.
 
     Examples
     --------
@@ -308,8 +383,8 @@ class TBRSummaryResult:
     ... )
     >>> result = model.summarize()
     >>> print(f"Effect: {result.estimate:.2f}")
-    >>> print(f"80% CI: [{result.lower:.2f}, {result.upper:.2f}]")
-    >>> print(f"Significant: {result.prob > 0.95}")
+    >>> print(f"80% credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
+    >>> print(f"Posterior prob > threshold: {result.prob:.3f}")
     """
 
     estimate: float
@@ -328,14 +403,49 @@ class TBRSummaryResult:
     cov_alpha_beta: float
     degrees_freedom: int
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> Dict[str, Union[float, int]]:
         """
         Convert result to dictionary format.
 
         Returns
         -------
         dict
-            Dictionary with all summary statistics
+            Summary-result mapping. See Notes for the stable schema.
+
+        Notes
+        -----
+        The returned mapping has these stable keys:
+
+        ``estimate`` : float
+            Cumulative-effect estimate.
+        ``lower`` : float
+            Lower credible bound.
+        ``upper`` : float
+            Upper credible bound.
+        ``se`` : float
+            Standard error of the estimate.
+        ``prob`` : float
+            Posterior threshold-exceedance probability.
+        ``precision`` : float
+            Precision (half-width of credible interval).
+        ``level`` : float
+            Credibility level.
+        ``threshold`` : float
+            Effect threshold.
+        ``alpha`` : float
+            Regression intercept.
+        ``beta`` : float
+            Regression slope.
+        ``sigma`` : float
+            Residual standard deviation.
+        ``var_alpha`` : float
+            Intercept-estimate variance.
+        ``var_beta`` : float
+            Slope-estimate variance.
+        ``cov_alpha_beta`` : float
+            Intercept/slope covariance.
+        ``degrees_freedom`` : int
+            Student's :math:`t` degrees of freedom.
         """
         return {
             "estimate": self.estimate,
@@ -362,7 +472,43 @@ class TBRSummaryResult:
         Returns
         -------
         pd.DataFrame
-            Single-row DataFrame with all summary statistics
+            New single-row DataFrame. See Notes for the stable columns.
+
+        Notes
+        -----
+        For results produced by :class:`tbr.TBRAnalysis`, the stable columns
+        are:
+
+        ``estimate`` : float64
+            Cumulative-effect estimate.
+        ``lower`` : float64
+            Lower credible bound.
+        ``upper`` : float64
+            Upper credible bound.
+        ``se`` : float64
+            Standard error of the estimate.
+        ``prob`` : float64
+            Posterior threshold-exceedance probability.
+        ``precision`` : float64
+            Precision (half-width of credible interval).
+        ``level`` : float64
+            Credibility level.
+        ``threshold`` : float64
+            Effect threshold.
+        ``alpha`` : float64
+            Regression intercept.
+        ``beta`` : float64
+            Regression slope.
+        ``sigma`` : float64
+            Residual standard deviation.
+        ``var_alpha`` : float64
+            Intercept-estimate variance.
+        ``var_beta`` : float64
+            Slope-estimate variance.
+        ``cov_alpha_beta`` : float64
+            Intercept/slope covariance.
+        ``degrees_freedom`` : int64
+            Student's :math:`t` degrees of freedom.
         """
         return pd.DataFrame([self.to_dict()])
 
@@ -373,13 +519,12 @@ class TBRSummaryResult:
         Parameters
         ----------
         filepath : str
-            Path to output JSON file
-        **kwargs : any
-            Additional arguments passed to export_to_json()
+            Path to the output JSON file.
+        **kwargs : Any
+            Additional arguments passed to ``export_to_json()``.
 
         Examples
         --------
-        >>> summary = model.summarize()  # doctest: +SKIP
         >>> summary.to_json('summary.json')  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_json
@@ -393,13 +538,12 @@ class TBRSummaryResult:
         Parameters
         ----------
         filepath : str
-            Path to output CSV file
-        **kwargs : any
-            Additional arguments passed to export_to_csv()
+            Path to the output CSV file.
+        **kwargs : Any
+            Additional arguments passed to ``export_to_csv()``.
 
         Examples
         --------
-        >>> summary = model.summarize()  # doctest: +SKIP
         >>> summary.to_csv('summary.csv', index=False)  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_csv
@@ -408,17 +552,21 @@ class TBRSummaryResult:
 
     def is_significant(self, probability_threshold: float = 0.95) -> bool:
         """
-        Check if effect is statistically significant.
+        Check whether the stored posterior probability meets a cutoff.
+
+        This convenience test compares ``prob`` with a posterior-probability
+        cutoff. It does not test whether a credible interval excludes zero.
 
         Parameters
         ----------
         probability_threshold : float, default=0.95
-            Probability threshold for significance
+            Cutoff compared directly with ``prob``. The method performs no
+            range validation.
 
         Returns
         -------
         bool
-            True if posterior probability exceeds threshold
+            True if posterior probability is at least ``probability_threshold``.
         """
         return self.prob >= probability_threshold
 
@@ -451,7 +599,7 @@ class TBRSubintervalResult:
     upper : float
         Upper bound of credible interval
     se : float
-        Standard error of the estimate
+        Credible-interval half-width stored under the legacy ``se`` field name.
     ci_level : float
         Credibility level used for interval
     start_day : int
@@ -459,7 +607,7 @@ class TBRSubintervalResult:
     end_day : int
         Ending day of subinterval (1-indexed)
     n_days : int
-        Number of days in the subinterval
+        Inclusive subinterval length, ``end_day - start_day + 1``.
 
     Examples
     --------
@@ -487,10 +635,10 @@ class TBRSubintervalResult:
     ... )
     >>> result = model.analyze_subinterval(1, 7)
     >>> print(f"Week 1 effect: {result.estimate:.2f}")
-    >>> print(f"CI: [{result.lower:.2f}, {result.upper:.2f}]")
+    >>> print(f"Credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
     >>> print(f"Days: {result.start_day}-{result.end_day} ({result.n_days} days)")
     >>> if result.contains_zero():
-    ...     print("Effect not significant (CI contains zero)")
+    ...     print("Credible interval includes zero")
     """
 
     estimate: float
@@ -502,14 +650,35 @@ class TBRSubintervalResult:
     end_day: int
     n_days: int
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> Dict[str, Union[float, int]]:
         """
         Convert result to dictionary format.
 
         Returns
         -------
         dict
-            Dictionary with all subinterval statistics
+            Subinterval-result mapping. See Notes for the stable schema.
+
+        Notes
+        -----
+        The returned mapping has these stable keys:
+
+        ``estimate`` : float
+            Cumulative effect over the subinterval.
+        ``lower`` : float
+            Lower credible bound.
+        ``upper`` : float
+            Upper credible bound.
+        ``se`` : float
+            Credible-interval half-width stored under the legacy field name.
+        ``ci_level`` : float
+            Credibility level.
+        ``start_day`` : int
+            One-based inclusive start day.
+        ``end_day`` : int
+            One-based inclusive end day.
+        ``n_days`` : int
+            Inclusive subinterval length.
         """
         return {
             "estimate": self.estimate,
@@ -529,13 +698,12 @@ class TBRSubintervalResult:
         Parameters
         ----------
         filepath : str
-            Path to output JSON file
-        **kwargs : any
-            Additional arguments passed to export_to_json()
+            Path to the output JSON file.
+        **kwargs : Any
+            Additional arguments passed to ``export_to_json()``.
 
         Examples
         --------
-        >>> result = model.analyze_subinterval(1, 7)  # doctest: +SKIP
         >>> result.to_json('week1_results.json')  # doctest: +SKIP
         """
         from tbr.utils.export import export_to_json
@@ -549,13 +717,12 @@ class TBRSubintervalResult:
         Parameters
         ----------
         filepath : str
-            Path to output CSV file
-        **kwargs : any
-            Additional arguments passed to pandas.DataFrame.to_csv()
+            Path to the output CSV file.
+        **kwargs : Any
+            Additional arguments passed to ``pandas.DataFrame.to_csv()``.
 
         Examples
         --------
-        >>> result = model.analyze_subinterval(1, 7)  # doctest: +SKIP
         >>> result.to_csv('week1_results.csv', index=False)  # doctest: +SKIP
         """
         df = pd.DataFrame([self.to_dict()])
@@ -568,7 +735,7 @@ class TBRSubintervalResult:
         Returns
         -------
         bool
-            True if interval contains zero (effect not significant)
+            ``True`` when ``lower <= 0 <= upper``.
         """
         return self.lower <= 0 <= self.upper
 
@@ -579,7 +746,7 @@ class TBRSubintervalResult:
         Returns
         -------
         bool
-            True if lower bound > 0 (positive effect with high confidence)
+            ``True`` when ``lower > 0``.
         """
         return self.lower > 0
 
@@ -590,7 +757,7 @@ class TBRSubintervalResult:
         Returns
         -------
         bool
-            True if upper bound < 0 (negative effect with high confidence)
+            ``True`` when ``upper < 0``.
         """
         return self.upper < 0
 
@@ -618,64 +785,77 @@ class TBRResults:
     column values from the input data, preserving temporal alignment for
     plotting, merging, and further analysis.
 
-    Parameters
+    Attributes
     ----------
-    data : pd.DataFrame
-        Original input DataFrame (stored for reference, not modified)
-    time_col : str
-        Name of the time column in input data
-    control_col : str
-        Name of the control group column
-    test_col : str
-        Name of the test group column
-    model_params : Dict[str, float]
-        Regression model parameters from fit_regression_model
-    periods : Dict[str, pd.DataFrame]
-        DataFrames for each period (baseline, pretest, test, cooldown)
-    level : float
-        Credibility level for confidence intervals
-    threshold : float
-        Threshold for probability calculations
+    control : pd.Series
+        Control group values indexed by time.
+    test : pd.Series
+        Test group values indexed by time.
+    fittedvalues : pd.Series
+        Fitted values from the pretest-period regression.
+    predictions : pd.Series
+        Counterfactual predictions for the test period.
+    resid : pd.Series
+        Pretest residuals, defined as observed minus fitted values.
+    effects : pd.Series
+        Test-period treatment effects, defined as observed minus predicted values.
+    cumulative_effect : pd.Series
+        Cumulative treatment effects over the test period.
+    prediction_se : pd.Series
+        Counterfactual prediction standard deviations for the test period.
+    cumulative_se : pd.Series
+        Cumulative effect standard errors (test period).
+    estimate : float
+        Final cumulative treatment effect.
+    conf_int_lower : float
+        Lower bound of the credible interval for the final estimate.
+    conf_int_upper : float
+        Upper bound of the credible interval for the final estimate.
+    pvalue : float
+        Legacy property name containing the posterior probability that the
+        cumulative effect exceeds the configured threshold; not a frequentist
+        p-value.
+    n_pretest : int
+        Number of pretest observations.
+    n_test : int
+        Number of test observations.
+    n_test_days : int
+        Number of days in the test period.
+    alpha : float
+        Regression intercept.
+    beta : float
+        Regression slope.
+    sigma : float
+        Residual standard deviation.
+    model_params : dict
+        Copy of the model-parameter mapping. Keys are ``alpha : float``,
+        ``beta : float``, ``sigma : float``, ``var_alpha : float``,
+        ``var_beta : float``, ``cov_alpha_beta : float``,
+        ``degrees_freedom : int``, ``n_pretest : int``, and
+        ``pretest_x_mean : float``.
 
-    Attributes (Properties)
-    ------------------------
-    Time Series (pd.Series indexed by time):
-        control : Control group values
-        test : Test group values
-        fittedvalues : Fitted values from regression (pretest period)
-        predictions : Counterfactual predictions (test period)
-        resid : Residuals (pretest: observed - fitted)
-        effects : Treatment effects (test: observed - predicted)
-        cumulative_effect : Cumulative treatment effects over time
-        prediction_se : Prediction standard errors (test period)
-        cumulative_se : Cumulative effect standard errors (test period)
+    Notes
+    -----
+    Instances are returned by :func:`~tbr.perform_tbr_analysis`; users normally
+    do not instantiate this class directly.
 
-    Scalars:
-        estimate : Final cumulative treatment effect
-        conf_int_lower : Lower bound of credible interval
-        conf_int_upper : Upper bound of credible interval
-        pvalue : Posterior probability of exceeding threshold
-        n_pretest : Number of pretest observations
-        n_test : Number of test observations
-        n_test_days : Number of days in test period
+    Time-series properties return their stored pandas Series by reference;
+    callers must use ``.copy()`` before mutation. In contrast, ``summary()``,
+    ``tbr_dataframe()``, ``conf_int()``, and ``model_params`` return new
+    DataFrame or dictionary objects.
 
-    Model Parameters:
-        alpha : Regression intercept
-        beta : Regression slope
-        sigma : Residual standard deviation
-        model_params : Complete dict of all model parameters
-
-    Methods
-    -------
-    summary() : Generate daily incremental summary DataFrame
-    to_dataframe() : Export all results to comprehensive DataFrame
-    conf_int() : Get confidence interval as DataFrame
+    The ``summary()``, ``tbr_dataframe()``, and ``conf_int()`` methods provide
+    tabular exports of the fitted analysis results and are documented below.
+    Input data and computed outputs are kept separate, with all results
+    accessible via properties. Time alignment is preserved through pandas
+    Series indexing, working seamlessly with datetime, integer, or float
+    time columns.
 
     Examples
     --------
     >>> import numpy as np
     >>> import pandas as pd
-    >>> from tbr.functional import perform_tbr_analysis
+    >>> from tbr import perform_tbr_analysis
     >>> rng = np.random.default_rng(0)
     >>> control = rng.normal(1000, 50, size=44)
     >>> data = pd.DataFrame(
@@ -699,8 +879,11 @@ class TBRResults:
     >>>
     >>> # Access scalar summary
     >>> print(f"Effect: {results.estimate:.2f}")
-    >>> print(f"CI: [{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]")
-    >>> print(f"P-value: {results.pvalue:.3f}")
+    >>> print(
+    ...     f"80% credible interval: "
+    ...     f"[{results.conf_int_lower:.2f}, {results.conf_int_upper:.2f}]"
+    ... )
+    >>> print(f"Posterior prob > threshold: {results.pvalue:.3f}")
     >>>
     >>> # Access time series (all indexed by time)
     >>> results.effects.describe()
@@ -713,17 +896,10 @@ class TBRResults:
     >>> # Get comprehensive TBR dataframe
     >>> tbr_df = results.tbr_dataframe()
 
-    Notes
-    -----
-    Input data and computed outputs are kept separate, with all results
-    accessible via properties. Time alignment is preserved through pandas
-    Series indexing, working seamlessly with datetime, integer, or float
-    time columns.
-
     See Also
     --------
-    perform_tbr_analysis : Functional API that returns TBRResults
-    TBRAnalysis : Object-oriented API wrapper
+    perform_tbr_analysis : Functional API that returns ``TBRResults``.
+    TBRAnalysis : Object-oriented API wrapper.
     """
 
     def __init__(
@@ -732,7 +908,7 @@ class TBRResults:
         time_col: str,
         control_col: str,
         test_col: str,
-        model_params: Dict[str, float],
+        model_params: Dict[str, Union[float, int]],
         periods: Dict[str, pd.DataFrame],
         level: float,
         threshold: float,
@@ -809,9 +985,9 @@ class TBRResults:
         n_pretest = safe_int_conversion(self._model_params["n_pretest"], "n_pretest")
 
         # Compute fitted values for pretest period
-        fitted_vals = (
-            self._model_params["alpha"] + self._model_params["beta"] * pretest_control
-        )
+        alpha = cast(float, self._model_params["alpha"])
+        beta = cast(float, self._model_params["beta"])
+        fitted_vals = alpha + beta * pretest_control
         self._fittedvalues = pd.Series(
             fitted_vals, index=self._pretest_time, name="fittedvalues"
         )
@@ -966,7 +1142,11 @@ class TBRResults:
         -------
         pd.Series
             Control group metric values for pretest and test periods,
-            indexed by time column values (datetime/int/float).
+            with value dtype inherited from the source control column. The
+            index is derived from the configured input time-column values and
+            retains their datetime, integer, or floating dtype where pandas
+            permits. The stored Series is returned by reference; call
+            ``.copy()`` before mutation.
         """
         return self._control_series
 
@@ -979,32 +1159,43 @@ class TBRResults:
         -------
         pd.Series
             Test group metric values for pretest and test periods,
-            indexed by time column values (datetime/int/float).
+            with value dtype inherited from the source treatment/test column.
+            The index is derived from the configured input time-column values
+            and retains their datetime, integer, or floating dtype where
+            pandas permits. The stored Series is returned by reference; call
+            ``.copy()`` before mutation.
         """
         return self._test_series
 
     @property
     def fittedvalues(self) -> pd.Series:
-        """
+        r"""
         Fitted values from regression model (pretest period only).
 
         Returns
         -------
         pd.Series
-            Fitted values: α + β * control, indexed by pretest time values.
+            Floating-point values
+            :math:`\hat{y}_t=\hat{\beta}_0+\hat{\beta}_1x_t` for the pretest
+            period. The index is derived from pretest input time-column values
+            and retains their dtype where pandas permits. The stored Series is
+            returned by reference; call ``.copy()`` before mutation.
         """
         return self._fittedvalues
 
     @property
     def predictions(self) -> pd.Series:
-        """
+        r"""
         Counterfactual predictions for test period.
 
         Returns
         -------
         pd.Series
-            Predicted values for test group based on control group,
-            indexed by test period time values.
+            Floating-point counterfactual predictions
+            :math:`\hat{y}_t^*` for the test period. The index is derived from
+            test input time-column values and retains their dtype where pandas
+            permits. The stored Series is returned by reference; call
+            ``.copy()`` before mutation.
         """
         return self._predictions
 
@@ -1016,55 +1207,72 @@ class TBRResults:
         Returns
         -------
         pd.Series
-            Residuals from regression fit, indexed by pretest time values.
+            Floating-point residuals from the regression fit for the pretest
+            period. The index is derived from pretest input time-column values
+            and retains their dtype where pandas permits. The stored Series is
+            returned by reference; call ``.copy()`` before mutation.
         """
         return self._resid
 
     @property
     def effects(self) -> pd.Series:
-        """
+        r"""
         Treatment effects for test period (observed - predicted).
 
         Returns
         -------
         pd.Series
-            Daily treatment effects, indexed by test period time values.
+            Floating-point pointwise effects
+            :math:`\phi_t=y_t-\hat{y}_t^*` for the test period. The index is
+            derived from test input time-column values and retains their dtype
+            where pandas permits. The stored Series is returned by reference;
+            call ``.copy()`` before mutation.
         """
         return self._effects
 
     @property
     def cumulative_effect(self) -> pd.Series:
-        """
+        r"""
         Cumulative treatment effects over test period.
 
         Returns
         -------
         pd.Series
-            Running sum of treatment effects, indexed by test period time.
+            Floating-point running cumulative effects :math:`\Delta(T)` for
+            the test period. The index is derived from test input time-column
+            values and retains their dtype where pandas permits. The stored
+            Series is returned by reference; call ``.copy()`` before mutation.
         """
         return self._cumulative_effect
 
     @property
     def prediction_se(self) -> pd.Series:
-        """
-        Prediction standard errors for test period.
+        r"""
+        Counterfactual prediction standard deviations for the test period.
 
         Returns
         -------
         pd.Series
-            Standard errors of counterfactual predictions, indexed by test time.
+            Floating-point values of
+            :math:`\sqrt{\mathbb{V}[y_t^*]}` including coefficient and
+            residual uncertainty for the test period. The index is derived
+            from test input time-column values and retains their dtype where
+            pandas permits. The stored Series is returned by reference; call
+            ``.copy()`` before mutation.
         """
         return self._prediction_se
 
     @property
     def cumulative_se(self) -> pd.Series:
-        """
+        r"""
         Cumulative effect standard errors over test period.
 
         Returns
         -------
         pd.Series
-            Standard errors of cumulative effects, indexed by test time.
+            Standard errors of cumulative effects, indexed by test time. The
+            index retains its dtype where pandas permits. The stored Series is
+            returned by reference; call ``.copy()`` before mutation.
         """
         return self._cumulative_se
 
@@ -1092,7 +1300,7 @@ class TBRResults:
         Returns
         -------
         float
-            Lower confidence bound at specified level.
+            Lower credible bound at the configured level.
         """
         return float(self._summary_df.iloc[-1]["lower"])
 
@@ -1104,19 +1312,22 @@ class TBRResults:
         Returns
         -------
         float
-            Upper confidence bound at specified level.
+            Upper credible bound at the configured level.
         """
         return float(self._summary_df.iloc[-1]["upper"])
 
     @property
     def pvalue(self) -> float:
-        """
-        Posterior probability of effect exceeding threshold.
+        r"""
+        Posterior probability of effect exceeding the configured threshold.
+
+        ``pvalue`` is a legacy property name; the value is not a frequentist
+        p-value.
 
         Returns
         -------
         float
-            Probability that true effect > threshold.
+            :math:`P(\Delta(T) > \theta\mid\mathrm{data})`.
         """
         return float(self._summary_df.iloc[-1]["prob"])
 
@@ -1197,15 +1408,38 @@ class TBRResults:
         return float(self._model_params["sigma"])
 
     @property
-    def model_params(self) -> Dict[str, float]:
+    def model_params(self) -> Dict[str, Union[float, int]]:
         """
         Complete dictionary of regression model parameters.
 
         Returns
         -------
         dict
-            All model parameters including alpha, beta, sigma, variances,
-            covariances, degrees of freedom, etc.
+            Copy of the model-parameter mapping. See Notes for the stable
+            schema.
+
+        Notes
+        -----
+        The returned mapping has these stable keys:
+
+        ``alpha`` : float
+            Regression intercept.
+        ``beta`` : float
+            Regression slope.
+        ``sigma`` : float
+            Residual standard deviation.
+        ``var_alpha`` : float
+            Intercept-estimate variance.
+        ``var_beta`` : float
+            Slope-estimate variance.
+        ``cov_alpha_beta`` : float
+            Intercept/slope covariance.
+        ``degrees_freedom`` : int
+            Student's :math:`t` degrees of freedom.
+        ``n_pretest`` : int
+            Number of pretest observations.
+        ``pretest_x_mean`` : float
+            Mean pretest control value.
         """
         return self._model_params.copy()
 
@@ -1218,20 +1452,59 @@ class TBRResults:
         Generate daily incremental summary statistics.
 
         Creates a DataFrame with one row per test day, showing cumulative
-        effects and confidence intervals as they accumulate over time.
+        effects and credible intervals as they accumulate over time.
 
         Returns
         -------
         pd.DataFrame
-            Daily summary with columns: estimate, lower, upper, precision,
-            prob, and other statistics. Each row represents cumulative
-            results through that day of the test period.
+            Copy with one row per cumulative test day. See Notes for the stable
+            columns.
+
+        Notes
+        -----
+        The returned DataFrame has these stable columns:
+
+        ``test_day`` : int64
+            One-based cumulative test-day number.
+        ``estimate`` : float64
+            Cumulative-effect estimate.
+        ``precision`` : float64
+            Precision (half-width of credible interval).
+        ``lower`` : float64
+            Lower credible bound.
+        ``upper`` : float64
+            Upper credible bound.
+        ``se`` : float64
+            Standard error of the estimate.
+        ``level`` : float64
+            Credibility level.
+        ``thres`` : float64
+            Legacy column name for ``threshold``.
+        ``prob`` : float64
+            Posterior threshold-exceedance probability.
+        ``alpha`` : float64
+            Regression intercept.
+        ``beta`` : float64
+            Regression slope.
+        ``alpha_beta_cov`` : float64
+            Legacy column name for ``cov_alpha_beta``.
+        ``var_alpha`` : float64
+            Intercept-estimate variance.
+        ``var_beta`` : float64
+            Slope-estimate variance.
+        ``sigma`` : float64
+            Residual standard deviation.
+        ``t_dist_df`` : float64
+            Legacy column name for ``degrees_freedom``.
+
+        This incremental DataFrame is distinct from the structured object
+        returned by :meth:`tbr.TBRAnalysis.summarize`.
 
         Examples
         --------
         >>> import numpy as np
         >>> import pandas as pd
-        >>> from tbr.functional import perform_tbr_analysis
+        >>> from tbr import perform_tbr_analysis
         >>> rng = np.random.default_rng(0)
         >>> control = rng.normal(1000, 50, size=44)
         >>> data = pd.DataFrame(
@@ -1261,29 +1534,56 @@ class TBRResults:
         """
         Get the comprehensive TBR analysis dataframe.
 
-        Returns the complete TBR dataframe combining all periods (baseline,
-        pretest, test, cooldown) with all computed statistics using standard
-        column names. This is the main results dataframe from the analysis.
+        Returns the complete TBR dataframe combining the baseline, pretest,
+        and test periods with computed statistics using standard column names.
+        Cooldown rows are retained in period metadata but are not included in
+        this dataframe.
 
         Returns
         -------
         pd.DataFrame
-            Complete TBR results dataframe with columns:
-            - time column (user's original name)
-            - period: -1=baseline, 0=pretest, 1=test, 3=cooldown
-            - y, x: test and control values
-            - pred: fitted/predicted values
-            - predsd: prediction standard deviations
-            - dif: residuals/effects
-            - cumdif: cumulative effects
-            - cumsd: cumulative standard deviations
-            - estsd: fitted value standard deviations
+            Copy containing original source columns. See Notes for the
+            additional stable columns.
+
+        Notes
+        -----
+        The returned DataFrame contains the original source columns plus:
+
+        ``period`` : int64
+            ``-1`` baseline, ``0`` pretest, ``1`` test.
+        ``y`` : source-dependent
+            Observed treatment/test metric.
+        ``x`` : source-dependent
+            Observed control metric.
+        ``pred`` : float64
+            Pretest fitted value or test counterfactual prediction; missing in
+            baseline.
+        ``predsd`` : float64
+            Test counterfactual prediction standard deviation; ``0.0`` in
+            pretest and missing in baseline.
+        ``dif`` : float64
+            Pretest residual or pointwise test effect; missing in baseline.
+        ``cumdif`` : float64
+            Cumulative test effect; missing outside test.
+        ``cumsd`` : float64
+            Cumulative-effect standard error (Student-t scale) under a legacy
+            column name; ``0.0`` in pretest and missing in baseline.
+        ``estsd`` : float64
+            Fitted-value standard error; available in pretest and missing in
+            baseline and test.
+
+        The user-named time, control, test, and any additional source columns
+        retain source-dependent dtypes where pandas permits.
+
+        This method returns a copy to prevent accidental modification of stored
+        results. For time-indexed Series access, use property accessors such as
+        ``results.cumulative_effect``.
 
         Examples
         --------
         >>> import numpy as np
         >>> import pandas as pd
-        >>> from tbr.functional import perform_tbr_analysis
+        >>> from tbr import perform_tbr_analysis
         >>> rng = np.random.default_rng(0)
         >>> control = rng.normal(1000, 50, size=44)
         >>> data = pd.DataFrame(
@@ -1310,12 +1610,6 @@ class TBRResults:
         >>> # Filter to test period only
         >>> test_period = tbr_df[tbr_df['period'] == 1]
 
-        Notes
-        -----
-        This returns a copy of the internal dataframe to prevent accidental
-        modifications. For time-indexed Series access, use the property
-        accessors (e.g., `results.cumulative_effect`).
-
         See Also
         --------
         summary : Get daily incremental summary statistics
@@ -1324,24 +1618,37 @@ class TBRResults:
 
     def conf_int(self, level: Optional[float] = None) -> pd.DataFrame:
         """
-        Get confidence interval bounds for final estimate.
+        Get credible interval bounds for final estimate.
 
         Parameters
         ----------
         level : float, optional
-            Confidence level (e.g., 0.80, 0.95). If not specified,
+            Credibility level (e.g., 0.80, 0.95). If not specified,
             uses the level from analysis initialization.
 
         Returns
         -------
         pd.DataFrame
-            Single-row DataFrame with 'lower' and 'upper' columns.
+            New single-row credible-bounds DataFrame. See Notes.
+
+        Notes
+        -----
+        The returned DataFrame has these stable columns:
+
+        ``lower`` : float64
+            Lower credible bound.
+        ``upper`` : float64
+            Upper credible bound.
+
+        With ``level=None``, the method returns bounds at the configured
+        analysis level. An explicit different level recomputes the bounds from
+        the final estimate and cumulative standard error.
 
         Examples
         --------
         >>> import numpy as np
         >>> import pandas as pd
-        >>> from tbr.functional import perform_tbr_analysis
+        >>> from tbr import perform_tbr_analysis
         >>> rng = np.random.default_rng(0)
         >>> control = rng.normal(1000, 50, size=44)
         >>> data = pd.DataFrame(
@@ -1368,7 +1675,7 @@ class TBRResults:
         if level is None:
             level = self._level
 
-        # Recompute confidence interval if different level requested
+        # Recompute credible interval if different level requested
         if level != self._level:
             final_effect = self.estimate
             final_se = float(self._cumulative_se.iloc[-1])
@@ -1395,7 +1702,8 @@ class TBRResults:
         return (
             f"<TBRResults>\n"
             f"Cumulative Effect: {self.estimate:.2f}\n"
-            f"{self._level*100:.0f}% CI: [{self.conf_int_lower:.2f}, {self.conf_int_upper:.2f}]\n"
+            f"{self._level*100:.0f}% CI: "
+            f"[{self.conf_int_lower:.2f}, {self.conf_int_upper:.2f}]\n"
             f"Probability > {self._threshold}: {self.pvalue:.3f}\n"
             f"Test Period: {self.n_test_days} observations\n"
             f"Model: α = {self.alpha:.3f}, β = {self.beta:.3f}, σ = {self.sigma:.3f}"
