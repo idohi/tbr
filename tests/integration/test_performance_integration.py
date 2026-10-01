@@ -552,10 +552,13 @@ class TestPerformanceRegressionDetection:
             data=self.test_data, enable_monitoring=False, **self.tbr_params
         )
 
+        # Use a deterministic duration to isolate comparison logic from
+        # wall-clock warm-up and scheduler noise.
+        baseline_report["workflow_metrics"].duration = 1.0
         analyzer.set_performance_baseline("regression_test", baseline_report)
 
-        # Simulate performance regression by using larger dataset
-        # (which should take longer)
+        # Simulate a regression where duration grows faster than the
+        # doubled input size.
         larger_data = pd.concat([self.test_data] * 2, ignore_index=True)
         larger_data["date"] = pd.date_range(
             "2023-01-01", periods=len(larger_data), freq="D"
@@ -568,19 +571,19 @@ class TestPerformanceRegressionDetection:
             data=larger_data, enable_monitoring=False, **larger_params
         )
 
+        # Triple the deterministic duration to isolate superlinear scaling
+        # from wall-clock warm-up and scheduler noise.
+        regression_report["workflow_metrics"].duration = 3.0
+
         # Compare to baseline
         comparison = analyzer.compare_to_baseline(regression_report, "regression_test")
 
         # Validate regression detection
-        assert comparison["size_ratio"] > 1.0  # Larger dataset
-        assert comparison["duration_ratio"] > 1.0  # Should take longer
-
-        # Check if regression is properly detected
-        # (normalized for data size, it might or might not be a regression)
-        assert "performance_regression" in comparison
-        assert "performance_improvement" in comparison
-        assert isinstance(comparison["performance_regression"], bool)
-        assert isinstance(comparison["performance_improvement"], bool)
+        assert comparison["size_ratio"] == pytest.approx(2.0)
+        assert comparison["duration_ratio"] == pytest.approx(3.0)
+        assert comparison["normalized_duration_ratio"] == pytest.approx(1.5)
+        assert comparison["performance_regression"] is True
+        assert comparison["performance_improvement"] is False
 
     def test_efficiency_trend_analysis(self):
         """Test analysis of efficiency trends over multiple runs."""
