@@ -23,7 +23,7 @@ env:
 jobs:
   # Code Quality Checks (Fast - runs first)
   quality:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Code Quality
 
     steps:
@@ -51,16 +51,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        os: [ubuntu-26.04, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11']
         include:
           # Coverage testing on latest Python/Ubuntu
           - python-version: '3.11'
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             coverage: true
           # Minimal dependencies testing on oldest supported Python
           - python-version: '3.8'
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             minimal: true
 
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -115,7 +115,7 @@ jobs:
   # Performance Testing (Separate job - only on main Python/OS)
   performance:
     needs: test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Performance Tests
 
     steps:
@@ -144,7 +144,7 @@ jobs:
   # Package Building and Installation Test
   package:
     needs: quality
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Package Build & Dependency Test
 
     steps:
@@ -238,7 +238,7 @@ jobs:
   # Documentation contract and warning-as-error build
   documentation:
     needs: quality
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     name: Documentation Build
 
     steps:
