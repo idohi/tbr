@@ -429,10 +429,10 @@ The posterior variance of the subinterval effect combines the same two component
 Let $T_s = b - a + 1$ be the number of days in the subinterval. The posterior variance is:
 
 $$
-\mathbb{V}[\Delta(a, b)] = \sum_{t=a}^{b} \mathbb{V}[\hat{y}_t^*] + T_s \cdot \sigma^2
+\mathbb{V}[\Delta(a, b)] = \mathbb{V}\left(\sum_{t=a}^{b} \hat{y}_t^*\right) + T_s \cdot \sigma^2
 $$
 
-where $\mathbb{V}[\hat{y}_t^*]$ is the model variance at each time point (as defined in the [Prediction and Uncertainty](#prediction-and-uncertainty) section).
+where $\mathbb{V}\left(\sum_{t=a}^{b} \hat{y}_t^*\right)$ is the variance of the sum of the counterfactual predictions over the subinterval. Because all predictions share the same estimated coefficients $\hat{\beta}_0$ and $\hat{\beta}_1$, they are correlated, so this is not the sum of the individual model variances $\mathbb{V}[\hat{y}_t^*]$ defined in the [Prediction and Uncertainty](#prediction-and-uncertainty) section.
 
 The posterior standard error is:
 
