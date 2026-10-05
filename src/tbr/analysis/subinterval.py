@@ -27,11 +27,20 @@ Examples
 ...     {
 ...         "period": [1, 1, 1],
 ...         "y": [110.0, 115.0, 118.0],
+...         "x": [100.0, 103.0, 107.0],
 ...         "pred": [105.0, 108.0, 112.0],
 ...         "estsd": [2.0, 2.1, 2.2],
 ...     }
 ... )
->>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+>>> tbr_summary = pd.DataFrame(
+...     {
+...         "sigma": [3.0],
+...         "t_dist_df": [20],
+...         "var_alpha": [4.0],
+...         "var_beta": [0.0004],
+...         "alpha_beta_cov": [-0.03],
+...     }
+... )
 >>> result = compute_interval_estimate_and_ci(
 ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
 ... )
@@ -161,11 +170,20 @@ def compute_interval_estimate_and_ci(
     ...     {
     ...         "period": [1, 1, 1],
     ...         "y": [110.0, 115.0, 118.0],
+    ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
     ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
-    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> tbr_summary = pd.DataFrame(
+    ...     {
+    ...         "sigma": [3.0],
+    ...         "t_dist_df": [20],
+    ...         "var_alpha": [4.0],
+    ...         "var_beta": [0.0004],
+    ...         "alpha_beta_cov": [-0.03],
+    ...     }
+    ... )
     >>> result = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )
@@ -284,11 +302,20 @@ def analyze_multiple_subintervals(
     ...     {
     ...         "period": [1, 1, 1],
     ...         "y": [110.0, 115.0, 118.0],
+    ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
     ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
-    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> tbr_summary = pd.DataFrame(
+    ...     {
+    ...         "sigma": [3.0],
+    ...         "t_dist_df": [20],
+    ...         "var_alpha": [4.0],
+    ...         "var_beta": [0.0004],
+    ...         "alpha_beta_cov": [-0.03],
+    ...     }
+    ... )
     >>> intervals = [(1, 2), (2, 3)]
     >>> results = analyze_multiple_subintervals(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
@@ -448,11 +475,20 @@ def create_subinterval_summary(
     ...     {
     ...         "period": [1, 1, 1],
     ...         "y": [110.0, 115.0, 118.0],
+    ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
     ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
-    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> tbr_summary = pd.DataFrame(
+    ...     {
+    ...         "sigma": [3.0],
+    ...         "t_dist_df": [20],
+    ...         "var_alpha": [4.0],
+    ...         "var_beta": [0.0004],
+    ...         "alpha_beta_cov": [-0.03],
+    ...     }
+    ... )
     >>> intervals = [(1, 2), (2, 3), (1, 3)]
     >>> summary = create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
@@ -578,11 +614,20 @@ def validate_subinterval_parameters(
     ...     {
     ...         "period": [1, 1, 1],
     ...         "y": [110.0, 115.0, 118.0],
+    ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
     ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
-    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> tbr_summary = pd.DataFrame(
+    ...     {
+    ...         "sigma": [3.0],
+    ...         "t_dist_df": [20],
+    ...         "var_alpha": [4.0],
+    ...         "var_beta": [0.0004],
+    ...         "alpha_beta_cov": [-0.03],
+    ...     }
+    ... )
     >>> validate_subinterval_parameters(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )  # No error

@@ -526,6 +526,7 @@ class TestIntervalEstimationMathematical:
             {
                 "period": [1, 1, 1, 1, 1],
                 "y": [1020.0, 1035.0, 1045.0, 1055.0, 1070.0],
+                "x": [967.0, 974.0, 976.0, 978.0, 986.0],
                 "pred": [1015.0, 1023.0, 1025.0, 1027.0, 1035.0],
                 "cumdif": [5.0, 12.0, 20.0, 28.0, 35.0],
                 "cumsd": [8.0, 11.0, 14.0, 16.0, 18.0],
@@ -542,6 +543,9 @@ class TestIntervalEstimationMathematical:
                 "upper": [44.2],
                 "sigma": [20.0],
                 "t_dist_df": [40],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
             }
         )
 
@@ -572,6 +576,7 @@ class TestIntervalEstimationMathematical:
             {
                 "period": [1, 1, 1, 1],
                 "y": [1030.0, 1050.0, 1065.0, 1080.0],
+                "x": [971.0, 976.0, 976.0, 981.0],
                 "pred": [1020.0, 1025.0, 1025.0, 1030.0],
                 "cumdif": [10.0, 25.0, 40.0, 50.0],
                 "cumsd": [12.0, 18.0, 22.0, 25.0],
@@ -585,6 +590,9 @@ class TestIntervalEstimationMathematical:
                 "precision": [12.5],
                 "sigma": [15.0],
                 "t_dist_df": [35],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
             }
         )
 

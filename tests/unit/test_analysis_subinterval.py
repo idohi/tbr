@@ -46,6 +46,7 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [0, 0, 0, 1, 1, 1, 1, 1],
                 "y": [100, 105, 102, 110, 115, 108, 120, 125],
+                "x": [93, 98, 95, 100, 105, 98, 110, 114],
                 "pred": [98, 103, 100, 105, 110, 103, 115, 120],
                 "estsd": [2.0, 2.1, 1.9, 2.5, 2.6, 2.3, 2.8, 2.9],
             }
@@ -54,7 +55,15 @@ class TestComputeIntervalEstimateAndCI:
     @pytest.fixture
     def sample_tbr_summary(self):
         """Create sample TBR summary for testing."""
-        return pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        return pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
     def test_basic_functionality(self, sample_tbr_dataframe, sample_tbr_summary):
         """Test basic subinterval analysis functionality."""
@@ -225,12 +234,21 @@ class TestAnalyzeMultipleSubintervals:
             {
                 "period": [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
                 "y": [100, 105, 110, 115, 108, 120, 125, 118, 130, 135],
+                "x": [93, 98, 100, 105, 98, 110, 114, 108, 119, 124],
                 "pred": [98, 103, 105, 110, 103, 115, 120, 113, 125, 130],
                 "estsd": [2.0, 2.1, 2.5, 2.6, 2.3, 2.8, 2.9, 2.4, 3.0, 3.1],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [25]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [25],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         return tbr_df, tbr_summary
 
@@ -359,12 +377,21 @@ class TestCreateSubintervalSummary:
             {
                 "period": [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                 "y": [100, 105, 110, 115, 108, 120, 125, 118, 130, 135, 128, 140],
+                "x": [93, 98, 100, 105, 98, 110, 114, 108, 119, 124, 117, 129],
                 "pred": [98, 103, 105, 110, 103, 115, 120, 113, 125, 130, 123, 135],
                 "estsd": [2.0, 2.1, 2.5, 2.6, 2.3, 2.8, 2.9, 2.4, 3.0, 3.1, 2.7, 3.2],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [4.5], "t_dist_df": [30]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [4.5],
+                "t_dist_df": [30],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         return tbr_df, tbr_summary
 
@@ -482,7 +509,15 @@ class TestValidateSubintervalParameters:
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         return tbr_df, tbr_summary
 
@@ -662,7 +697,15 @@ class TestSubintervalModuleIntegration:
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Mock the core implementation to verify it's called
         with patch("tbr.analysis.subinterval.core_compute_interval") as mock_core:
@@ -699,12 +742,21 @@ class TestSubintervalModuleIntegration:
             {
                 "period": [0, 0, 1, 1, 1],
                 "y": [1000, 1050, 2000, 2500, 1800],
+                "x": [933, 981, 1429, 1905, 1238],
                 "pred": [980, 1030, 1500, 2000, 1300],
                 "estsd": [50.0, 52.0, 75.0, 80.0, 60.0],
             }
         )
 
-        extreme_summary = pd.DataFrame({"sigma": [100.0], "t_dist_df": [50]})
+        extreme_summary = pd.DataFrame(
+            {
+                "sigma": [100.0],
+                "t_dist_df": [50],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         result = compute_interval_estimate_and_ci(
             extreme_df, extreme_summary, start_day=1, end_day=3, ci_level=0.95

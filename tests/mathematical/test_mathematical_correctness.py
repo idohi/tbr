@@ -479,13 +479,22 @@ class TestStatisticalInferenceValidation:
             {
                 "period": [0, 0, 1, 1, 1, 1],
                 "y": [100, 110, 120, 130, 125, 135],
+                "x": [100, 103, 112, 122, 121, 127],
                 "pred": [105, 108, 118, 128, 127, 133],
                 "estsd": [2, 2, 3, 3, 3, 3],
             }
         )
 
         # Create test summary
-        tbr_summary = pd.DataFrame({"sigma": [10.0], "t_dist_df": [40.0]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [10.0],
+                "t_dist_df": [40.0],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Test interval estimation
         result = compute_interval_estimate_and_ci(

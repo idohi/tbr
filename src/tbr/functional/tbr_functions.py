@@ -554,11 +554,20 @@ def compute_interval_estimate_and_ci(
     ...     {
     ...         "period": [1, 1],
     ...         "y": [110.0, 115.0],
+    ...         "x": [100.0, 103.0],
     ...         "pred": [105.0, 108.0],
     ...         "estsd": [2.0, 2.1],
     ...     }
     ... )
-    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> tbr_summary = pd.DataFrame(
+    ...     {
+    ...         "sigma": [3.0],
+    ...         "t_dist_df": [20],
+    ...         "var_alpha": [4.0],
+    ...         "var_beta": [0.0004],
+    ...         "alpha_beta_cov": [-0.03],
+    ...     }
+    ... )
     >>> result = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )

@@ -106,7 +106,13 @@ class TestAnalysisFrameworkCoreIntegration:
         }
 
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
 
         return tbr_df, tbr_summary, params
@@ -269,7 +275,13 @@ class TestAnalysisCrossValidation:
 
         # Create TBR summary for core function
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
 
         # Test specific subinterval
@@ -316,7 +328,13 @@ class TestAnalysisMathematicalProperties:
         }
 
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
 
         return tbr_df, tbr_summary, params
@@ -448,7 +466,13 @@ class TestAnalysisPerformanceValidation:
         """Test subinterval analysis performance with multiple intervals."""
         tbr_df, params = performance_data
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
 
         # Create multiple subintervals for performance testing
@@ -547,7 +571,13 @@ class TestAnalysisModuleIntegration:
 
         # Step 3: Custom subinterval analysis
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
         intervals = [(1, 3), (4, 7), (8, 10)]
         subinterval_summary = create_subinterval_summary(

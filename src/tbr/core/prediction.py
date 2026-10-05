@@ -326,13 +326,19 @@ def compute_interval_estimate_and_ci(
     # Estimate of cumulative effect (sum of differences)
     estimate = (interval_df["y"] - interval_df["pred"]).sum()
 
-    # Posterior variance = sum of estsd^2 + n * sigma^2
-    sum_estsd_sq = np.sum(interval_df["estsd"] ** 2)
+    # Posterior variance = n * sigma^2 + n^2 * v, with v at the interval mean of x
     n_days = end_day - start_day + 1
-    sigma = float(tbr_summary.iloc[-1]["sigma"])
-    dof = int(tbr_summary.iloc[-1]["t_dist_df"])
+    summary_row = tbr_summary.iloc[-1]
+    sigma = float(summary_row["sigma"])
+    dof = int(summary_row["t_dist_df"])
+    var_alpha = float(summary_row["var_alpha"])
+    var_beta = float(summary_row["var_beta"])
+    cov_alpha_beta = float(summary_row["alpha_beta_cov"])
 
-    posterior_variance = sum_estsd_sq + n_days * sigma**2
+    x_mean = interval_df["x"].mean()
+    v = var_alpha + 2 * x_mean * cov_alpha_beta + x_mean**2 * var_beta
+
+    posterior_variance = n_days * sigma**2 + n_days**2 * v
     se = np.sqrt(posterior_variance)
 
     # t-multiplier
