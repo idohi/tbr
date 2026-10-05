@@ -41,8 +41,8 @@ Mathematical Foundation
 The advanced posterior probability functions implement sophisticated Bayesian
 statistical methods:
 
-1. **Posterior Variance**: V_post = Σ(estsd²) + n·σ²
-   Advanced variance decomposition for interval estimation
+1. **Posterior Variance**: V_post = T_s·σ² + T_s²·v
+   Subinterval variance including the covariance of the predictions
 
 2. **Threshold Sensitivity**: P(θ > τᵢ | data) for multiple thresholds τᵢ
    Comprehensive threshold testing across decision space
@@ -67,23 +67,31 @@ import numpy as np
 
 
 def calculate_posterior_variance(
-    estsd_values: np.ndarray, n_days: int, sigma: float
+    x_values: np.ndarray,
+    sigma: float,
+    var_alpha: float,
+    var_beta: float,
+    cov_alpha_beta: float,
 ) -> float:
     """
-    Calculate posterior variance for TBR interval estimation.
+    Calculate posterior variance of the cumulative effect over a subinterval.
 
-    Computes the posterior variance using the TBR formula that combines
-    estimation uncertainty (estsd²) with residual noise (σ²). This provides
-    the foundation for credible intervals and posterior probability calculations.
+    Combines residual noise (σ²) with the variance of the summed counterfactual
+    predictions. Because all predictions share the estimated coefficients, the
+    model component uses their covariance rather than per-day model variances.
 
     Parameters
     ----------
-    estsd_values : np.ndarray
-        Array of estimation standard deviations for each observation
-    n_days : int
-        Number of days in the analysis period
+    x_values : np.ndarray
+        Control values for the test days in the subinterval
     sigma : float
         Residual standard deviation from the regression model
+    var_alpha : float
+        Variance of intercept estimate (α)
+    var_beta : float
+        Variance of slope estimate (β)
+    cov_alpha_beta : float
+        Covariance between intercept and slope estimates
 
     Returns
     -------
@@ -93,55 +101,70 @@ def calculate_posterior_variance(
     Raises
     ------
     ValueError
-        If n_days is not positive or sigma is not positive
+        If x_values is empty, sigma is not positive, or the resulting
+        variance is negative
     TypeError
         If inputs have incorrect types
 
     Examples
     --------
     >>> import numpy as np
-    >>> estsd = np.array([2.1, 2.3, 2.0, 2.4, 2.2])
-    >>> posterior_var = calculate_posterior_variance(estsd, n_days=5, sigma=1.8)
+    >>> x = np.array([1000.0, 1020.0, 980.0, 1050.0, 990.0])
+    >>> posterior_var = calculate_posterior_variance(
+    ...     x, sigma=25.0, var_alpha=100.0, var_beta=0.001, cov_alpha_beta=-0.05
+    ... )
     >>> print(f"Posterior variance: {posterior_var:.3f}")
-    Posterior variance: 40.500
+    Posterior variance: 28506.600
 
     Mathematical Formula
     --------------------
-    V_posterior = Σ(estsd²) + n_days × σ²
+    V[Δ(a,b)] = T_s × σ² + T_s² × v
+
+    where v = Var(α̂) + 2·x̄·Cov(α̂,β̂) + x̄²·Var(β̂), T_s is the number of days
+    in the subinterval, and x̄ is the mean of the control values over it.
 
     This decomposition separates:
-    - Estimation uncertainty: Σ(estsd²) from prediction variance
-    - Residual noise: n_days × σ² from model uncertainty
+    - Residual noise: T_s × σ²
+    - Model uncertainty: T_s² × v, the variance of the summed predictions
 
     Notes
     -----
-    This function extracts the posterior variance calculation used in
-    compute_interval_estimate_and_ci from the functional module, making
-    it available as a standalone utility for advanced analysis.
+    This is the posterior variance used by compute_interval_estimate_and_ci.
+    For a subinterval starting on the first test day it equals cumsd², and for
+    a single day it equals predsd².
     """
     # Input validation
-    if not isinstance(estsd_values, np.ndarray):
-        raise TypeError(f"estsd_values must be numpy array, got {type(estsd_values)}")
+    if not isinstance(x_values, np.ndarray):
+        raise TypeError(f"x_values must be numpy array, got {type(x_values)}")
 
-    if not isinstance(n_days, (int, np.integer)):
-        raise TypeError(f"n_days must be integer, got {type(n_days)}")
+    for name, value in (
+        ("sigma", sigma),
+        ("var_alpha", var_alpha),
+        ("var_beta", var_beta),
+        ("cov_alpha_beta", cov_alpha_beta),
+    ):
+        if not isinstance(value, (int, float, np.integer, np.floating)):
+            raise TypeError(f"{name} must be numeric, got {type(value)}")
 
-    if not isinstance(sigma, (int, float, np.integer, np.floating)):
-        raise TypeError(f"sigma must be numeric, got {type(sigma)}")
-
-    if n_days <= 0:
-        raise ValueError(f"n_days must be positive, got {n_days}")
+    if len(x_values) == 0:
+        raise ValueError("x_values cannot be empty")
 
     if sigma <= 0:
         raise ValueError(f"sigma must be positive, got {sigma}")
 
-    if len(estsd_values) == 0:
-        raise ValueError("estsd_values cannot be empty")
-
     # Calculate posterior variance components
-    estimation_variance = np.sum(estsd_values**2)
+    n_days = len(x_values)
+    x_mean = np.mean(x_values)
+    v = var_alpha + 2 * x_mean * cov_alpha_beta + x_mean**2 * var_beta
     residual_variance = n_days * (sigma**2)
-    posterior_variance = estimation_variance + residual_variance
+    model_variance = n_days**2 * v
+    posterior_variance = residual_variance + model_variance
+
+    if posterior_variance < 0:
+        raise ValueError(
+            "Negative posterior variance detected. Check that var_alpha, "
+            "var_beta, and cov_alpha_beta form a valid covariance matrix."
+        )
 
     return float(posterior_variance)
 

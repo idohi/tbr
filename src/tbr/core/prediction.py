@@ -53,6 +53,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from .posterior import calculate_posterior_variance
 from .regression import calculate_model_variance, calculate_prediction_variance
 
 # Export list for clean imports
@@ -326,19 +327,16 @@ def compute_interval_estimate_and_ci(
     # Estimate of cumulative effect (sum of differences)
     estimate = (interval_df["y"] - interval_df["pred"]).sum()
 
-    # Posterior variance = n * sigma^2 + n^2 * v, with v at the interval mean of x
-    n_days = end_day - start_day + 1
     summary_row = tbr_summary.iloc[-1]
-    sigma = float(summary_row["sigma"])
     dof = int(summary_row["t_dist_df"])
-    var_alpha = float(summary_row["var_alpha"])
-    var_beta = float(summary_row["var_beta"])
-    cov_alpha_beta = float(summary_row["alpha_beta_cov"])
 
-    x_mean = interval_df["x"].mean()
-    v = var_alpha + 2 * x_mean * cov_alpha_beta + x_mean**2 * var_beta
-
-    posterior_variance = n_days * sigma**2 + n_days**2 * v
+    posterior_variance = calculate_posterior_variance(
+        x_values=interval_df["x"].to_numpy(dtype=float),
+        sigma=float(summary_row["sigma"]),
+        var_alpha=float(summary_row["var_alpha"]),
+        var_beta=float(summary_row["var_beta"]),
+        cov_alpha_beta=float(summary_row["alpha_beta_cov"]),
+    )
     se = np.sqrt(posterior_variance)
 
     # t-multiplier
