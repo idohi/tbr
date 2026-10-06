@@ -200,9 +200,10 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'
+        TBR daily output with columns 'y', 'x', 'pred', 'period'
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' (degrees of freedom) parameters
+        TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
+        'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
     start_day : int
         Start day of subinterval (1-indexed within test period)
     end_day : int

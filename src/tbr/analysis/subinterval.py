@@ -29,7 +29,6 @@ Examples
 ...         "y": [110.0, 115.0, 118.0],
 ...         "x": [100.0, 103.0, 107.0],
 ...         "pred": [105.0, 108.0, 112.0],
-...         "estsd": [2.0, 2.1, 2.2],
 ...     }
 ... )
 >>> tbr_summary = pd.DataFrame(
@@ -93,11 +92,11 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period``, ``y``, ``pred``, and ``estsd``.
+        Daily TBR output containing ``period``, ``y``, ``x``, and ``pred``.
         Rows with ``period == 1`` must be in test-day order.
     tbr_summary : pd.DataFrame
-        Non-empty summary containing ``sigma`` and ``t_dist_df``. Values are
-        read from the last row.
+        Non-empty summary containing ``sigma``, ``t_dist_df``, ``var_alpha``,
+        ``var_beta``, and ``alpha_beta_cov``. Values are read from the last row.
     start_day : int
         Requested one-based start :math:`a`. This direct helper does not
         validate the value.
@@ -141,10 +140,19 @@ def compute_interval_estimate_and_ci(
     where the standard error combines model uncertainty and residual noise:
 
     .. math::
-        se = \sqrt{\sum_{i=start}^{end} estsd_i^2 + n_{days} × σ^2}
+        se = \sqrt{n_{days} × σ^2 + n_{days}^2 × v}
 
-    The posterior variance accounts for both prediction uncertainty (estsd²)
-    and residual noise (σ²) over the subinterval period.
+    with
+
+    .. math::
+        v = \mathbb{V}[\hat{\beta}_0]
+        + 2\bar{x}\operatorname{Cov}(\hat{\beta}_0,\hat{\beta}_1)
+        + \bar{x}^2\mathbb{V}[\hat{\beta}_1]
+
+    where :math:`\bar{x}` is the mean control value over the subinterval. The
+    term :math:`n_{days}^2 × v` is the variance of the summed counterfactual
+    predictions, which are correlated because they share the estimated
+    coefficients; :math:`n_{days} × σ^2` is the residual noise.
 
     Mathematical Foundation
     -----------------------
@@ -172,7 +180,6 @@ def compute_interval_estimate_and_ci(
     ...         "y": [110.0, 115.0, 118.0],
     ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
-    ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
     >>> tbr_summary = pd.DataFrame(
@@ -242,11 +249,12 @@ def analyze_multiple_subintervals(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'.
+        TBR daily output with columns 'y', 'x', 'pred', 'period'.
         Must contain one row per test day with ``period == 1``, ordered
         chronologically.
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' parameters.
+        TBR summary containing 'sigma', 't_dist_df', 'var_alpha', 'var_beta',
+        and 'alpha_beta_cov' parameters.
     intervals : List[Tuple[int, int]]
         Non-empty list of ``(start_day, end_day)`` pairs. Bounds are inclusive
         one-based positions. Each start must be at least 1 and no greater than
@@ -304,7 +312,6 @@ def analyze_multiple_subintervals(
     ...         "y": [110.0, 115.0, 118.0],
     ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
-    ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
     >>> tbr_summary = pd.DataFrame(
@@ -397,11 +404,12 @@ def create_subinterval_summary(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period``, ``y``, ``pred``, and ``estsd``.
+        Daily TBR output containing ``period``, ``y``, ``x``, and ``pred``.
         Test rows are interpreted in their existing order.
     tbr_summary : pd.DataFrame
-        Non-empty summary containing ``sigma`` and legacy degrees-of-freedom
-        column ``t_dist_df``.
+        Non-empty summary containing ``sigma``, legacy degrees-of-freedom
+        column ``t_dist_df``, ``var_alpha``, ``var_beta``, and
+        ``alpha_beta_cov``.
     intervals : List[Tuple[int, int]]
         Non-empty list of inclusive one-based ``(start_day, end_day)`` pairs.
     ci_level : float, default=0.80
@@ -477,7 +485,6 @@ def create_subinterval_summary(
     ...         "y": [110.0, 115.0, 118.0],
     ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
-    ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
     >>> tbr_summary = pd.DataFrame(

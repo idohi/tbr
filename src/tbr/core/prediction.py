@@ -264,9 +264,10 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'
+        TBR daily output with columns 'y', 'x', 'pred', 'period'
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' (degrees of freedom) parameters
+        TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
+        'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
     start_day : int
         Start day of subinterval (1-indexed within test period)
     end_day : int
@@ -316,7 +317,10 @@ def compute_interval_estimate_and_ci(
     Notes
     -----
     Uses t-distribution for credible intervals with degrees of freedom from the
-    regression model. Posterior variance combines model uncertainty and residual noise.
+    regression model. Posterior variance combines model uncertainty and residual noise
+    and is computed by calculate_posterior_variance:
+    V[Δ(a,b)] = T_s · σ² + T_s² · v, where v = Var(α̂) + 2·x̄·Cov(α̂,β̂) + x̄²·Var(β̂)
+    and x̄ is the mean control value over the subinterval.
     """
     # Filter for test period
     test_df = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
