@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`, and
   `create_subinterval_summary` now validate their inputs with
   `validate_subinterval_parameters`. An `end_day` beyond the last test day
-  raises `ValueError` instead of silently using fewer days.
+  raises `ValueError` instead of silently using fewer days, and an empty
+  `tbr_summary` raises a descriptive `ValueError` instead of `IndexError`.
 
 ### Changed
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes
