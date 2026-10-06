@@ -604,6 +604,15 @@ class TestValidateSubintervalParameters:
                 tbr_df, invalid_summary, start_day=1, end_day=3, ci_level=0.80
             )
 
+    def test_empty_summary(self, valid_data):
+        """Test validation with a summary that has the required columns but no rows."""
+        tbr_df, tbr_summary = valid_data
+
+        with pytest.raises(ValueError, match="tbr_summary cannot be empty"):
+            validate_subinterval_parameters(
+                tbr_df, tbr_summary.iloc[0:0], start_day=1, end_day=3, ci_level=0.80
+            )
+
     def test_no_test_period_data(self, valid_data):
         """Test validation when no test period data exists."""
         _, tbr_summary = valid_data
@@ -741,6 +750,22 @@ class TestSubintervalInputValidation:
 
         with pytest.raises(ValueError, match="exceeds available test days"):
             call(tbr_df, tbr_summary, 4)
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda df, s, end: compute_interval_estimate_and_ci(df, s, 1, end, 0.80),
+            lambda df, s, end: analyze_multiple_subintervals(df, s, [(1, end)]),
+            lambda df, s, end: create_subinterval_summary(df, s, [(1, end)]),
+        ],
+        ids=["compute", "analyze_multiple", "create_summary"],
+    )
+    def test_empty_summary_raises_clear_error(self, valid_data, call):
+        """Test that an empty summary raises a descriptive ValueError."""
+        tbr_df, tbr_summary = valid_data
+
+        with pytest.raises(ValueError, match="tbr_summary cannot be empty"):
+            call(tbr_df, tbr_summary.iloc[0:0], 3)
 
     def test_numpy_integer_days_match_python_integers(self, valid_data):
         """Test that NumPy integer days give the same result as Python integers."""

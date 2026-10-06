@@ -114,13 +114,12 @@ def compute_interval_estimate_and_ci(
     Raises
     ------
     ValueError
-        If a required input column is absent, ``tbr_df`` has no test rows, the
-        day range is invalid, or ``ci_level`` is outside ``(0, 1)``.
+        If a required input column is absent, ``tbr_summary`` has no rows,
+        ``tbr_df`` has no test rows, the day range is invalid, or ``ci_level``
+        is outside ``(0, 1)``.
     TypeError
         If an input is not a DataFrame, a day is not an integer, or
         ``ci_level`` is not numeric.
-    IndexError
-        If ``tbr_summary`` has no rows.
 
     Notes
     -----
@@ -279,12 +278,11 @@ def analyze_multiple_subintervals(
     ValueError
         If ``intervals`` is empty, ``ci_level`` is outside ``(0, 1)``, an
         interval starts below 1, starts after its end, or ends beyond the test
-        rows, or a required input column is absent.
+        rows, a required input column is absent, or ``tbr_summary`` has no
+        rows.
     TypeError
         Propagated when an input is not a DataFrame or an interval bound is not
         an integer.
-    IndexError
-        Propagated when ``tbr_summary`` has no rows.
 
     Notes
     -----
@@ -436,12 +434,11 @@ def create_subinterval_summary(
     ValueError
         Propagated when ``intervals`` is empty, ``ci_level`` is outside
         ``(0, 1)``, a pair starts below 1, starts after its end, or ends beyond
-        the test rows, or a required input column is absent.
+        the test rows, a required input column is absent, or ``tbr_summary``
+        has no rows.
     TypeError
         Propagated when an input is not a DataFrame or an interval bound is not
         an integer.
-    IndexError
-        Propagated when ``tbr_summary`` has no rows.
 
     Notes
     -----
@@ -683,6 +680,9 @@ def validate_subinterval_parameters(
         raise ValueError(
             f"tbr_summary missing required columns: {missing_summary_cols}"
         )
+
+    if tbr_summary.empty:
+        raise ValueError("tbr_summary cannot be empty")
 
     # Validate test period data exists
     test_data = tbr_df[tbr_df["period"] == 1]
