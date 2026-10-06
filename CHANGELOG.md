@@ -17,15 +17,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reported as significant may no longer be significant.
 - Corrected the subinterval posterior variance formula in
   `docs/mathematical_methodology.md` and in the subinterval docstrings.
+- `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`, and
+  `create_subinterval_summary` now validate their inputs with
+  `validate_subinterval_parameters`. An `end_day` beyond the last test day
+  raises `ValueError` instead of silently using fewer days.
 
 ### Changed
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes
   `(x_values, sigma, var_alpha, var_beta, cov_alpha_beta)` instead of
   `(estsd_values, n_days, sigma)`, and returns the corrected posterior variance.
+- **Breaking:** `compute_interval_estimate_and_ci`,
+  `analyze_multiple_subintervals`, and `create_subinterval_summary` now read
+  the `x` column and the `var_alpha`, `var_beta`, and `alpha_beta_cov` summary
+  fields, and no longer read `estsd`. Hand-built inputs without these columns
+  raise a `ValueError` naming the missing columns, and results change for
+  hand-built inputs with finite test-period `estsd` values. Outputs from
+  `TBRAnalysis` and `perform_tbr_analysis` include these columns and are
+  affected only by the variance fix.
 - `validate_subinterval_parameters` now requires the `x` column and the
   `var_alpha`, `var_beta`, and `alpha_beta_cov` summary fields, and no longer
   requires `estsd`. Outputs from `TBRAnalysis` and `perform_tbr_analysis`
-  already include these columns.
+  already include these columns. It also accepts NumPy integer days and NumPy
+  float `ci_level` values.
 
 ## [0.1.6] - 2026-07-20
 
