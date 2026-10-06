@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Subinterval credible intervals (`TBRAnalysis.analyze_subinterval`,
+  `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`,
+  `create_subinterval_summary`) omitted model uncertainty and were too narrow.
+  The posterior variance is now T_s·σ² + T_s²·v, which accounts for the
+  correlation between counterfactual predictions that share the estimated
+  coefficients. Intervals are wider than before, and subintervals previously
+  reported as significant may no longer be significant.
+- Corrected the subinterval posterior variance formula in
+  `docs/mathematical_methodology.md` and in the subinterval docstrings.
+
+### Changed
+- **Breaking:** `tbr.core.calculate_posterior_variance` now takes
+  `(x_values, sigma, var_alpha, var_beta, cov_alpha_beta)` instead of
+  `(estsd_values, n_days, sigma)`, and returns the corrected posterior variance.
+- `validate_subinterval_parameters` now requires the `x` column and the
+  `var_alpha`, `var_beta`, and `alpha_beta_cov` summary fields, and no longer
+  requires `estsd`. Outputs from `TBRAnalysis` and `perform_tbr_analysis`
+  already include these columns.
+
 ## [0.1.6] - 2026-07-20
 
 ### Added
