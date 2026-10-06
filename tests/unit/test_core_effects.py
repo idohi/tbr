@@ -94,13 +94,22 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [1, 1, 1, 1, 1],
                 "y": [105, 110, 108, 112, 115],
+                "x": [95, 100, 98, 102, 105],
                 "pred": [100, 105, 103, 107, 110],
                 "estsd": [2.5, 2.6, 2.4, 2.7, 2.8],
             }
         )
 
         # Create test summary
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Compute interval estimate
         result = compute_interval_estimate_and_ci(
@@ -125,12 +134,21 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [1, 1, 1],
                 "y": [102, 105, 108],
+                "x": [95, 98, 100],
                 "pred": [100, 103, 105],
                 "estsd": [1.5, 1.6, 1.7],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [15]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [3.0],
+                "t_dist_df": [15],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Test full period
         result = compute_interval_estimate_and_ci(
@@ -152,12 +170,21 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [0, 0, 1, 1, 1, 1],
                 "y": [98, 99, 105, 110, 108, 112],
+                "x": [93, 94, 95, 100, 98, 102],
                 "pred": [98, 99, 100, 105, 103, 107],
                 "estsd": [0, 0, 2.5, 2.6, 2.4, 2.7],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [4.0], "t_dist_df": [25]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [4.0],
+                "t_dist_df": [25],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Test parameters
         start_day, end_day, ci_level = 2, 4, 0.90

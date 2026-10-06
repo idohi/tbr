@@ -91,7 +91,7 @@ class TestMathematicalValidationIntegration:
 
         # Core posterior module functions
         post_var = calculate_posterior_variance(
-            np.array([2.0, 3.0]), n_days=2, sigma=1.5
+            test_x, sigma, var_alpha, var_beta, cov_alpha_beta
         )
         assert np.isfinite(post_var)
 

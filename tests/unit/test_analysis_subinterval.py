@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tbr import TBRAnalysis
+
 # Import the module under test
 from tbr.analysis.subinterval import (
     analyze_multiple_subintervals,
@@ -46,6 +48,7 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [0, 0, 0, 1, 1, 1, 1, 1],
                 "y": [100, 105, 102, 110, 115, 108, 120, 125],
+                "x": [93, 98, 95, 100, 105, 98, 110, 114],
                 "pred": [98, 103, 100, 105, 110, 103, 115, 120],
                 "estsd": [2.0, 2.1, 1.9, 2.5, 2.6, 2.3, 2.8, 2.9],
             }
@@ -54,7 +57,15 @@ class TestComputeIntervalEstimateAndCI:
     @pytest.fixture
     def sample_tbr_summary(self):
         """Create sample TBR summary for testing."""
-        return pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        return pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
     def test_basic_functionality(self, sample_tbr_dataframe, sample_tbr_summary):
         """Test basic subinterval analysis functionality."""
@@ -225,12 +236,21 @@ class TestAnalyzeMultipleSubintervals:
             {
                 "period": [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
                 "y": [100, 105, 110, 115, 108, 120, 125, 118, 130, 135],
+                "x": [93, 98, 100, 105, 98, 110, 114, 108, 119, 124],
                 "pred": [98, 103, 105, 110, 103, 115, 120, 113, 125, 130],
                 "estsd": [2.0, 2.1, 2.5, 2.6, 2.3, 2.8, 2.9, 2.4, 3.0, 3.1],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [25]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [25],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         return tbr_df, tbr_summary
 
@@ -359,12 +379,21 @@ class TestCreateSubintervalSummary:
             {
                 "period": [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                 "y": [100, 105, 110, 115, 108, 120, 125, 118, 130, 135, 128, 140],
+                "x": [93, 98, 100, 105, 98, 110, 114, 108, 119, 124, 117, 129],
                 "pred": [98, 103, 105, 110, 103, 115, 120, 113, 125, 130, 123, 135],
                 "estsd": [2.0, 2.1, 2.5, 2.6, 2.3, 2.8, 2.9, 2.4, 3.0, 3.1, 2.7, 3.2],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [4.5], "t_dist_df": [30]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [4.5],
+                "t_dist_df": [30],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         return tbr_df, tbr_summary
 
@@ -477,12 +506,20 @@ class TestValidateSubintervalParameters:
             {
                 "period": [0, 0, 1, 1, 1],
                 "y": [100, 105, 110, 115, 108],
+                "x": [93, 98, 100, 105, 98],
                 "pred": [98, 103, 105, 110, 103],
-                "estsd": [2.0, 2.1, 2.5, 2.6, 2.3],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         return tbr_df, tbr_summary
 
@@ -493,6 +530,38 @@ class TestValidateSubintervalParameters:
         # Should not raise any exception
         validate_subinterval_parameters(
             tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
+        )
+
+    def test_accepts_fitted_model_output(self):
+        """Test validation accepts the daily output and summaries of a fitted model."""
+        rng = np.random.default_rng(0)
+        control = rng.normal(1000, 50, size=44)
+        data = pd.DataFrame(
+            {
+                "date": pd.date_range("2023-01-01", periods=44),
+                "control": control,
+                "test": 1.05 * control + rng.normal(0, 10, size=44),
+            }
+        )
+        model = TBRAnalysis(level=0.80)
+        model.fit(
+            data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-31"),
+            test_end=pd.Timestamp("2023-02-14"),
+        )
+        n_test_days = int((model.results_["period"] == 1).sum())
+
+        # Should not raise any exception
+        validate_subinterval_parameters(
+            model.results_,
+            model.summaries_,
+            start_day=1,
+            end_day=n_test_days,
+            ci_level=0.80,
         )
 
     def test_invalid_dataframe_types(self, valid_data):
@@ -511,19 +580,25 @@ class TestValidateSubintervalParameters:
                 tbr_df, "not_a_dataframe", start_day=1, end_day=3, ci_level=0.80
             )
 
-    def test_missing_required_columns(self, valid_data):
-        """Test validation with missing required columns."""
+    @pytest.mark.parametrize("column", ["y", "x", "pred", "period"])
+    def test_missing_tbr_column(self, valid_data, column):
+        """Test validation with a missing required tbr_df column."""
         tbr_df, tbr_summary = valid_data
 
-        # Missing column in tbr_df
-        invalid_tbr_df = tbr_df.drop(columns=["estsd"])
+        invalid_tbr_df = tbr_df.drop(columns=[column])
         with pytest.raises(ValueError, match="tbr_df missing required columns"):
             validate_subinterval_parameters(
                 invalid_tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
             )
 
-        # Missing column in tbr_summary
-        invalid_summary = tbr_summary.drop(columns=["sigma"])
+    @pytest.mark.parametrize(
+        "column", ["sigma", "t_dist_df", "var_alpha", "var_beta", "alpha_beta_cov"]
+    )
+    def test_missing_summary_column(self, valid_data, column):
+        """Test validation with a missing required tbr_summary column."""
+        tbr_df, tbr_summary = valid_data
+
+        invalid_summary = tbr_summary.drop(columns=[column])
         with pytest.raises(ValueError, match="tbr_summary missing required columns"):
             validate_subinterval_parameters(
                 tbr_df, invalid_summary, start_day=1, end_day=3, ci_level=0.80
@@ -538,8 +613,8 @@ class TestValidateSubintervalParameters:
             {
                 "period": [0, 0, 0],
                 "y": [100, 105, 102],
+                "x": [93, 98, 95],
                 "pred": [98, 103, 100],
-                "estsd": [2.0, 2.1, 1.9],
             }
         )
 
@@ -662,7 +737,15 @@ class TestSubintervalModuleIntegration:
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [20]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [20],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Mock the core implementation to verify it's called
         with patch("tbr.analysis.subinterval.core_compute_interval") as mock_core:
@@ -699,12 +782,21 @@ class TestSubintervalModuleIntegration:
             {
                 "period": [0, 0, 1, 1, 1],
                 "y": [1000, 1050, 2000, 2500, 1800],
+                "x": [933, 981, 1429, 1905, 1238],
                 "pred": [980, 1030, 1500, 2000, 1300],
                 "estsd": [50.0, 52.0, 75.0, 80.0, 60.0],
             }
         )
 
-        extreme_summary = pd.DataFrame({"sigma": [100.0], "t_dist_df": [50]})
+        extreme_summary = pd.DataFrame(
+            {
+                "sigma": [100.0],
+                "t_dist_df": [50],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         result = compute_interval_estimate_and_ci(
             extreme_df, extreme_summary, start_day=1, end_day=3, ci_level=0.95

@@ -49,76 +49,89 @@ class TestPosteriorVarianceMathematical:
     """Mathematical validation tests for posterior variance calculation."""
 
     def test_mathematical_formula_correctness(self):
-        """Test that posterior variance formula is implemented correctly."""
-        # Test cases with known variance decomposition
+        """Test the formula against the quadratic form of the coefficient covariance."""
+        # V(sum of predictions) = a' C a, with a = (T_s, sum x_t) and C the
+        # covariance matrix of the intercept and slope estimates
         test_cases = [
-            # (estsd_values, sigma, n, expected_variance)
-            ([2.0, 3.0, 2.5], 1.5, 3, 2.0**2 + 3.0**2 + 2.5**2 + 3 * 1.5**2),
-            ([1.0, 1.0, 1.0, 1.0], 2.0, 4, 4 * 1.0**2 + 4 * 2.0**2),
-            ([0.5], 0.8, 1, 0.5**2 + 1 * 0.8**2),
-            (
-                [3.2, 2.8, 3.5, 2.1, 4.0],
-                2.5,
-                5,
-                sum([3.2**2, 2.8**2, 3.5**2, 2.1**2, 4.0**2]) + 5 * 2.5**2,
-            ),
+            # (x_values, sigma, var_alpha, var_beta, cov_alpha_beta)
+            ([100.0, 110.0, 120.0], 2.0, 1.0, 0.01, -0.05),
+            ([95.0, 100.0, 105.0, 110.0], 1.5, 4.0, 0.0004, -0.03),
+            ([1000.0], 25.0, 100.0, 0.001, -0.05),
+            ([1000.0, 1020.0, 980.0, 1050.0, 990.0], 25.0, 100.0, 0.001, -0.05),
         ]
 
-        for estsd_vals, sigma, n, expected in test_cases:
+        for x_vals, sigma, var_alpha, var_beta, cov_alpha_beta in test_cases:
+            x = np.array(x_vals)
+            a = np.array([len(x), np.sum(x)])
+            cov_matrix = np.array(
+                [[var_alpha, cov_alpha_beta], [cov_alpha_beta, var_beta]]
+            )
+            expected = len(x) * sigma**2 + a @ cov_matrix @ a
+
             result = calculate_posterior_variance(
-                estsd_values=np.array(estsd_vals), n_days=n, sigma=sigma
+                x_values=x,
+                sigma=sigma,
+                var_alpha=var_alpha,
+                var_beta=var_beta,
+                cov_alpha_beta=cov_alpha_beta,
             )
 
             assert (
-                abs(result - expected) < 1e-12
+                abs(result - expected) < 1e-8 * expected
             ), f"Posterior variance calculation failed: got {result}, expected {expected}"
 
     def test_variance_decomposition_properties(self):
         """Test mathematical properties of variance decomposition."""
-        estsd_values = np.array([2.5, 3.0, 2.8, 3.2])
-        sigma = 2.0
-        n = 4
+        x = np.array([95.0, 100.0, 105.0, 110.0])
+        sigma, var_alpha, var_beta, cov_alpha_beta = 2.0, 4.0, 0.0004, -0.03
+        n = len(x)
 
-        result = calculate_posterior_variance(estsd_values, n_days=n, sigma=sigma)
+        result = calculate_posterior_variance(
+            x, sigma, var_alpha, var_beta, cov_alpha_beta
+        )
 
-        # Component 1: Sum of estimation variances
-        estimation_variance = np.sum(estsd_values**2)
-
-        # Component 2: Residual variance component
+        # Component 1: Residual variance component
         residual_variance = n * (sigma**2)
 
+        # Component 2: Variance of the summed predictions at the mean control value
+        x_mean = np.mean(x)
+        v = var_alpha + 2 * x_mean * cov_alpha_beta + x_mean**2 * var_beta
+        model_variance = n**2 * v
+
         # Total should equal sum of components
-        expected_total = estimation_variance + residual_variance
+        expected_total = residual_variance + model_variance
 
         assert (
-            abs(result - expected_total) < 1e-14
-        ), "Posterior variance should equal sum of estimation and residual components"
+            abs(result - expected_total) < 1e-12
+        ), "Posterior variance should equal sum of residual and model components"
 
         # Both components should be positive
-        assert estimation_variance > 0, "Estimation variance component must be positive"
         assert residual_variance > 0, "Residual variance component must be positive"
+        assert model_variance > 0, "Model variance component must be positive"
 
     def test_edge_cases_mathematical(self):
         """Test mathematical behavior in edge cases."""
-        # Edge case 1: Single observation
-        result = calculate_posterior_variance(np.array([2.0]), n_days=1, sigma=1.5)
-        expected = 2.0**2 + 1 * 1.5**2
+        # Edge case 1: Single observation gives the prediction variance
+        result = calculate_posterior_variance(
+            np.array([100.0]), 1.5, 4.0, 0.0004, -0.03
+        )
+        expected = 1.5**2 + (4.0 + 2 * 100.0 * (-0.03) + 100.0**2 * 0.0004)
         assert (
-            abs(result - expected) < 1e-14
+            abs(result - expected) < 1e-12
         ), "Single observation case should be handled correctly"
 
-        # Edge case 2: Zero estimation standard errors
-        result = calculate_posterior_variance(np.array([0.0, 0.0]), n_days=2, sigma=1.0)
-        expected = 0.0 + 2 * 1.0**2
+        # Edge case 2: Known coefficients
+        result = calculate_posterior_variance(np.array([1.0, 2.0]), 1.0, 0.0, 0.0, 0.0)
+        expected = 2 * 1.0**2
         assert (
             abs(result - expected) < 1e-14
-        ), "Zero estsd should yield only residual variance"
+        ), "Zero coefficient uncertainty should yield only residual variance"
 
         # Edge case 3: Very small sigma (zero sigma not allowed by function validation)
         result = calculate_posterior_variance(
-            np.array([1.0, 2.0]), n_days=2, sigma=1e-10
+            np.array([1.0, 2.0]), 1e-10, 1.0, 0.0, 0.0
         )
-        expected = 1.0**2 + 2.0**2 + 2 * (1e-10) ** 2
+        expected = 2 * (1e-10) ** 2 + 2**2 * 1.0
         assert (
             abs(result - expected) < 1e-14
         ), "Very small sigma should be handled correctly"
@@ -127,17 +140,68 @@ class TestPosteriorVarianceMathematical:
         """Test numerical precision with extreme parameter values."""
         # Test with very small values
         result = calculate_posterior_variance(
-            np.array([1e-8, 2e-8]), n_days=2, sigma=1e-9
+            np.array([1e-3, 2e-3]), 1e-9, 1e-16, 1e-10, 0.0
         )
-        expected = (1e-8) ** 2 + (2e-8) ** 2 + 2 * (1e-9) ** 2
+        x_mean = 1.5e-3
+        expected = 2 * (1e-9) ** 2 + 2**2 * (1e-16 + x_mean**2 * 1e-10)
         assert (
-            abs(result - expected) < 1e-20
+            abs(result - expected) < 1e-12 * expected
         ), "Should handle very small values precisely"
 
         # Test with large values
-        result = calculate_posterior_variance(np.array([1e3, 2e3]), n_days=2, sigma=5e2)
-        expected = (1e3) ** 2 + (2e3) ** 2 + 2 * (5e2) ** 2
-        assert abs(result - expected) < 1e-6, "Should handle large values precisely"
+        result = calculate_posterior_variance(
+            np.array([1e6, 2e6]), 5e2, 1e4, 1e-6, -0.05
+        )
+        x_mean = 1.5e6
+        v = 1e4 + 2 * x_mean * (-0.05) + x_mean**2 * 1e-6
+        expected = 2 * (5e2) ** 2 + 2**2 * v
+        assert (
+            abs(result - expected) < 1e-12 * expected
+        ), "Should handle large values precisely"
+
+    def test_matches_tbr_analysis_uncertainty_columns(self):
+        """Test agreement with predsd and cumsd from a fitted TBR analysis."""
+        import pandas as pd
+
+        from tbr.functional import perform_tbr_analysis
+
+        rng = np.random.default_rng(0)
+        control = rng.normal(1000, 50, size=44)
+        data = pd.DataFrame(
+            {
+                "date": pd.date_range("2023-01-01", periods=44),
+                "control": control,
+                "test": 1.05 * control + rng.normal(0, 10, size=44),
+            }
+        )
+        results = perform_tbr_analysis(
+            data=data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-31"),
+            test_end=pd.Timestamp("2023-02-14"),
+            level=0.90,
+            threshold=0.0,
+        )
+        tbr_df = results.tbr_dataframe()
+        summary = results.summary().iloc[-1]
+        test_rows = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
+        x = test_rows["x"].to_numpy(dtype=float)
+        params = (
+            float(summary["sigma"]),
+            float(summary["var_alpha"]),
+            float(summary["var_beta"]),
+            float(summary["alpha_beta_cov"]),
+        )
+
+        for day in range(len(x)):
+            single_day = calculate_posterior_variance(x[day : day + 1], *params)
+            assert abs(single_day - test_rows["predsd"].iloc[day] ** 2) < 1e-8
+
+            from_first_day = calculate_posterior_variance(x[: day + 1], *params)
+            assert abs(from_first_day - test_rows["cumsd"].iloc[day] ** 2) < 1e-6
 
 
 class TestThresholdSensitivityMathematical:
@@ -603,7 +667,7 @@ class TestPosteriorModuleIntegrationMathematical:
 
         # All functions should handle small values without numerical issues
         variance = calculate_posterior_variance(
-            np.array([1e-8, 2e-8]), n_days=2, sigma=1e-9
+            np.array([1e-3, 2e-3]), 1e-9, 1e-16, 1e-10, 0.0
         )
 
         sensitivity = perform_threshold_sensitivity_analysis(

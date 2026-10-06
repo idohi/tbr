@@ -91,7 +91,13 @@ class TestAnalysisMathematicalConsistency:
         """Test mathematical additivity property of analysis estimates."""
         tbr_df, params = mathematical_test_data
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
 
         # Test additivity: interval(1,3) + interval(4,6) should relate to interval(1,6)
@@ -157,7 +163,13 @@ class TestAnalysisMathematicalConsistency:
         """Test mathematical relationships across analysis modules."""
         tbr_df, params = mathematical_test_data
         tbr_summary = pd.DataFrame(
-            {"sigma": [params["sigma"]], "t_dist_df": [params["degrees_freedom"]]}
+            {
+                "sigma": [params["sigma"]],
+                "t_dist_df": [params["degrees_freedom"]],
+                "var_alpha": [params["var_alpha"]],
+                "var_beta": [params["var_beta"]],
+                "alpha_beta_cov": [params["cov_alpha_beta"]],
+            }
         )
 
         # Get results from different modules
@@ -465,7 +477,15 @@ class TestAnalysisFormulaValidation:
     def test_subinterval_formula_validation(self):
         """Test subinterval analysis mathematical formula validation."""
         tbr_df = create_proper_tbr_dataframe(n_pretest=3, n_test=6, seed=444)
-        tbr_summary = pd.DataFrame({"sigma": [2.0], "t_dist_df": [5]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [2.0],
+                "t_dist_df": [5],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Test single day
         single_day_result = compute_interval_estimate_and_ci(

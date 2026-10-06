@@ -42,71 +42,124 @@ class TestCalculatePosteriorVariance:
 
     def test_basic_posterior_variance(self):
         """Test basic posterior variance calculation."""
-        estsd = np.array([2.1, 2.3, 2.0, 2.4, 2.2])
-        n_days = 5
-        sigma = 1.8
+        x = np.array([1000.0, 1020.0, 980.0, 1050.0, 990.0])
+        sigma, var_alpha, var_beta, cov_alpha_beta = 25.0, 100.0, 0.001, -0.05
 
-        posterior_var = calculate_posterior_variance(estsd, n_days, sigma)
+        posterior_var = calculate_posterior_variance(
+            x, sigma, var_alpha, var_beta, cov_alpha_beta
+        )
 
-        # Expected: sum of estsd^2 + n_days * sigma^2
-        expected_estsd_var = np.sum(estsd**2)  # 23.510
-        expected_residual_var = n_days * (sigma**2)  # 5 * 3.24 = 16.2
-        expected_total = expected_estsd_var + expected_residual_var
+        # Expected: T * sigma^2 + T^2 * v, with v at the mean of x (1008)
+        v = 100.0 + 2 * 1008.0 * (-0.05) + 1008.0**2 * 0.001  # 1015.264
+        expected_total = 5 * 25.0**2 + 5**2 * v  # 3125 + 25381.6
 
-        assert abs(posterior_var - expected_total) < 1e-10
+        assert abs(posterior_var - expected_total) < 1e-8
+        assert abs(posterior_var - 28506.6) < 1e-8
 
     def test_single_observation(self):
-        """Test posterior variance with single observation."""
-        estsd = np.array([3.0])
-        posterior_var = calculate_posterior_variance(estsd, n_days=1, sigma=2.0)
+        """Test that a single day gives the prediction variance."""
+        x0, sigma = 120.0, 2.0
+        var_alpha, var_beta, cov_alpha_beta = 4.0, 0.01, -0.15
 
-        expected = 3.0**2 + 1 * 2.0**2  # 9 + 4 = 13
+        posterior_var = calculate_posterior_variance(
+            np.array([x0]), sigma, var_alpha, var_beta, cov_alpha_beta
+        )
+
+        model_var = var_alpha + 2 * x0 * cov_alpha_beta + x0**2 * var_beta
+        expected = sigma**2 + model_var  # 4 + (4 - 36 + 144) = 116
         assert abs(posterior_var - expected) < 1e-10
 
-    def test_zero_estimation_variance(self):
-        """Test posterior variance with zero estimation variance."""
-        estsd = np.array([0.0, 0.0, 0.0])
-        posterior_var = calculate_posterior_variance(estsd, n_days=3, sigma=1.5)
+    def test_zero_coefficient_uncertainty(self):
+        """Test that known coefficients leave only the residual component."""
+        x = np.array([95.0, 100.0, 105.0])
+        posterior_var = calculate_posterior_variance(x, 1.5, 0.0, 0.0, 0.0)
 
-        expected = 0.0 + 3 * 1.5**2  # 6.75
+        expected = 3 * 1.5**2  # 6.75
         assert abs(posterior_var - expected) < 1e-10
 
     def test_mathematical_properties(self):
         """Test mathematical properties of posterior variance."""
-        estsd = np.array([1.0, 2.0, 3.0])
-        sigma = 1.0
-        n_days = 3
+        sigma, var_alpha, var_beta, cov_alpha_beta = 1.0, 4.0, 0.0004, -0.03
+        x = np.full(3, 100.0)
 
         # Variance should be positive
-        posterior_var = calculate_posterior_variance(estsd, n_days, sigma)
+        posterior_var = calculate_posterior_variance(
+            x, sigma, var_alpha, var_beta, cov_alpha_beta
+        )
         assert posterior_var > 0
 
-        # Doubling sigma should quadruple its contribution
-        sigma_contribution_1 = n_days * sigma**2
-        sigma_contribution_2 = n_days * (2 * sigma) ** 2
-        assert abs(sigma_contribution_2 - 4 * sigma_contribution_1) < 1e-10
+        # With a constant control value, doubling the interval doubles the
+        # residual component and quadruples the model component
+        doubled_var = calculate_posterior_variance(
+            np.full(6, 100.0), sigma, var_alpha, var_beta, cov_alpha_beta
+        )
+        residual_3 = 3 * sigma**2
+        model_3 = posterior_var - residual_3
+        assert abs(doubled_var - (2 * residual_3 + 4 * model_3)) < 1e-10
+
+    def test_covariance_between_predictions(self):
+        """Test that the model term includes the covariance between predictions."""
+        x = np.array([90.0, 100.0, 110.0])
+        sigma, var_alpha, var_beta, cov_alpha_beta = 1.0, 4.0, 0.0004, -0.03
+
+        posterior_var = calculate_posterior_variance(
+            x, sigma, var_alpha, var_beta, cov_alpha_beta
+        )
+
+        # Cov(ŷ_s, ŷ_t) = Var(α̂) + (x_s + x_t)·Cov(α̂,β̂) + x_s·x_t·Var(β̂)
+        pairwise_cov = (
+            var_alpha
+            + (x[:, None] + x[None, :]) * cov_alpha_beta
+            + np.outer(x, x) * var_beta
+        )
+        per_day_model_var = np.diag(pairwise_cov)
+        cross_covariance = np.sum(pairwise_cov) - np.sum(per_day_model_var)
+        independent_var = np.sum(per_day_model_var) + len(x) * sigma**2
+
+        assert cross_covariance != 0
+        assert abs(posterior_var - (independent_var + cross_covariance)) < 1e-10
+
+    def test_matches_cumulative_variance(self):
+        """Test agreement with the full-period cumulative variance."""
+        from tbr.core.effects import calculate_cumulative_variance
+
+        x = np.array([1000.0, 1020.0, 980.0, 1050.0, 990.0])
+        params = (25.0, 100.0, 0.001, -0.05)
+
+        cumulative = calculate_cumulative_variance(x, *params)
+        for t in range(1, len(x) + 1):
+            posterior_var = calculate_posterior_variance(x[:t], *params)
+            assert abs(posterior_var - cumulative[t - 1]) < 1e-8
 
     def test_input_validation(self):
         """Test input validation for posterior variance calculation."""
-        # Test invalid types
-        with pytest.raises(TypeError, match="estsd_values must be numpy array"):
-            calculate_posterior_variance([1.0, 2.0], n_days=2, sigma=1.0)
+        params = {"sigma": 1.0, "var_alpha": 4.0, "var_beta": 0.0004}
 
-        with pytest.raises(TypeError, match="n_days must be integer"):
-            calculate_posterior_variance(np.array([1.0]), n_days=1.5, sigma=1.0)
+        # Test invalid types
+        with pytest.raises(TypeError, match="x_values must be numpy array"):
+            calculate_posterior_variance([1.0, 2.0], cov_alpha_beta=0.0, **params)
 
         with pytest.raises(TypeError, match="sigma must be numeric"):
-            calculate_posterior_variance(np.array([1.0]), n_days=1, sigma="1.0")
+            calculate_posterior_variance(
+                np.array([1.0]), "1.0", 4.0, 0.0004, cov_alpha_beta=0.0
+            )
+
+        with pytest.raises(TypeError, match="cov_alpha_beta must be numeric"):
+            calculate_posterior_variance(
+                np.array([1.0]), cov_alpha_beta="-0.03", **params
+            )
 
         # Test invalid values
-        with pytest.raises(ValueError, match="n_days must be positive"):
-            calculate_posterior_variance(np.array([1.0]), n_days=0, sigma=1.0)
+        with pytest.raises(ValueError, match="x_values cannot be empty"):
+            calculate_posterior_variance(np.array([]), cov_alpha_beta=0.0, **params)
 
         with pytest.raises(ValueError, match="sigma must be positive"):
-            calculate_posterior_variance(np.array([1.0]), n_days=1, sigma=-1.0)
+            calculate_posterior_variance(np.array([1.0]), -1.0, 4.0, 0.0004, 0.0)
 
-        with pytest.raises(ValueError, match="estsd_values cannot be empty"):
-            calculate_posterior_variance(np.array([]), n_days=1, sigma=1.0)
+        with pytest.raises(ValueError, match="Negative posterior variance"):
+            calculate_posterior_variance(
+                np.array([1000.0, 2000.0]), 1.0, 100.0, 1e-6, -100.0
+            )
 
 
 class TestPerformThresholdSensitivityAnalysis:
@@ -801,17 +854,39 @@ class TestIntegrationWithTBRWorkflow:
 
     def test_posterior_variance_integration(self):
         """Test posterior variance integration with other functions."""
-        # Simulate interval estimation data
-        estsd_values = np.array([1.8, 2.1, 1.9, 2.3, 2.0])
-        n_days = 5
-        sigma = 1.5
+        import pandas as pd
+        from scipy import stats
 
-        # Calculate posterior variance
-        posterior_var = calculate_posterior_variance(estsd_values, n_days, sigma)
+        from tbr.core.prediction import compute_interval_estimate_and_ci
+
+        # Simulate interval estimation data
+        tbr_df = pd.DataFrame(
+            {
+                "period": [0, 1, 1, 1, 1, 1],
+                "y": [98.0, 105.0, 110.0, 108.0, 112.0, 115.0],
+                "x": [93.0, 95.0, 100.0, 98.0, 102.0, 105.0],
+                "pred": [98.0, 100.0, 105.0, 103.0, 107.0, 110.0],
+            }
+        )
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [1.5],
+                "t_dist_df": [40],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
+
+        # Calculate posterior variance for test days 2-4
+        posterior_var = calculate_posterior_variance(
+            np.array([100.0, 98.0, 102.0]), 1.5, 4.0, 0.0004, -0.03
+        )
 
         # This should match the variance calculation in interval estimation
-        expected_var = np.sum(estsd_values**2) + n_days * sigma**2
-        assert abs(posterior_var - expected_var) < 1e-10
+        interval = compute_interval_estimate_and_ci(tbr_df, tbr_summary, 2, 4, 0.90)
+        t_mult = stats.t.ppf(0.95, 40)
+        assert abs(posterior_var - (interval["precision"] / t_mult) ** 2) < 1e-10
 
         # Use in posterior probability calculation
         se = np.sqrt(posterior_var)

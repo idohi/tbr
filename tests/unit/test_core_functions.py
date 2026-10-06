@@ -260,13 +260,22 @@ class TestIntervalEstimation:
             {
                 "period": [0, 0, 0, 1, 1, 1],
                 "y": [10, 15, 20, 25, 30, 35],
+                "x": [11, 15, 17, 21, 27, 30],
                 "pred": [12, 16, 18, 22, 28, 32],
                 "estsd": [1, 1, 1, 2, 2, 2],
             }
         )
 
         # Create mock summary
-        tbr_summary = pd.DataFrame({"sigma": [5.0], "t_dist_df": [10.0]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [5.0],
+                "t_dist_df": [10.0],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         result = compute_interval_estimate_and_ci(
             tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
@@ -286,9 +295,19 @@ class TestIntervalEstimation:
     def test_interval_estimation_edge_cases(self):
         """Test interval estimation with edge cases."""
         # Single day interval
-        tbr_df = pd.DataFrame({"period": [1], "y": [100], "pred": [95], "estsd": [2]})
+        tbr_df = pd.DataFrame(
+            {"period": [1], "y": [100], "x": [90], "pred": [95], "estsd": [2]}
+        )
 
-        tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20.0]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [3.0],
+                "t_dist_df": [20.0],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         result = compute_interval_estimate_and_ci(
             tbr_df, tbr_summary, start_day=1, end_day=1, ci_level=0.95
@@ -305,12 +324,21 @@ class TestIntervalEstimation:
             {
                 "period": [1] * 10,
                 "y": np.random.normal(100, 10, 10),
+                "x": np.random.normal(90, 8, 10),
                 "pred": np.random.normal(95, 8, 10),
                 "estsd": np.random.uniform(1, 3, 10),
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [4.0], "t_dist_df": [15.0]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [4.0],
+                "t_dist_df": [15.0],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         # Test different intervals
         intervals = [(1, 3, 0.80), (4, 6, 0.90), (7, 10, 0.95)]

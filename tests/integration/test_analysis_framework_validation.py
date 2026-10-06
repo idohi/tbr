@@ -100,7 +100,13 @@ def create_comprehensive_tbr_data(scenario="default", seed=42):
 
     # TBR summary parameters
     tbr_summary = pd.DataFrame(
-        {"sigma": [test_std], "t_dist_df": [n_pretest + n_test - 2]}
+        {
+            "sigma": [test_std],
+            "t_dist_df": [n_pretest + n_test - 2],
+            "var_alpha": [(control_std**2) / n_pretest],
+            "var_beta": [0.001],
+            "alpha_beta_cov": [-0.01],
+        }
     )
 
     # Analysis parameters

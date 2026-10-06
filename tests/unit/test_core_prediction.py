@@ -198,13 +198,22 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [0, 0, 1, 1, 1],
                 "y": [100, 105, 120, 125, 130],
+                "x": [93, 98, 110, 112, 116],
                 "pred": [98, 103, 115, 118, 122],
                 "estsd": [5, 5, 6, 6, 7],
             }
         )
 
         # Create mock summary
-        tbr_summary = pd.DataFrame({"sigma": [10.0], "t_dist_df": [40]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [10.0],
+                "t_dist_df": [40],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         result = compute_interval_estimate_and_ci(
             tbr_df=tbr_df,
@@ -235,12 +244,21 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [1, 1, 1],
                 "y": [110, 115, 120],
+                "x": [95, 100, 105],
                 "pred": [100, 105, 110],
                 "estsd": [3, 4, 5],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [8.0], "t_dist_df": [30]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [8.0],
+                "t_dist_df": [30],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         result = compute_interval_estimate_and_ci(
             tbr_df=tbr_df,
@@ -263,12 +281,21 @@ class TestComputeIntervalEstimateAndCI:
             {
                 "period": [0, 1, 1, 1],
                 "y": [95, 108, 112, 118],
+                "x": [90, 95, 100, 105],
                 "pred": [95, 100, 105, 110],
                 "estsd": [4, 5, 6, 7],
             }
         )
 
-        tbr_summary = pd.DataFrame({"sigma": [12.0], "t_dist_df": [35]})
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [12.0],
+                "t_dist_df": [35],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
 
         params = {
             "tbr_df": tbr_df,

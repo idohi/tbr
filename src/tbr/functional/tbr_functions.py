@@ -512,11 +512,12 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily output containing ``period``, ``y``, ``pred``, and ``estsd``.
+        Daily output containing ``period``, ``y``, ``x``, and ``pred``.
         Test rows must be in test-day order.
     tbr_summary : pd.DataFrame
-        Non-empty summary containing ``sigma`` and legacy degrees-of-freedom
-        column ``t_dist_df``; values are read from its last row.
+        Non-empty summary containing ``sigma``, legacy degrees-of-freedom
+        column ``t_dist_df``, ``var_alpha``, ``var_beta``, and
+        ``alpha_beta_cov``; values are read from its last row.
     start_day : int
         Requested one-based start :math:`a`; not validated by this helper.
     end_day : int
@@ -554,11 +555,19 @@ def compute_interval_estimate_and_ci(
     ...     {
     ...         "period": [1, 1],
     ...         "y": [110.0, 115.0],
+    ...         "x": [100.0, 103.0],
     ...         "pred": [105.0, 108.0],
-    ...         "estsd": [2.0, 2.1],
     ...     }
     ... )
-    >>> tbr_summary = pd.DataFrame({"sigma": [3.0], "t_dist_df": [20]})
+    >>> tbr_summary = pd.DataFrame(
+    ...     {
+    ...         "sigma": [3.0],
+    ...         "t_dist_df": [20],
+    ...         "var_alpha": [4.0],
+    ...         "var_beta": [0.0004],
+    ...         "alpha_beta_cov": [-0.03],
+    ...     }
+    ... )
     >>> result = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )

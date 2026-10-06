@@ -539,7 +539,10 @@ def test_public_docstrings_do_not_double_escape_latex_commands() -> None:
             "compute_interval_estimate_and_ci",
             (
                 "CI=estimate±t_{α/2,df}×se",
-                r"se=\sqrt{\sum_{i=start}^{end}estsd_i^2+n_{days}×σ^2}",
+                r"se=\sqrt{n_{days}×σ^2+n_{days}^2×v}",
+                r"v=\mathbb{V}[\hat{\beta}_0]"
+                r"+2\bar{x}\operatorname{Cov}(\hat{\beta}_0,\hat{\beta}_1)"
+                r"+\bar{x}^2\mathbb{V}[\hat{\beta}_1]",
                 r"estimate=\sum_{i=start}^{end}(y_i-pred_i)",
             ),
         ),

@@ -434,10 +434,24 @@ The posterior variance of the subinterval effect combines the same two component
 Let $T_s = b - a + 1$ be the number of days in the subinterval. The posterior variance is:
 
 $$
-\mathbb{V}[\Delta(a, b)] = \sum_{t=a}^{b} \mathbb{V}[\hat{y}_t^*] + T_s \cdot \sigma^2
+\mathbb{V}[\Delta(a, b)] = \mathbb{V}\left(\sum_{t=a}^{b} \hat{y}_t^*\right) + T_s \cdot \sigma^2
 $$
 
-where $\mathbb{V}[\hat{y}_t^*]$ is the model variance at each time point (as defined in the [Prediction and Uncertainty](#prediction-and-uncertainty) section).
+where $\mathbb{V}\left(\sum_{t=a}^{b} \hat{y}_t^*\right)$ is the variance of the sum of the counterfactual predictions over the subinterval. Because all predictions share the same estimated coefficients $\hat{\beta}_0$ and $\hat{\beta}_1$, they are correlated, so this is not the sum of the individual model variances $\mathbb{V}[\hat{y}_t^*]$ defined in the [Prediction and Uncertainty](#prediction-and-uncertainty) section.
+
+Following the same derivation as for the full test period, this variance is:
+
+$$
+\mathbb{V}\left(\sum_{t=a}^{b} \hat{y}_t^*\right) = T_s^2 \cdot v_{(a,b)}
+$$
+
+where:
+
+$$
+v_{(a,b)} = \mathbb{V}[\hat{\beta}_0] + 2\bar{x}_{(a,b)} \cdot \text{Cov}(\hat{\beta}_0, \hat{\beta}_1) + \bar{x}_{(a,b)}^2 \cdot \mathbb{V}[\hat{\beta}_1]
+$$
+
+and $\bar{x}_{(a,b)} = \frac{1}{T_s} \sum_{t=a}^{b} x_t$ is the mean of the control group metric over the subinterval. When $a = 1$ and $b = T$, this reduces to the full-period result.
 
 The posterior standard error is:
 

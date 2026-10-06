@@ -53,6 +53,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from .posterior import calculate_posterior_variance
 from .regression import calculate_model_variance, calculate_prediction_variance
 
 # Export list for clean imports
@@ -263,9 +264,10 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'pred', 'period', 'estsd'
+        TBR daily output with columns 'y', 'x', 'pred', 'period'
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma' and 't_dist_df' (degrees of freedom) parameters
+        TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
+        'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
     start_day : int
         Start day of subinterval (1-indexed within test period)
     end_day : int
@@ -315,7 +317,10 @@ def compute_interval_estimate_and_ci(
     Notes
     -----
     Uses t-distribution for credible intervals with degrees of freedom from the
-    regression model. Posterior variance combines model uncertainty and residual noise.
+    regression model. Posterior variance combines model uncertainty and residual noise
+    and is computed by calculate_posterior_variance:
+    V[Δ(a,b)] = T_s · σ² + T_s² · v, where v = Var(α̂) + 2·x̄·Cov(α̂,β̂) + x̄²·Var(β̂)
+    and x̄ is the mean control value over the subinterval.
     """
     # Filter for test period
     test_df = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
@@ -326,13 +331,16 @@ def compute_interval_estimate_and_ci(
     # Estimate of cumulative effect (sum of differences)
     estimate = (interval_df["y"] - interval_df["pred"]).sum()
 
-    # Posterior variance = sum of estsd^2 + n * sigma^2
-    sum_estsd_sq = np.sum(interval_df["estsd"] ** 2)
-    n_days = end_day - start_day + 1
-    sigma = float(tbr_summary.iloc[-1]["sigma"])
-    dof = int(tbr_summary.iloc[-1]["t_dist_df"])
+    summary_row = tbr_summary.iloc[-1]
+    dof = int(summary_row["t_dist_df"])
 
-    posterior_variance = sum_estsd_sq + n_days * sigma**2
+    posterior_variance = calculate_posterior_variance(
+        x_values=interval_df["x"].to_numpy(dtype=float),
+        sigma=float(summary_row["sigma"]),
+        var_alpha=float(summary_row["var_alpha"]),
+        var_beta=float(summary_row["var_beta"]),
+        cov_alpha_beta=float(summary_row["alpha_beta_cov"]),
+    )
     se = np.sqrt(posterior_variance)
 
     # t-multiplier

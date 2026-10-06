@@ -169,6 +169,7 @@ class TestCoreEffectsFunctionalCrossValidation:
             {
                 "period": [1, 1, 1, 1, 1],
                 "y": [100, 105, 110, 108, 112],
+                "x": [93, 98, 102, 101, 105],
                 "pred": [98, 103, 107, 106, 110],
                 "cumdif": [5.0, 12.0, 20.0, 28.0, 35.0],
                 "cumsd": [8.0, 11.0, 14.0, 16.0, 18.0],
@@ -184,6 +185,9 @@ class TestCoreEffectsFunctionalCrossValidation:
                 "upper": [44.2],
                 "sigma": [15.0],
                 "t_dist_df": [30],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
             }
         )
 
