@@ -286,12 +286,17 @@ This measures the total impact of the treatment over the test period.
 
 ### Posterior Variance of the Cumulative Effect
 
-The uncertainty in $\Delta(T)$ arises from two independent sources:
+The uncertainty in $\Delta(T)$ arises from two sources:
 
 1. **Residual noise**: each outcome $y_t$ in the test period follows $y_t = \beta_0 + \beta_1 x_t + \varepsilon_t$, where the noise $\varepsilon_t$ has variance $\sigma^2$
 2. **Model uncertainty**: the counterfactual predictions $\hat{y}_t^*$ depend on the estimated coefficients $\hat{\beta}_0$ and $\hat{\beta}_1$, which carry estimation uncertainty from the finite pretest sample
 
-These two sources are independent — the residual noise in the test period is independent of the parameter uncertainty from the pretest model — so the posterior variance decomposes as:
+$$
+\mathbb{V}[\Delta (T)] = \mathbb{V}\left(\sum_{t=1}^{T} (y_t - \hat{y}_t^*)\right)
+= \mathbb{V}\left(\sum_{t=1}^{T} y_t\right) + \mathbb{V}\left(\sum_{t=1}^{T} \hat{y}_t^*\right) - 2\,\text{Cov}\left(\sum_{t=1}^{T} y_t,\ \sum_{t=1}^{T} \hat{y}_t^*\right)
+$$
+
+Assuming the test-period noise is independent of the parameter uncertainty from the pretest model, the covariance term is zero and the posterior variance decomposes as:
 
 $$
 \mathbb{V}[\Delta(T)] = \mathbb{V}\left(\sum_{t=1}^{T} y_t\right) + \mathbb{V}\left(\sum_{t=1}^{T} \hat{y}_t^*\right)
@@ -565,7 +570,7 @@ The error terms follow a normal distribution. This assumption supports the $t$-d
 
 **Cumulative uncertainty growth.** The posterior variance of the cumulative effect grows with the test period length $T$ as $\mathbb{V}[\Delta(T)] = T \cdot \sigma^2 + T^2 \cdot v$ (see [Treatment Effect Estimation](#treatment-effect-estimation)). Long test periods accumulate substantial uncertainty, reducing the precision of the treatment effect estimate.
 
-**i.i.d. residual approximation.** The variance formula $\mathbb{V}\!\left[\sum y_t\right] = T \cdot \sigma^2$ is exact only when the residuals $\varepsilon_t$ are independent with constant variance $\sigma^2$. When residuals are autocorrelated, it becomes an approximation that may underestimate the true variance. In practice, Kerman et al. {cite}`kerman2017tbr` demonstrate that TBR credible intervals achieve accurate coverage even under correlated conditions.
+**i.i.d. residual approximation.** The variance formula $\mathbb{V}\!\left[\sum y_t\right] = T \cdot \sigma^2$ is exact only when the residuals $\varepsilon_t$ are independent with constant variance $\sigma^2$. When residuals are autocorrelated, it becomes an approximation that may underestimate the true variance.
 
 ---
 
