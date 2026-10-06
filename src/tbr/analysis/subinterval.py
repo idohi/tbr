@@ -623,7 +623,6 @@ def validate_subinterval_parameters(
     ...         "y": [110.0, 115.0, 118.0],
     ...         "x": [100.0, 103.0, 107.0],
     ...         "pred": [105.0, 108.0, 112.0],
-    ...         "estsd": [2.0, 2.1, 2.2],
     ...     }
     ... )
     >>> tbr_summary = pd.DataFrame(
@@ -656,12 +655,18 @@ def validate_subinterval_parameters(
         raise TypeError("tbr_summary must be a pandas DataFrame")
 
     # Validate DataFrame structure
-    required_tbr_cols = ["y", "pred", "period", "estsd"]
+    required_tbr_cols = ["y", "x", "pred", "period"]
     missing_tbr_cols = [col for col in required_tbr_cols if col not in tbr_df.columns]
     if missing_tbr_cols:
         raise ValueError(f"tbr_df missing required columns: {missing_tbr_cols}")
 
-    required_summary_cols = ["sigma", "t_dist_df"]
+    required_summary_cols = [
+        "sigma",
+        "t_dist_df",
+        "var_alpha",
+        "var_beta",
+        "alpha_beta_cov",
+    ]
     missing_summary_cols = [
         col for col in required_summary_cols if col not in tbr_summary.columns
     ]

@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tbr import TBRAnalysis
+
 # Import the module under test
 from tbr.analysis.subinterval import (
     analyze_multiple_subintervals,
@@ -504,8 +506,8 @@ class TestValidateSubintervalParameters:
             {
                 "period": [0, 0, 1, 1, 1],
                 "y": [100, 105, 110, 115, 108],
+                "x": [93, 98, 100, 105, 98],
                 "pred": [98, 103, 105, 110, 103],
-                "estsd": [2.0, 2.1, 2.5, 2.6, 2.3],
             }
         )
 
@@ -530,6 +532,38 @@ class TestValidateSubintervalParameters:
             tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
         )
 
+    def test_accepts_fitted_model_output(self):
+        """Test validation accepts the daily output and summaries of a fitted model."""
+        rng = np.random.default_rng(0)
+        control = rng.normal(1000, 50, size=44)
+        data = pd.DataFrame(
+            {
+                "date": pd.date_range("2023-01-01", periods=44),
+                "control": control,
+                "test": 1.05 * control + rng.normal(0, 10, size=44),
+            }
+        )
+        model = TBRAnalysis(level=0.80)
+        model.fit(
+            data,
+            "date",
+            "control",
+            "test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-01-31"),
+            test_end=pd.Timestamp("2023-02-14"),
+        )
+        n_test_days = int((model.results_["period"] == 1).sum())
+
+        # Should not raise any exception
+        validate_subinterval_parameters(
+            model.results_,
+            model.summaries_,
+            start_day=1,
+            end_day=n_test_days,
+            ci_level=0.80,
+        )
+
     def test_invalid_dataframe_types(self, valid_data):
         """Test validation with invalid DataFrame types."""
         tbr_df, tbr_summary = valid_data
@@ -546,19 +580,25 @@ class TestValidateSubintervalParameters:
                 tbr_df, "not_a_dataframe", start_day=1, end_day=3, ci_level=0.80
             )
 
-    def test_missing_required_columns(self, valid_data):
-        """Test validation with missing required columns."""
+    @pytest.mark.parametrize("column", ["y", "x", "pred", "period"])
+    def test_missing_tbr_column(self, valid_data, column):
+        """Test validation with a missing required tbr_df column."""
         tbr_df, tbr_summary = valid_data
 
-        # Missing column in tbr_df
-        invalid_tbr_df = tbr_df.drop(columns=["estsd"])
+        invalid_tbr_df = tbr_df.drop(columns=[column])
         with pytest.raises(ValueError, match="tbr_df missing required columns"):
             validate_subinterval_parameters(
                 invalid_tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
             )
 
-        # Missing column in tbr_summary
-        invalid_summary = tbr_summary.drop(columns=["sigma"])
+    @pytest.mark.parametrize(
+        "column", ["sigma", "t_dist_df", "var_alpha", "var_beta", "alpha_beta_cov"]
+    )
+    def test_missing_summary_column(self, valid_data, column):
+        """Test validation with a missing required tbr_summary column."""
+        tbr_df, tbr_summary = valid_data
+
+        invalid_summary = tbr_summary.drop(columns=[column])
         with pytest.raises(ValueError, match="tbr_summary missing required columns"):
             validate_subinterval_parameters(
                 tbr_df, invalid_summary, start_day=1, end_day=3, ci_level=0.80
@@ -573,8 +613,8 @@ class TestValidateSubintervalParameters:
             {
                 "period": [0, 0, 0],
                 "y": [100, 105, 102],
+                "x": [93, 98, 95],
                 "pred": [98, 103, 100],
-                "estsd": [2.0, 2.1, 1.9],
             }
         )
 
