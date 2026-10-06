@@ -618,7 +618,7 @@ The following table maps the mathematical notation used in this document to the 
 | $\phi_t = y_t - \hat{y}_t^*$ | Pointwise treatment effect | `dif` |
 | $\sum \phi_t$ | Cumulative treatment effect | `cumdif` |
 | $\sqrt{\mathbb{V}[\Delta(T)]}$ | Cumulative-effect standard error (Student's $t$ scale); legacy column name | `cumsd` |
-| $\sqrt{\mathbb{V}[\hat{y}_t^*]}$ | Model standard deviation (fitted value) | `estsd` |
+| $\sqrt{\mathbb{V}[\hat{y}_t]}$ | Fitted-value standard deviation (pretest); `NaN` in the test period | `estsd` |
 
 ### Summary Output
 
