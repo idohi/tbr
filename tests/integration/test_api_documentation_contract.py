@@ -850,8 +850,10 @@ def test_subinterval_wrappers_document_propagated_input_errors(symbol: str) -> N
     function = pydoc.locate(f"tbr.{symbol}")
     raises = _numpy_doc_section(inspect.getdoc(function) or "", "Raises")
 
-    assert re.search(r"^KeyError$", raises, flags=re.MULTILINE)
-    assert re.search(r"^IndexError$", raises, flags=re.MULTILINE)
+    assert re.search(r"^ValueError$", raises, flags=re.MULTILINE)
+    assert re.search(r"^TypeError$", raises, flags=re.MULTILINE)
+    assert not re.search(r"^KeyError$", raises, flags=re.MULTILINE)
+    assert not re.search(r"^IndexError$", raises, flags=re.MULTILINE)
 
 
 @pytest.mark.parametrize(

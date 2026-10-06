@@ -69,6 +69,7 @@ Create comprehensive summary:
 
 from typing import Dict, List, Tuple
 
+import numpy as np
 import pandas as pd
 
 # Import core functionality for wrapping
@@ -98,13 +99,12 @@ def compute_interval_estimate_and_ci(
         Non-empty summary containing ``sigma``, ``t_dist_df``, ``var_alpha``,
         ``var_beta``, and ``alpha_beta_cov``. Values are read from the last row.
     start_day : int
-        Requested one-based start :math:`a`. This direct helper does not
-        validate the value.
+        One-based start :math:`a`. Must be at least 1.
     end_day : int
-        Requested inclusive one-based end :math:`b`. This direct helper does
-        not validate the value.
+        Inclusive one-based end :math:`b`. Must be at least ``start_day`` and
+        no greater than the number of test rows.
     ci_level : float
-        Credibility level. This direct helper does not validate its range.
+        Credibility level in the open interval ``(0, 1)``.
 
     Returns
     -------
@@ -113,10 +113,13 @@ def compute_interval_estimate_and_ci(
 
     Raises
     ------
-    KeyError
-        If a required input column is absent.
-    IndexError
-        If ``tbr_summary`` has no rows.
+    ValueError
+        If a required input column is absent, ``tbr_summary`` has no rows,
+        ``tbr_df`` has no test rows, the day range is invalid, or ``ci_level``
+        is outside ``(0, 1)``.
+    TypeError
+        If an input is not a DataFrame, a day is not an integer, or
+        ``ci_level`` is not numeric.
 
     Notes
     -----
@@ -222,6 +225,7 @@ def compute_interval_estimate_and_ci(
     >>> print(f"80% interval width: {result_80['upper'] - result_80['lower']:.2f}")
     >>> print(f"95% interval width: {result_95['upper'] - result_95['lower']:.2f}")
     """
+    validate_subinterval_parameters(tbr_df, tbr_summary, start_day, end_day, ci_level)
     return core_compute_interval(
         tbr_df=tbr_df,
         tbr_summary=tbr_summary,
@@ -258,7 +262,7 @@ def analyze_multiple_subintervals(
     intervals : List[Tuple[int, int]]
         Non-empty list of ``(start_day, end_day)`` pairs. Bounds are inclusive
         one-based positions. Each start must be at least 1 and no greater than
-        its end. This wrapper does not reject an end beyond the available rows.
+        its end, and each end no greater than the number of test rows.
     ci_level : float, default=0.80
         Credible interval level for all subintervals.
         Must be between 0 and 1.
@@ -272,12 +276,13 @@ def analyze_multiple_subintervals(
     Raises
     ------
     ValueError
-        If ``intervals`` is empty, ``ci_level`` is outside ``(0, 1)``, or an
-        interval starts below 1 or starts after its end.
-    KeyError
-        Propagated when a required input column is absent.
-    IndexError
-        Propagated when ``tbr_summary`` has no rows.
+        If ``intervals`` is empty, ``ci_level`` is outside ``(0, 1)``, an
+        interval starts below 1, starts after its end, or ends beyond the test
+        rows, a required input column is absent, or ``tbr_summary`` has no
+        rows.
+    TypeError
+        Propagated when an input is not a DataFrame or an interval bound is not
+        an integer.
 
     Notes
     -----
@@ -428,11 +433,12 @@ def create_subinterval_summary(
     ------
     ValueError
         Propagated when ``intervals`` is empty, ``ci_level`` is outside
-        ``(0, 1)``, or a pair starts below 1 or starts after its end.
-    KeyError
-        Propagated when a required input column is absent.
-    IndexError
-        Propagated when ``tbr_summary`` has no rows.
+        ``(0, 1)``, a pair starts below 1, starts after its end, or ends beyond
+        the test rows, a required input column is absent, or ``tbr_summary``
+        has no rows.
+    TypeError
+        Propagated when an input is not a DataFrame or an interval bound is not
+        an integer.
 
     Notes
     -----
@@ -675,13 +681,18 @@ def validate_subinterval_parameters(
             f"tbr_summary missing required columns: {missing_summary_cols}"
         )
 
+    if tbr_summary.empty:
+        raise ValueError("tbr_summary cannot be empty")
+
     # Validate test period data exists
     test_data = tbr_df[tbr_df["period"] == 1]
     if test_data.empty:
         raise ValueError("No test period data found (period == 1)")
 
     # Validate day parameters
-    if not isinstance(start_day, int) or not isinstance(end_day, int):
+    if not isinstance(start_day, (int, np.integer)) or not isinstance(
+        end_day, (int, np.integer)
+    ):
         raise TypeError("start_day and end_day must be integers")
 
     if start_day < 1:
@@ -697,7 +708,7 @@ def validate_subinterval_parameters(
         )
 
     # Validate credibility level
-    if not isinstance(ci_level, (int, float)):
+    if not isinstance(ci_level, (int, float, np.integer, np.floating)):
         raise TypeError("ci_level must be a number")
 
     if not (0 < ci_level < 1):
