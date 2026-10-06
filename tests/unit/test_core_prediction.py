@@ -313,6 +313,43 @@ class TestComputeIntervalEstimateAndCI:
         for key in ["estimate", "precision", "lower", "upper"]:
             assert core_result[key] == pytest.approx(func_result[key], rel=1e-15)
 
+    def test_interval_estimation_ignores_estsd(self):
+        """Test that estsd values do not affect the interval estimate."""
+        tbr_df = pd.DataFrame(
+            {
+                "period": [0, 1, 1, 1],
+                "y": [95, 108, 112, 118],
+                "x": [90, 95, 100, 105],
+                "pred": [95, 100, 105, 110],
+            }
+        )
+        tbr_summary = pd.DataFrame(
+            {
+                "sigma": [12.0],
+                "t_dist_df": [35],
+                "var_alpha": [4.0],
+                "var_beta": [0.0004],
+                "alpha_beta_cov": [-0.03],
+            }
+        )
+        params = {
+            "tbr_summary": tbr_summary,
+            "start_day": 1,
+            "end_day": 3,
+            "ci_level": 0.85,
+        }
+
+        without_estsd = compute_interval_estimate_and_ci(tbr_df=tbr_df, **params)
+        with_finite_estsd = compute_interval_estimate_and_ci(
+            tbr_df=tbr_df.assign(estsd=[4.0, 50.0, 60.0, 70.0]), **params
+        )
+        with_nan_estsd = compute_interval_estimate_and_ci(
+            tbr_df=tbr_df.assign(estsd=np.nan), **params
+        )
+
+        assert with_finite_estsd == without_estsd
+        assert with_nan_estsd == without_estsd
+
 
 class TestPredictionModuleIntegration:
     """Test integration between prediction module functions."""
