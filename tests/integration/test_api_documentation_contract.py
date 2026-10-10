@@ -181,7 +181,7 @@ EXPECTED_SCHEMA_FIELDS = {
         "precision",
         "lower",
         "upper",
-        "significant",
+        "interval_excludes_threshold",
         "avg_daily_effect",
         "ci_level",
     ),
@@ -835,14 +835,15 @@ def test_incremental_docstring_avoids_unsupported_sequential_claims() -> None:
     assert "first observed day meeting" in docstring
 
 
-def test_subinterval_docstring_defines_legacy_exclusion_flag_precisely() -> None:
+def test_subinterval_docstring_defines_exclusion_flag_precisely() -> None:
     """Avoid presenting credible-interval exclusion as a hypothesis test."""
     function = pydoc.locate("tbr.create_subinterval_summary")
     docstring = (inspect.getdoc(function) or "").lower()
 
     assert "conservative test" not in docstring
     assert "statistical significance is determined" not in docstring
-    assert "legacy interval-exclusion flag" in docstring
+    assert "significan" not in docstring
+    assert "interval_excludes_threshold" in docstring
     assert "not a hypothesis test" in docstring
 
 

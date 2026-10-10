@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The posterior variance is now T_s·σ² + T_s²·v, which accounts for the
   correlation between counterfactual predictions that share the estimated
   coefficients. Intervals are wider than before, and subintervals previously
-  reported as significant may no longer be significant.
+  flagged as excluding the threshold may no longer be flagged.
 - Corrected the subinterval posterior variance formula in
   `docs/mathematical_methodology.md` and in the subinterval docstrings.
 - `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`, and
@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subinterval estimate. It previously held the credible-interval half-width.
   Use `TBRSubintervalResult.precision` for the half-width. Code that constructs
   `TBRSubintervalResult` directly must also pass `precision`.
+- **Breaking:** `create_subinterval_summary` renames the `significant` column
+  to `interval_excludes_threshold` and the `significance_threshold` parameter
+  to `threshold`. The flag is unchanged: it is `True` when the credible
+  interval lies entirely above or below the threshold. It is not a hypothesis
+  test.
 
 ## [0.1.6] - 2026-07-20
 
