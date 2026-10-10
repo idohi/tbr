@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `TBRSubintervalResult.precision`: the credible-interval half-width, matching
+  `TBRSummaryResult.precision`. It follows `se` in `to_dict()`, `to_json()`,
+  and `to_csv()`.
+- `compute_interval_estimate_and_ci` and `analyze_multiple_subintervals` return
+  an `se` key, and `create_subinterval_summary` returns an `se` column, holding
+  the standard error of the subinterval estimate. Both precede `precision`.
+
 ### Fixed
 - Subinterval credible intervals (`TBRAnalysis.analyze_subinterval`,
   `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`,
@@ -40,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   requires `estsd`. Outputs from `TBRAnalysis` and `perform_tbr_analysis`
   already include these columns. It also accepts NumPy integer days and NumPy
   float `ci_level` values.
+- **Breaking:** `TBRSubintervalResult.se`, returned by
+  `TBRAnalysis.analyze_subinterval`, is now the standard error of the
+  subinterval estimate. It previously held the credible-interval half-width.
+  Use `TBRSubintervalResult.precision` for the half-width. Code that constructs
+  `TBRSubintervalResult` directly must also pass `precision`.
 
 ## [0.1.6] - 2026-07-20
 
