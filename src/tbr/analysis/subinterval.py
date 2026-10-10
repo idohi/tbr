@@ -64,7 +64,9 @@ Create comprehensive summary:
 >>> summary = create_subinterval_summary(
 ...     tbr_df, tbr_summary, intervals=[(1, 2), (2, 3)], ci_level=0.80
 ... )
->>> print(summary[['interval', 'estimate', 'lower', 'upper', 'significant']])
+>>> print(
+...     summary[['interval', 'estimate', 'lower', 'upper', 'interval_excludes_threshold']]
+... )
 """
 
 from typing import Dict, List, Tuple
@@ -400,7 +402,7 @@ def create_subinterval_summary(
     tbr_summary: pd.DataFrame,
     intervals: List[Tuple[int, int]],
     ci_level: float = 0.80,
-    significance_threshold: float = 0.0,
+    threshold: float = 0.0,
 ) -> pd.DataFrame:
     r"""
     Create a structured summary DataFrame for multiple subinterval analyses.
@@ -423,9 +425,10 @@ def create_subinterval_summary(
         Non-empty list of inclusive one-based ``(start_day, end_day)`` pairs.
     ci_level : float, default=0.80
         Credible interval level for all analyses.
-    significance_threshold : float, default=0.0
-        Threshold for the interval-exclusion flag. An interval is flagged when
-        its credible interval does not include this threshold value.
+    threshold : float, default=0.0
+        Effect threshold for the ``interval_excludes_threshold`` column. An
+        interval is flagged when its credible interval does not include this
+        value.
 
     Returns
     -------
@@ -467,19 +470,17 @@ def create_subinterval_summary(
         Lower credible bound, normally ``float64``.
     ``upper`` : floating-point
         Upper credible bound, normally ``float64``.
-    ``significant`` : Boolean
-        Whether ``lower > significance_threshold`` or
-        ``upper < significance_threshold``. Equality does not count as
-        exclusion; this is not a posterior-probability result.
+    ``interval_excludes_threshold`` : Boolean
+        Whether ``lower > threshold`` or ``upper < threshold``. Equality does
+        not count as exclusion.
     ``avg_daily_effect`` : floating-point
         ``estimate / days``, normally ``float64``.
     ``ci_level`` : floating-point
         Credibility level, normally ``float64``.
 
-    The ``significant`` column is a legacy interval-exclusion flag. It records
-    whether the credible interval lies entirely above or below
-    ``significance_threshold``. It is not a hypothesis test or a
-    posterior-probability result.
+    The ``interval_excludes_threshold`` column records whether the credible
+    interval lies entirely above or below ``threshold``.
+    It is not a hypothesis test or a posterior-probability result.
 
     The average daily effect is calculated as the total interval effect
     divided by the number of days, providing a normalized comparison
@@ -514,21 +515,21 @@ def create_subinterval_summary(
     ... )
     >>> list(summary.columns) == [
     ...     "interval", "start_day", "end_day", "days", "estimate", "se",
-    ...     "precision", "lower", "upper", "significant",
+    ...     "precision", "lower", "upper", "interval_excludes_threshold",
     ...     "avg_daily_effect", "ci_level",
     ... ]
     True
     >>> summary["interval"].tolist() == ["Days 1-2", "Days 2-3", "Days 1-3"]
     True
-    >>> print(summary[['interval', 'estimate', 'significant']])
+    >>> print(summary[['interval', 'estimate', 'interval_excludes_threshold']])
 
-    Analyze with a custom interval-exclusion threshold:
+    Analyze with a custom threshold:
 
     >>> summary = create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals,
-    ...     significance_threshold=10.0  # Credible interval must exclude 10
+    ...     threshold=10.0  # Credible interval must exclude 10
     ... )
-    >>> flagged_intervals = summary[summary['significant']]
+    >>> flagged_intervals = summary[summary['interval_excludes_threshold']]
     >>> print(f"Intervals excluding threshold: {len(flagged_intervals)}")
 
     Compare average daily effects:
@@ -551,10 +552,8 @@ def create_subinterval_summary(
     for _i, ((start_day, end_day), result) in enumerate(zip(intervals, results)):
         days = end_day - start_day + 1
 
-        # Check significance (CI excludes threshold)
-        significant = (
-            result["lower"] > significance_threshold
-            or result["upper"] < significance_threshold
+        interval_excludes_threshold = (
+            result["lower"] > threshold or result["upper"] < threshold
         )
 
         summary_data.append(
@@ -568,7 +567,7 @@ def create_subinterval_summary(
                 "precision": result["precision"],
                 "lower": result["lower"],
                 "upper": result["upper"],
-                "significant": significant,
+                "interval_excludes_threshold": interval_excludes_threshold,
                 "avg_daily_effect": result["estimate"] / days,
                 "ci_level": ci_level,
             }

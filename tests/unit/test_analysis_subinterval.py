@@ -421,7 +421,7 @@ class TestCreateSubintervalSummary:
             "precision",
             "lower",
             "upper",
-            "significant",
+            "interval_excludes_threshold",
             "avg_daily_effect",
             "ci_level",
         ]
@@ -446,25 +446,32 @@ class TestCreateSubintervalSummary:
             assert row["lower"] < row["upper"]
             assert row["ci_level"] == 0.85
 
-    def test_significance_determination(self, sample_data):
-        """Test significance determination logic."""
+    @pytest.mark.parametrize("threshold", [0.0, 10.0])
+    def test_interval_excludes_threshold_determination(self, sample_data, threshold):
+        """Test that the flag is set when the interval excludes the threshold."""
         tbr_df, tbr_summary = sample_data
         intervals = [(1, 5), (6, 10)]
 
-        # Test with threshold = 0 (default)
-        summary_zero = create_subinterval_summary(
-            tbr_df, tbr_summary, intervals, significance_threshold=0.0
+        summary = create_subinterval_summary(
+            tbr_df, tbr_summary, intervals, threshold=threshold
         )
 
-        # Test with positive threshold (not used in assertions, just for coverage)
-        create_subinterval_summary(
-            tbr_df, tbr_summary, intervals, significance_threshold=10.0
-        )
+        for _i, row in summary.iterrows():
+            expected = row["lower"] > threshold or row["upper"] < threshold
+            assert row["interval_excludes_threshold"] == expected
 
-        # Significance should be determined by whether CI excludes threshold
-        for _i, row in summary_zero.iterrows():
-            expected_significant = row["lower"] > 0.0 or row["upper"] < 0.0
-            assert row["significant"] == expected_significant
+    def test_default_threshold_is_zero(self, sample_data):
+        """Test that the default threshold is zero."""
+        tbr_df, tbr_summary = sample_data
+        intervals = [(1, 5), (6, 10)]
+
+        default = create_subinterval_summary(tbr_df, tbr_summary, intervals)
+        zero = create_subinterval_summary(tbr_df, tbr_summary, intervals, threshold=0.0)
+
+        assert (
+            default["interval_excludes_threshold"].tolist()
+            == zero["interval_excludes_threshold"].tolist()
+        )
 
     def test_interval_string_formatting(self, sample_data):
         """Test interval string formatting."""
@@ -477,24 +484,34 @@ class TestCreateSubintervalSummary:
         for i, expected_string in enumerate(expected_strings):
             assert summary.iloc[i]["interval"] == expected_string
 
-    def test_custom_significance_threshold(self, sample_data):
-        """Test custom significance threshold functionality."""
+    def test_threshold_outside_interval_in_either_direction(self, sample_data):
+        """Test that thresholds above and below the interval are both excluded."""
         tbr_df, tbr_summary = sample_data
         intervals = [(1, 10)]
 
-        # High threshold - likely not significant
-        summary_high = create_subinterval_summary(
-            tbr_df, tbr_summary, intervals, significance_threshold=1000.0
-        )
+        row = create_subinterval_summary(tbr_df, tbr_summary, intervals).iloc[0]
+        above = row["upper"] + 1.0
+        below = row["lower"] - 1.0
 
-        # Low threshold - likely significant
-        summary_low = create_subinterval_summary(
-            tbr_df, tbr_summary, intervals, significance_threshold=-1000.0
-        )
+        for threshold in (above, below):
+            flag = create_subinterval_summary(
+                tbr_df, tbr_summary, intervals, threshold=threshold
+            ).iloc[0]["interval_excludes_threshold"]
+            assert isinstance(flag, (bool, np.bool_))
+            assert flag
 
-        # Different thresholds should potentially give different significance results
-        assert isinstance(summary_high.iloc[0]["significant"], (bool, np.bool_))
-        assert isinstance(summary_low.iloc[0]["significant"], (bool, np.bool_))
+    def test_threshold_inside_or_on_interval_is_not_excluded(self, sample_data):
+        """Test that a threshold inside the interval or on a bound is not excluded."""
+        tbr_df, tbr_summary = sample_data
+        intervals = [(1, 10)]
+
+        row = create_subinterval_summary(tbr_df, tbr_summary, intervals).iloc[0]
+
+        for threshold in (row["estimate"], row["lower"], row["upper"]):
+            flag = create_subinterval_summary(
+                tbr_df, tbr_summary, intervals, threshold=threshold
+            ).iloc[0]["interval_excludes_threshold"]
+            assert not flag
 
 
 class TestValidateSubintervalParameters:

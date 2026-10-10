@@ -584,7 +584,7 @@ class TestAnalysisModuleIntegration:
             tbr_df,
             tbr_summary,
             intervals,
-            significance_threshold=params["threshold"],
+            threshold=params["threshold"],
             ci_level=params["level"],
         )
 
