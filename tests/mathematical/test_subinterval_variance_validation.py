@@ -82,30 +82,50 @@ class TestSubintervalConsistency:
         assert result.estimate == pytest.approx(summary.estimate, rel=1e-12)
         assert result.lower == pytest.approx(summary.lower, rel=1e-10)
         assert result.upper == pytest.approx(summary.upper, rel=1e-10)
-        # TBRSubintervalResult.se stores the credible-interval half-width
-        assert result.se == pytest.approx(summary.precision, rel=1e-10)
+        assert result.se == pytest.approx(summary.se, rel=1e-10)
+        assert result.precision == pytest.approx(summary.precision, rel=1e-10)
 
     def test_single_day_matches_prediction_standard_deviation(self, fitted_model):
         """Test that each single day reproduces predsd."""
-        t_mult = _t_multiplier(fitted_model)
         test_rows = fitted_model.results_[fitted_model.results_["period"] == 1]
         predsd = test_rows["predsd"].to_numpy()
 
         for day in range(1, len(test_rows) + 1):
             result = fitted_model.analyze_subinterval(day, day)
-            assert result.se / t_mult == pytest.approx(predsd[day - 1], rel=1e-10)
+            assert result.se == pytest.approx(predsd[day - 1], rel=1e-10)
 
     def test_interval_from_first_day_matches_cumulative_standard_deviation(
         self, fitted_model
     ):
         """Test that intervals starting on day 1 reproduce cumsd."""
-        t_mult = _t_multiplier(fitted_model)
         test_rows = fitted_model.results_[fitted_model.results_["period"] == 1]
         cumsd = test_rows["cumsd"].to_numpy()
 
         for end_day in range(1, len(test_rows) + 1):
             result = fitted_model.analyze_subinterval(1, end_day)
-            assert result.se / t_mult == pytest.approx(cumsd[end_day - 1], rel=1e-10)
+            assert result.se == pytest.approx(cumsd[end_day - 1], rel=1e-10)
+
+    @pytest.mark.parametrize("ci_level", [0.50, 0.80, 0.95])
+    def test_standard_error_is_distinct_from_half_width(self, fitted_model, ci_level):
+        """Test that se excludes the t multiplier and precision includes it."""
+        dof = fitted_model.summarize().degrees_freedom
+        t_mult = stats.t.ppf(1 - (1 - ci_level) / 2, dof)
+
+        result = fitted_model.analyze_subinterval(4, 9, ci_level=ci_level)
+
+        assert result.precision == pytest.approx(
+            (result.upper - result.lower) / 2, rel=1e-12
+        )
+        assert result.precision == pytest.approx(t_mult * result.se, rel=1e-12)
+        assert result.se != pytest.approx(result.precision, rel=1e-3)
+
+    def test_standard_error_does_not_depend_on_credibility_level(self, fitted_model):
+        """Test that only precision, not se, changes with ci_level."""
+        low = fitted_model.analyze_subinterval(4, 9, ci_level=0.80)
+        high = fitted_model.analyze_subinterval(4, 9, ci_level=0.95)
+
+        assert low.se == pytest.approx(high.se, rel=1e-12)
+        assert high.precision > low.precision
 
 
 class TestSubintervalStatsmodelsCrossValidation:
@@ -133,9 +153,8 @@ class TestSubintervalStatsmodelsCrossValidation:
         expected_variance = n_days * ols.scale + a @ ols.cov_params() @ a
 
         result = fitted_model.analyze_subinterval(start_day, end_day)
-        actual_variance = (result.se / _t_multiplier(fitted_model)) ** 2
 
-        assert actual_variance == pytest.approx(expected_variance, rel=1e-10)
+        assert result.se**2 == pytest.approx(expected_variance, rel=1e-10)
 
     @pytest.mark.parametrize(("start_day", "end_day"), [(2, 2), (4, 9), (1, 14)])
     def test_returned_standard_error_matches_ols_coefficient_covariance(
@@ -184,7 +203,8 @@ class TestSubintervalBatchHelpers:
         for (start_day, end_day), batch in zip(self.INTERVALS, results):
             single = fitted_model.analyze_subinterval(start_day, end_day)
             assert batch["estimate"] == pytest.approx(single.estimate, rel=1e-12)
-            assert batch["precision"] == pytest.approx(single.se, rel=1e-12)
+            assert batch["se"] == pytest.approx(single.se, rel=1e-12)
+            assert batch["precision"] == pytest.approx(single.precision, rel=1e-12)
             assert batch["lower"] == pytest.approx(single.lower, rel=1e-12)
             assert batch["upper"] == pytest.approx(single.upper, rel=1e-12)
 
@@ -203,7 +223,7 @@ class TestSubintervalBatchHelpers:
         ):
             single = fitted_model.analyze_subinterval(start_day, end_day)
             assert row.estimate == pytest.approx(single.estimate, rel=1e-12)
-            assert row.precision == pytest.approx(single.se, rel=1e-12)
+            assert row.precision == pytest.approx(single.precision, rel=1e-12)
             assert row.lower == pytest.approx(single.lower, rel=1e-12)
             assert row.upper == pytest.approx(single.upper, rel=1e-12)
 

@@ -1336,15 +1336,13 @@ class TBRAnalysis:
             ci_level=ci_level,
         )
 
-        # Preserve the legacy ``se`` field, which stores the interval half-width.
-        se = result["precision"]
-
         # Create and return TBRSubintervalResult
         return TBRSubintervalResult(
             estimate=result["estimate"],
             lower=result["lower"],
             upper=result["upper"],
-            se=se,
+            se=result["se"],
+            precision=result["precision"],
             ci_level=ci_level,
             start_day=start_day,
             end_day=end_day,

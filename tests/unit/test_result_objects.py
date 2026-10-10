@@ -236,6 +236,7 @@ class TestTBRSubintervalResult:
             lower=30.1,
             upper=60.3,
             se=11.8,
+            precision=15.1,
             ci_level=0.80,
             start_day=1,
             end_day=7,
@@ -253,6 +254,7 @@ class TestTBRSubintervalResult:
         assert subinterval_result.lower == 30.1
         assert subinterval_result.upper == 60.3
         assert subinterval_result.se == 11.8
+        assert subinterval_result.precision == 15.1
         assert subinterval_result.ci_level == 0.80
         assert subinterval_result.start_day == 1
         assert subinterval_result.end_day == 7
@@ -268,10 +270,22 @@ class TestTBRSubintervalResult:
         result_dict = subinterval_result.to_dict()
         assert isinstance(result_dict, dict)
         assert result_dict["estimate"] == 45.2
+        assert result_dict["se"] == 11.8
+        assert result_dict["precision"] == 15.1
         assert result_dict["start_day"] == 1
         assert result_dict["end_day"] == 7
         assert result_dict["n_days"] == 7
-        assert len(result_dict) == 8  # All 8 fields
+        assert list(result_dict) == [
+            "estimate",
+            "lower",
+            "upper",
+            "se",
+            "precision",
+            "ci_level",
+            "start_day",
+            "end_day",
+            "n_days",
+        ]
 
     def test_subinterval_result_contains_zero_false(self, subinterval_result):
         """Test TBRSubintervalResult.contains_zero() returns False."""
@@ -284,6 +298,7 @@ class TestTBRSubintervalResult:
             lower=-10.0,
             upper=20.0,
             se=9.0,
+            precision=15.0,
             ci_level=0.80,
             start_day=1,
             end_day=7,
@@ -302,6 +317,7 @@ class TestTBRSubintervalResult:
             lower=-15.0,
             upper=5.0,
             se=6.0,
+            precision=10.0,
             ci_level=0.80,
             start_day=1,
             end_day=7,
@@ -320,6 +336,7 @@ class TestTBRSubintervalResult:
             lower=-40.0,
             upper=-10.0,
             se=9.0,
+            precision=15.0,
             ci_level=0.80,
             start_day=1,
             end_day=7,
@@ -335,6 +352,7 @@ class TestTBRSubintervalResult:
         assert "n=7" in repr_str
         assert "estimate=" in repr_str
         assert "CI=" in repr_str
+        assert "se=11.800" in repr_str
 
     def test_subinterval_result_single_day(self):
         """Test TBRSubintervalResult for single day interval."""
@@ -343,6 +361,7 @@ class TestTBRSubintervalResult:
             lower=5.0,
             upper=15.0,
             se=3.0,
+            precision=5.0,
             ci_level=0.80,
             start_day=5,
             end_day=5,
@@ -358,6 +377,7 @@ class TestTBRSubintervalResult:
             lower=150.0,
             upper=250.0,
             se=30.0,
+            precision=50.0,
             ci_level=0.95,
             start_day=1,
             end_day=30,
@@ -403,6 +423,7 @@ class TestResultObjectsIntegration:
             lower=40,
             upper=60,
             se=8,
+            precision=10,
             ci_level=0.80,
             start_day=1,
             end_day=7,
@@ -426,6 +447,7 @@ class TestResultObjectsIntegration:
             lower=np.float64(30.1),
             upper=np.float64(60.3),
             se=np.float64(11.8),
+            precision=np.float64(15.1),
             ci_level=0.80,
             start_day=np.int64(1),
             end_day=np.int64(7),

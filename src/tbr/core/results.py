@@ -77,7 +77,8 @@ Object-oriented API:
 >>> # Access subinterval results
 >>> week1 = model.analyze_subinterval(1, 7)
 >>> print(f"Week 1 effect: {week1.estimate:.2f}")
->>> print(f"Interval half-width: {week1.se:.2f}")
+>>> print(f"Standard error: {week1.se:.2f}")
+>>> print(f"Interval half-width: {week1.precision:.2f}")
 
 Notes
 -----
@@ -599,7 +600,9 @@ class TBRSubintervalResult:
     upper : float
         Upper bound of credible interval
     se : float
-        Credible-interval half-width stored under the legacy ``se`` field name.
+        Standard error of the estimate
+    precision : float
+        Precision (half-width of credible interval)
     ci_level : float
         Credibility level used for interval
     start_day : int
@@ -645,6 +648,7 @@ class TBRSubintervalResult:
     lower: float
     upper: float
     se: float
+    precision: float
     ci_level: float
     start_day: int
     end_day: int
@@ -670,7 +674,9 @@ class TBRSubintervalResult:
         ``upper`` : float
             Upper credible bound.
         ``se`` : float
-            Credible-interval half-width stored under the legacy field name.
+            Standard error of the estimate.
+        ``precision`` : float
+            Precision (half-width of credible interval).
         ``ci_level`` : float
             Credibility level.
         ``start_day`` : int
@@ -685,6 +691,7 @@ class TBRSubintervalResult:
             "lower": self.lower,
             "upper": self.upper,
             "se": self.se,
+            "precision": self.precision,
             "ci_level": self.ci_level,
             "start_day": self.start_day,
             "end_day": self.end_day,
