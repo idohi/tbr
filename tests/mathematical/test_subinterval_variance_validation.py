@@ -223,6 +223,7 @@ class TestSubintervalBatchHelpers:
         ):
             single = fitted_model.analyze_subinterval(start_day, end_day)
             assert row.estimate == pytest.approx(single.estimate, rel=1e-12)
+            assert row.se == pytest.approx(single.se, rel=1e-12)
             assert row.precision == pytest.approx(single.precision, rel=1e-12)
             assert row.lower == pytest.approx(single.lower, rel=1e-12)
             assert row.upper == pytest.approx(single.upper, rel=1e-12)

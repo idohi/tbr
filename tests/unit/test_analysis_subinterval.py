@@ -417,6 +417,7 @@ class TestCreateSubintervalSummary:
             "end_day",
             "days",
             "estimate",
+            "se",
             "precision",
             "lower",
             "upper",

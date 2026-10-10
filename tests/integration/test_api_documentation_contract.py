@@ -177,6 +177,7 @@ EXPECTED_SCHEMA_FIELDS = {
         "end_day",
         "days",
         "estimate",
+        "se",
         "precision",
         "lower",
         "upper",

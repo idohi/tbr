@@ -459,6 +459,8 @@ def create_subinterval_summary(
         ``int64``. Structured result objects call this value ``n_days``.
     ``estimate`` : floating-point
         :math:`\Delta(a,b)`, normally ``float64``.
+    ``se`` : floating-point
+        Standard error of the estimate, normally ``float64``.
     ``precision`` : floating-point
         Credible-interval half-width, normally ``float64``.
     ``lower`` : floating-point
@@ -511,7 +513,7 @@ def create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> list(summary.columns) == [
-    ...     "interval", "start_day", "end_day", "days", "estimate",
+    ...     "interval", "start_day", "end_day", "days", "estimate", "se",
     ...     "precision", "lower", "upper", "significant",
     ...     "avg_daily_effect", "ci_level",
     ... ]
@@ -562,6 +564,7 @@ def create_subinterval_summary(
                 "end_day": end_day,
                 "days": days,
                 "estimate": result["estimate"],
+                "se": result["se"],
                 "precision": result["precision"],
                 "lower": result["lower"],
                 "upper": result["upper"],
