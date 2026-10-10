@@ -214,8 +214,8 @@ specified in advance.
 ## Analyze subintervals
 
 Subinterval bounds are inclusive and one-based: `start_day=1` is the first test
-row. The returned `TBRSubintervalResult.se` stores the credible-interval
-half-width under a legacy field name.
+row. The returned `TBRSubintervalResult` reports the standard error as `se` and
+the credible-interval half-width as `precision`.
 
 ```python
 weekly_rows = []
@@ -229,7 +229,8 @@ for start_day in (1, 8):
             "estimate": interval.estimate,
             "lower": interval.lower,
             "upper": interval.upper,
-            "interval_half_width": interval.se,
+            "se": interval.se,
+            "precision": interval.precision,
         }
     )
 

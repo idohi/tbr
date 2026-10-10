@@ -117,7 +117,7 @@ class TestComputeIntervalEstimateAndCI:
         )
 
         # Verify result structure
-        expected_keys = {"estimate", "precision", "lower", "upper"}
+        expected_keys = {"estimate", "se", "precision", "lower", "upper"}
         assert set(result.keys()) == expected_keys
 
         # Verify result properties
@@ -196,7 +196,7 @@ class TestComputeIntervalEstimateAndCI:
         func_result = func_compute(tbr_df, tbr_summary, start_day, end_day, ci_level)
 
         # Verify identical results
-        for key in ["estimate", "precision", "lower", "upper"]:
+        for key in ["estimate", "se", "precision", "lower", "upper"]:
             assert abs(core_result[key] - func_result[key]) < 1e-10
 
 

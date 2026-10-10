@@ -502,7 +502,7 @@ class TestStatisticalInferenceValidation:
         )
 
         # Mathematical consistency tests
-        required_keys = ["estimate", "precision", "lower", "upper"]
+        required_keys = ["estimate", "se", "precision", "lower", "upper"]
         for key in required_keys:
             assert key in result, f"Missing required key: {key}"
 

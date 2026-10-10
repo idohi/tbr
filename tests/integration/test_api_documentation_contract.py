@@ -149,6 +149,7 @@ EXPECTED_SCHEMA_FIELDS = {
         "lower",
         "upper",
         "se",
+        "precision",
         "ci_level",
         "start_day",
         "end_day",
@@ -158,12 +159,14 @@ EXPECTED_SCHEMA_FIELDS = {
     "create_incremental_tbr_summaries": INCREMENTAL_SUMMARY_FIELDS,
     "compute_interval_estimate_and_ci": (
         "estimate",
+        "se",
         "precision",
         "lower",
         "upper",
     ),
     "analyze_multiple_subintervals": (
         "estimate",
+        "se",
         "precision",
         "lower",
         "upper",
@@ -174,6 +177,7 @@ EXPECTED_SCHEMA_FIELDS = {
         "end_day",
         "days",
         "estimate",
+        "se",
         "precision",
         "lower",
         "upper",
@@ -742,24 +746,25 @@ def test_prediction_to_dict_documents_nested_model_parameter_keys() -> None:
     } <= typed_names
 
 
-def test_result_se_descriptions_keep_distinct_public_semantics() -> None:
-    """Distinguish summary standard error from legacy subinterval half-width."""
-    summary_type = pydoc.locate("tbr.core.results.TBRSummaryResult")
-    subinterval_type = pydoc.locate("tbr.core.results.TBRSubintervalResult")
-    summary_notes = _numpy_doc_section(
-        inspect.getdoc(summary_type.to_dict) or "", "Notes"
-    )
-    subinterval_notes = _numpy_doc_section(
-        inspect.getdoc(subinterval_type.to_dict) or "", "Notes"
+@pytest.mark.parametrize(
+    "result_type",
+    ("tbr.core.results.TBRSummaryResult", "tbr.core.results.TBRSubintervalResult"),
+)
+def test_result_se_and_precision_descriptions_share_public_semantics(
+    result_type: str,
+) -> None:
+    """Document se as the standard error and precision as the half-width."""
+    notes = _numpy_doc_section(
+        inspect.getdoc(pydoc.locate(result_type).to_dict) or "", "Notes"
     )
 
-    summary_se = _schema_entry_description(summary_notes, "se").lower()
-    subinterval_se = _schema_entry_description(subinterval_notes, "se").lower()
+    se = _schema_entry_description(notes, "se").lower()
+    precision = _schema_entry_description(notes, "precision").lower()
 
-    assert "standard error" in summary_se
-    assert "half-width" not in summary_se
-    assert "credible-interval half-width" in subinterval_se
-    assert "legacy" in subinterval_se
+    assert "standard error" in se
+    assert "half-width" not in se
+    assert "legacy" not in se
+    assert "half-width" in precision
 
 
 @pytest.mark.parametrize(

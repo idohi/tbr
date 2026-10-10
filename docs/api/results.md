@@ -286,7 +286,8 @@ This frozen dataclass describes inclusive one-based test days $a$ through $b$.
 | `estimate` | `float` | Subinterval effect $\Delta(a,b)$ |
 | `lower` | `float` | Lower credible bound |
 | `upper` | `float` | Upper credible bound |
-| `se` | `float` | Credible-interval half-width under a legacy field name |
+| `se` | `float` | Standard error |
+| `precision` | `float` | Credible-interval half-width |
 | `ci_level` | `float` | Credibility level |
 | `start_day` | `int` | Inclusive one-based start $a$ |
 | `end_day` | `int` | Inclusive one-based end $b$ |
@@ -295,7 +296,9 @@ This frozen dataclass describes inclusive one-based test days $a$ through $b$.
 ```python
 assert isinstance(subinterval, TBRSubintervalResult)
 assert subinterval.n_days == subinterval.end_day - subinterval.start_day + 1
-assert np.isclose(subinterval.se, (subinterval.upper - subinterval.lower) / 2)
+assert np.isclose(
+    subinterval.precision, (subinterval.upper - subinterval.lower) / 2
+)
 
 contains_zero = subinterval.contains_zero()
 entirely_positive = subinterval.is_positive()

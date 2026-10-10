@@ -127,8 +127,10 @@ def compute_interval_estimate_and_ci(
 
     ``estimate`` : floating-point scalar
         :math:`\Delta(a,b)=\sum_{t=a}^{b}(y_t-\hat{y}_t^*)`.
+    ``se`` : floating-point scalar
+        Standard error :math:`\sqrt{\mathbb{V}[\Delta(a,b)]}`.
     ``precision`` : floating-point scalar
-        Credible-interval half-width.
+        Credible-interval half-width, :math:`t_{\alpha/2,\nu}` times ``se``.
     ``lower`` : floating-point scalar
         Lower credible bound, ``estimate - precision``.
     ``upper`` : floating-point scalar
@@ -197,7 +199,7 @@ def compute_interval_estimate_and_ci(
     >>> result = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )
-    >>> list(result) == ["estimate", "precision", "lower", "upper"]
+    >>> list(result) == ["estimate", "se", "precision", "lower", "upper"]
     True
     >>> result["estimate"] == 12.0
     True
@@ -290,6 +292,8 @@ def analyze_multiple_subintervals(
 
     ``estimate`` : floating-point scalar
         Subinterval cumulative-effect estimate.
+    ``se`` : floating-point scalar
+        Standard error of the estimate.
     ``precision`` : floating-point scalar
         Credible-interval half-width.
     ``lower`` : floating-point scalar
@@ -455,6 +459,8 @@ def create_subinterval_summary(
         ``int64``. Structured result objects call this value ``n_days``.
     ``estimate`` : floating-point
         :math:`\Delta(a,b)`, normally ``float64``.
+    ``se`` : floating-point
+        Standard error of the estimate, normally ``float64``.
     ``precision`` : floating-point
         Credible-interval half-width, normally ``float64``.
     ``lower`` : floating-point
@@ -507,7 +513,7 @@ def create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> list(summary.columns) == [
-    ...     "interval", "start_day", "end_day", "days", "estimate",
+    ...     "interval", "start_day", "end_day", "days", "estimate", "se",
     ...     "precision", "lower", "upper", "significant",
     ...     "avg_daily_effect", "ci_level",
     ... ]
@@ -558,6 +564,7 @@ def create_subinterval_summary(
                 "end_day": end_day,
                 "days": days,
                 "estimate": result["estimate"],
+                "se": result["se"],
                 "precision": result["precision"],
                 "lower": result["lower"],
                 "upper": result["upper"],

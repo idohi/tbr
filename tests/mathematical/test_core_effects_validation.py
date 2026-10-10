@@ -563,7 +563,7 @@ class TestIntervalEstimationMathematical:
         )
 
         # Compare all numerical values
-        for key in ["estimate", "precision", "lower", "upper"]:
+        for key in ["estimate", "se", "precision", "lower", "upper"]:
             if key in core_result and key in func_result:
                 np.testing.assert_allclose(
                     core_result[key], func_result[key], rtol=1e-12

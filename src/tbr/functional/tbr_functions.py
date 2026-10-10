@@ -533,6 +533,8 @@ def compute_interval_estimate_and_ci(
 
         ``estimate`` : floating-point scalar
             Cumulative effect :math:`\Delta(a,b)`.
+        ``se`` : floating-point scalar
+            Standard error :math:`\sqrt{\mathbb{V}[\Delta(a,b)]}`.
         ``precision`` : floating-point scalar
             Credible-interval half-width.
         ``lower`` : floating-point scalar

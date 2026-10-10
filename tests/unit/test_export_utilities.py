@@ -497,6 +497,7 @@ class TestResultObjectExportMethods:
             lower=40.0,
             upper=60.0,
             se=5.0,
+            precision=10.0,
             ci_level=0.90,
             start_day=1,
             end_day=7,
@@ -510,6 +511,8 @@ class TestResultObjectExportMethods:
         loaded = load_json(filepath)
         assert loaded["type"] == "TBRSubintervalResult"
         assert loaded["data"]["estimate"] == 50.0
+        assert loaded["data"]["se"] == 5.0
+        assert loaded["data"]["precision"] == 10.0
 
     def test_subinterval_result_to_csv(self, tmp_path):
         """Test TBRSubintervalResult.to_csv()."""
@@ -518,6 +521,7 @@ class TestResultObjectExportMethods:
             lower=40.0,
             upper=60.0,
             se=5.0,
+            precision=10.0,
             ci_level=0.90,
             start_day=1,
             end_day=7,
@@ -529,7 +533,10 @@ class TestResultObjectExportMethods:
 
         assert filepath.exists()
         loaded = pd.read_csv(filepath)
+        assert list(loaded.columns) == list(result.to_dict())
         assert loaded["estimate"].iloc[0] == 50.0
+        assert loaded["se"].iloc[0] == 5.0
+        assert loaded["precision"].iloc[0] == 10.0
         assert loaded["start_day"].iloc[0] == 1
 
 
