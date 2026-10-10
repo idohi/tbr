@@ -283,7 +283,7 @@ class TestIntervalEstimation:
 
         # Check structure
         assert isinstance(result, dict)
-        required_keys = ["estimate", "precision", "lower", "upper"]
+        required_keys = ["estimate", "se", "precision", "lower", "upper"]
         assert all(key in result for key in required_keys)
 
         # Check that lower < estimate < upper

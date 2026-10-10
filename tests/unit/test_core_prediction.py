@@ -225,7 +225,7 @@ class TestComputeIntervalEstimateAndCI:
 
         # Verify structure
         assert isinstance(result, dict)
-        required_keys = ["estimate", "precision", "lower", "upper"]
+        required_keys = ["estimate", "se", "precision", "lower", "upper"]
         assert all(key in result for key in required_keys)
 
         # Verify mathematical relationships
@@ -310,7 +310,7 @@ class TestComputeIntervalEstimateAndCI:
         func_result = func_compute_interval_estimate_and_ci(**params)
 
         # Results should be identical
-        for key in ["estimate", "precision", "lower", "upper"]:
+        for key in ["estimate", "se", "precision", "lower", "upper"]:
             assert core_result[key] == pytest.approx(func_result[key], rel=1e-15)
 
     def test_interval_estimation_ignores_estsd(self):

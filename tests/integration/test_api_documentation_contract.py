@@ -158,12 +158,14 @@ EXPECTED_SCHEMA_FIELDS = {
     "create_incremental_tbr_summaries": INCREMENTAL_SUMMARY_FIELDS,
     "compute_interval_estimate_and_ci": (
         "estimate",
+        "se",
         "precision",
         "lower",
         "upper",
     ),
     "analyze_multiple_subintervals": (
         "estimate",
+        "se",
         "precision",
         "lower",
         "upper",

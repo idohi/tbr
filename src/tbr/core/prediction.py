@@ -280,6 +280,7 @@ def compute_interval_estimate_and_ci(
     Dict[str, float]
         Dictionary containing:
         - 'estimate': Cumulative treatment effect for the subinterval
+        - 'se': Standard error of the estimate
         - 'precision': Half-width of credible interval
         - 'lower': Lower bound of credible interval
         - 'upper': Upper bound of credible interval
@@ -352,6 +353,7 @@ def compute_interval_estimate_and_ci(
 
     return {
         "estimate": estimate,
+        "se": se,
         "precision": precision,
         "lower": estimate - precision,
         "upper": estimate + precision,

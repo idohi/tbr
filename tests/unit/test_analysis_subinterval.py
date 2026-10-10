@@ -78,7 +78,7 @@ class TestComputeIntervalEstimateAndCI:
         )
 
         # Verify result structure
-        expected_keys = {"estimate", "precision", "lower", "upper"}
+        expected_keys = {"estimate", "se", "precision", "lower", "upper"}
         assert set(result.keys()) == expected_keys
 
         # Verify result types
@@ -106,7 +106,7 @@ class TestComputeIntervalEstimateAndCI:
         )
 
         # Verify identical results (exact match)
-        for key in ["estimate", "precision", "lower", "upper"]:
+        for key in ["estimate", "se", "precision", "lower", "upper"]:
             assert analysis_result[key] == pytest.approx(core_result[key], rel=1e-15)
 
     def test_single_day_analysis(self, sample_tbr_dataframe, sample_tbr_summary):
@@ -268,7 +268,7 @@ class TestAnalyzeMultipleSubintervals:
 
         # Each result should have correct structure
         for result in results:
-            expected_keys = {"estimate", "precision", "lower", "upper"}
+            expected_keys = {"estimate", "se", "precision", "lower", "upper"}
             assert set(result.keys()) == expected_keys
 
     def test_mathematical_consistency_multiple(self, sample_data):
@@ -293,7 +293,7 @@ class TestAnalyzeMultipleSubintervals:
         for _i, (multiple_result, individual_result) in enumerate(
             zip(multiple_results, individual_results)
         ):
-            for key in ["estimate", "precision", "lower", "upper"]:
+            for key in ["estimate", "se", "precision", "lower", "upper"]:
                 assert multiple_result[key] == pytest.approx(
                     individual_result[key], rel=1e-15
                 )

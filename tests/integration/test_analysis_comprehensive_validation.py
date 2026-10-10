@@ -298,7 +298,7 @@ class TestAnalysisCrossValidation:
         )
 
         # Cross-validation with machine precision
-        for key in ["estimate", "precision", "lower", "upper"]:
+        for key in ["estimate", "se", "precision", "lower", "upper"]:
             np.testing.assert_allclose(
                 analysis_result[key],
                 core_result[key],

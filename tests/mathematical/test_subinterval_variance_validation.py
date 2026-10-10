@@ -31,6 +31,7 @@ from scipy import stats
 from tbr import TBRAnalysis
 from tbr.analysis.subinterval import (
     analyze_multiple_subintervals,
+    compute_interval_estimate_and_ci,
     create_subinterval_summary,
 )
 
@@ -135,6 +136,35 @@ class TestSubintervalStatsmodelsCrossValidation:
         actual_variance = (result.se / _t_multiplier(fitted_model)) ** 2
 
         assert actual_variance == pytest.approx(expected_variance, rel=1e-10)
+
+    @pytest.mark.parametrize(("start_day", "end_day"), [(2, 2), (4, 9), (1, 14)])
+    def test_returned_standard_error_matches_ols_coefficient_covariance(
+        self, fitted_model, start_day, end_day
+    ):
+        """Test the returned se against OLS and its relation to the half-width."""
+        results_df = fitted_model.results_
+        pretest = results_df[results_df["period"] == 0]
+        test_rows = results_df[results_df["period"] == 1]
+
+        ols = sm.OLS(
+            pretest["y"].to_numpy(dtype=float),
+            sm.add_constant(pretest["x"].to_numpy(dtype=float)),
+        ).fit()
+
+        x_interval = test_rows["x"].to_numpy(dtype=float)[start_day - 1 : end_day]
+        n_days = len(x_interval)
+        a = np.array([n_days, np.sum(x_interval)])
+        expected_se = np.sqrt(n_days * ols.scale + a @ ols.cov_params() @ a)
+
+        result = compute_interval_estimate_and_ci(
+            results_df, fitted_model.summaries_, start_day, end_day, ci_level=LEVEL
+        )
+
+        assert result["se"] == pytest.approx(expected_se, rel=1e-10)
+        assert result["precision"] == pytest.approx(
+            _t_multiplier(fitted_model) * result["se"], rel=1e-12
+        )
+        assert result["precision"] > result["se"]
 
 
 class TestSubintervalBatchHelpers:
