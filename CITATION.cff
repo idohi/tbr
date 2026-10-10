@@ -12,8 +12,8 @@ authors:
 repository-code: "https://github.com/idohi/tbr"
 url: "https://pypi.org/project/tbr/"
 license: BSD-3-Clause
-version: "0.1.5"
-date-released: "2026-01-08"
+version: "0.1.6"
+date-released: "2026-07-20"
 keywords:
   - time-based regression
   - causal inference
