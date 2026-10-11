@@ -48,7 +48,7 @@ summary = TBRAnalysis().fit_summarize(
 
 print(f"Effect: {summary.estimate:.2f}")
 print(f"CI: [{summary.lower:.2f}, {summary.upper:.2f}]")
-print(f"Significant: {summary.is_significant()}")
+print(f"Probability >= 0.95: {summary.meets_probability_threshold()}")
 print()
 
 # =============================================================================
@@ -195,7 +195,7 @@ for level in levels:
             "estimate": effect.estimate,
             "lower": effect.lower,
             "upper": effect.upper,
-            "significant": effect.is_significant(),
+            "probability_threshold_met": effect.meets_probability_threshold(),
         }
     )
 

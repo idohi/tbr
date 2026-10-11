@@ -551,7 +551,7 @@ class TBRSummaryResult:
 
         export_to_csv(self, filepath, **kwargs)
 
-    def is_significant(self, probability_threshold: float = 0.95) -> bool:
+    def meets_probability_threshold(self, probability_threshold: float = 0.95) -> bool:
         """
         Check whether the stored posterior probability meets a cutoff.
 
