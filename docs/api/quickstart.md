@@ -141,8 +141,8 @@ Do not confuse `results.summary()`, which is a day-by-day DataFrame, with
 
 - `pretest_start` and `test_start` are inclusive.
 - `test_end` is exclusive unless `test_end_inclusive=True`.
-- `TBRSummaryResult.is_significant()` checks whether `prob` meets a posterior
-  probability threshold (0.95 by default). It does not test interval exclusion.
+- `TBRSummaryResult.meets_probability_threshold()` checks whether `prob` meets
+  a posterior probability threshold (0.95 by default). It does not test interval exclusion.
 - An interval entirely above zero (`summary.lower > 0`) is a separate
   interval-based criterion.
 - Conclusions are conditional on the fitted model, its assumptions, and the

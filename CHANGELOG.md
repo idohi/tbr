@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `threshold`. The flag is unchanged: it is `True` when the credible
   interval lies entirely above or below the threshold. It is not a hypothesis
   test.
+- **Breaking:** `TBRSummaryResult.is_significant()` is renamed to
+  `meets_probability_threshold()`. Behavior is unchanged: it returns whether
+  `prob` is at least `probability_threshold`. It is not a hypothesis test.
 
 ## [0.1.6] - 2026-07-20
 

@@ -105,7 +105,7 @@ print(f"Treatment Effect: {summary.estimate:.2f}")
 print(f"Standard Error: {summary.se:.2f}")
 print(f"80% Credible Interval: [{summary.lower:.2f}, {summary.upper:.2f}]")
 print(f"Probability (effect > 0): {summary.prob:.3f}")
-print(f"Statistically Significant: {summary.is_significant()}")
+print(f"Probability >= 0.95: {summary.meets_probability_threshold()}")
 print()
 
 # Regression parameters

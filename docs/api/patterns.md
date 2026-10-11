@@ -164,14 +164,14 @@ comparison = pd.DataFrame(comparison_rows)
 
 ## Separate probability and interval criteria
 
-`TBRSummaryResult.is_significant()` is a convenience check on posterior
-probability. Its argument is a probability threshold and defaults to 0.95.
+`TBRSummaryResult.meets_probability_threshold()` is a convenience check on
+posterior probability. Its argument is a probability threshold and defaults to 0.95.
 Interval exclusion is a different criterion.
 
 ```python
 summary = model.summarize()
 
-probability_threshold_met = summary.is_significant(0.95)
+probability_threshold_met = summary.meets_probability_threshold(0.95)
 interval_excludes_zero = summary.lower > 0 or summary.upper < 0
 interval_entirely_positive = summary.lower > 0
 

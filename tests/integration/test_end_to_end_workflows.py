@@ -326,11 +326,11 @@ class TestRealWorldScenarios:
 
         # Test decision making
         summary = model.summarize()
-        is_significant = summary.is_significant()
+        probability_threshold_met = summary.meets_probability_threshold()
         passes_threshold = summary.prob > 0.90
 
         # Validate A/B test workflow
-        assert isinstance(is_significant, bool)
+        assert isinstance(probability_threshold_met, bool)
         assert isinstance(passes_threshold, bool)
         assert summary.threshold == 100.0
 

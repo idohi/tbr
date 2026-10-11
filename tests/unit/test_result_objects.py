@@ -6,7 +6,7 @@ TBRSubintervalResult) with validation of:
 - Object creation and immutability
 - Attribute access and types
 - Conversion methods (to_dict, to_dataframe)
-- Convenience methods (is_significant, contains_zero, etc.)
+- Convenience methods (meets_probability_threshold, contains_zero, etc.)
 - String representations
 - Edge cases and error handling
 """
@@ -180,18 +180,47 @@ class TestTBRSummaryResult:
         assert result_df["estimate"].iloc[0] == 125.5
         assert result_df["prob"].iloc[0] == 0.978
 
-    def test_summary_result_is_significant_true(self, summary_result):
-        """Test TBRSummaryResult.is_significant() returns True."""
-        assert summary_result.is_significant(probability_threshold=0.95) is True
+    def test_summary_result_meets_probability_threshold_true(self, summary_result):
+        """Test TBRSummaryResult.meets_probability_threshold() returns True."""
+        assert (
+            summary_result.meets_probability_threshold(probability_threshold=0.95)
+            is True
+        )
 
-    def test_summary_result_is_significant_false(self, summary_result):
-        """Test TBRSummaryResult.is_significant() returns False."""
-        assert summary_result.is_significant(probability_threshold=0.99) is False
+    def test_summary_result_meets_probability_threshold_false(self, summary_result):
+        """Test TBRSummaryResult.meets_probability_threshold() returns False."""
+        assert (
+            summary_result.meets_probability_threshold(probability_threshold=0.99)
+            is False
+        )
 
-    def test_summary_result_is_significant_custom_threshold(self, summary_result):
-        """Test TBRSummaryResult.is_significant() with custom threshold."""
-        assert summary_result.is_significant(probability_threshold=0.975) is True
-        assert summary_result.is_significant(probability_threshold=0.98) is False
+    def test_summary_result_meets_probability_threshold_custom_threshold(
+        self, summary_result
+    ):
+        """Test TBRSummaryResult.meets_probability_threshold() with custom threshold."""
+        assert (
+            summary_result.meets_probability_threshold(probability_threshold=0.975)
+            is True
+        )
+        assert (
+            summary_result.meets_probability_threshold(probability_threshold=0.98)
+            is False
+        )
+
+    def test_summary_result_meets_probability_threshold_at_boundary(
+        self, summary_result
+    ):
+        """Test that a probability equal to the threshold meets it."""
+        assert (
+            summary_result.meets_probability_threshold(
+                probability_threshold=summary_result.prob
+            )
+            is True
+        )
+
+    def test_summary_result_is_significant_removed(self, summary_result):
+        """Test that the former is_significant() name is no longer available."""
+        assert not hasattr(summary_result, "is_significant")
 
     def test_summary_result_repr(self, summary_result):
         """Test TBRSummaryResult.__repr__() method."""

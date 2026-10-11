@@ -220,11 +220,11 @@ This frozen dataclass represents the final cumulative test-period summary.
 | `cov_alpha_beta` | `float` | Intercept/slope covariance |
 | `degrees_freedom` | `int` | Student's-$t$ degrees of freedom $\nu$ |
 
-`is_significant(probability_threshold=0.95)` returns whether `prob` is at least
-that threshold. It does not inspect the credible interval.
+`meets_probability_threshold(probability_threshold=0.95)` returns whether `prob`
+is at least that threshold. It does not inspect the credible interval.
 
 ```python
-probability_threshold_met = summary.is_significant()
+probability_threshold_met = summary.meets_probability_threshold()
 interval_excludes_zero = summary.lower > 0 or summary.upper < 0
 summary_dict = summary.to_dict()
 summary_frame = summary.to_dataframe()
