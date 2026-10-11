@@ -385,13 +385,15 @@ where:
 - $t_{\alpha/2,\;\nu}$ is the critical value from the Student's $t$-distribution with $\nu$ degrees of freedom
 - $\alpha = 1 - \text{level}$; for example, $\alpha = 0.10$ for a 90% credible interval
 
-The half-width of the credible interval (referred to as the **precision**) is:
+The half-width of the credible interval is referred to as the **precision**, following {cite}`kerman2017tbr`, Section 4:
 
 $$
 \text{precision} = t_{\alpha/2,\;\nu} \cdot \text{SE}
 $$
 
-This interval represents the range in which the true cumulative treatment effect $\Delta(T)$ lies with posterior probability $1 - \alpha$, given the model and observed data.
+A smaller precision value indicates a narrower credible interval and therefore a more precise estimate. The term does not denote the inverse of a variance, as it sometimes does in Bayesian statistics.
+
+The credible interval represents the range in which the true cumulative treatment effect $\Delta(T)$ lies with posterior probability $1 - \alpha$, given the model and observed data.
 
 ### Posterior Probability
 
