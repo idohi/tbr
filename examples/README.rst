@@ -65,12 +65,10 @@ Shows how to analyze treatment effects over time using incremental summaries and
 **Topics Covered:**
 
 - Incremental summary progression
-- Weekly subinterval analysis
+- Subinterval analysis in 15-day windows
 - Period comparison (early vs. late)
-- Finding optimal intervention windows
 - Cumulative growth tracking
-- Confidence evolution
-- Early stopping decisions
+- Credible interval width over time
 - Exporting incremental results
 
 **Run the example:**
@@ -80,27 +78,19 @@ Shows how to analyze treatment effects over time using incremental summaries and
     python plot_incremental_analysis.py
 
 
-Example Scenarios
------------------
+Data and Domains
+----------------
 
-All examples use synthetic data but represent real-world scenarios:
+All examples use synthetic data with a simulated treatment effect.
 
-- **Marketing Campaign Analysis**: Measuring incremental lift from marketing interventions
-- **A/B Testing**: Analyzing treatment effects in controlled experiments
-- **Medical Trials**: Evaluating treatment effects in clinical studies
-- **Economic Policy Analysis**: Assessing policy intervention impacts
-- **Feature Rollouts**: Measuring new feature impacts on user metrics
+TBR is not tied to a particular domain. It applies to any before-after
+experiment with control and test groups observed over time, for example
+marketing campaigns, product feature rollouts, economic policy changes, or
+medical interventions.
 
-
-Domain-Agnostic Design
-----------------------
-
-All examples are **domain-agnostic**, meaning:
-
-- They work with any control/test group time series data
-- No assumptions about data source or industry
-- Applicable across marketing, medical, economic, and other domains
-- Focus on statistical methodology, not domain-specific details
+Before applying TBR to real data, see `Assumptions and Limitations
+<https://tbr.readthedocs.io/en/stable/mathematical_methodology.html#assumptions-and-limitations>`_
+in the mathematical methodology.
 
 
 Running Examples
@@ -166,9 +156,9 @@ To adapt examples to your data:
 
 .. code-block:: python
 
-    pretest_start='your_pretest_start',
-    test_start='your_test_start',
-    test_end='your_test_end'
+    pretest_start=pd.Timestamp('2024-01-01'),
+    test_start=pd.Timestamp('2024-02-15'),
+    test_end=pd.Timestamp('2024-03-31')
 
 
 Learning Path
@@ -190,18 +180,17 @@ Learning Path
 
 3. **Finally study** ``plot_incremental_analysis.py``
 
-   - Master temporal analysis techniques
-   - Learn subinterval analysis patterns
-   - Understand effect progression
+   - See how the cumulative effect evolves over the test period
+   - Estimate the effect in subintervals of the test period
 
 
 Additional Resources
 --------------------
 
-- **Quick Start Guide** (``docs/api/quickstart.md``) - Fast introduction to TBR
-- **API Reference** (``docs/api/api_reference.rst``) - Complete API documentation
-- **Common Patterns** (``docs/api/patterns.md``) - Best practices and patterns
-- **Result Objects** (``docs/api/results.md``) - Understanding result structures
+- `Quick Start Guide <https://tbr.readthedocs.io/en/stable/api/quickstart.html>`_ - Fast introduction to TBR
+- `API Reference <https://tbr.readthedocs.io/en/stable/api/api_reference.html>`_ - Complete API documentation
+- `Common Patterns <https://tbr.readthedocs.io/en/stable/api/patterns.html>`_ - Best practices and patterns
+- `Result Objects <https://tbr.readthedocs.io/en/stable/api/results.html>`_ - Understanding result structures
 
 
 Contributing Examples

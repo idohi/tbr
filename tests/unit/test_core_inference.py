@@ -117,7 +117,7 @@ class TestCalculatePValue:
         )
 
         # Cross-validate with scipy
-        expected = 2 * (1 - stats.t.cdf(abs(t_stat), df=df))
+        expected = 2 * stats.t.sf(abs(t_stat), df=df)
         assert abs(p_val - expected) < 1e-10
 
     def test_one_tailed_p_value_positive(self):
@@ -130,7 +130,7 @@ class TestCalculatePValue:
         )
 
         # Cross-validate with scipy
-        expected = 1 - stats.t.cdf(t_stat, df=df)
+        expected = stats.t.sf(t_stat, df=df)
         assert abs(p_val - expected) < 1e-10
 
     def test_one_tailed_p_value_negative(self):
@@ -194,6 +194,12 @@ class TestCalculatePValue:
         with pytest.raises(TypeError, match="two_tailed must be boolean"):
             calculate_p_value(t_statistic=2.0, degrees_freedom=20, two_tailed="True")
 
+    @pytest.mark.parametrize("t_statistic", [np.nan, np.inf, -np.inf])
+    def test_non_finite_t_statistic(self, t_statistic):
+        """Test that a non-finite t-statistic raises instead of returning 1.0."""
+        with pytest.raises(ValueError, match="t_statistic must be finite"):
+            calculate_p_value(t_statistic=t_statistic, degrees_freedom=20)
+
 
 class TestCalculatePosteriorProbability:
     """Test posterior probability calculation function."""
@@ -250,7 +256,7 @@ class TestCalculatePosteriorProbability:
 
         # Cross-validate: P(θ > threshold) = 1 - F_t((threshold - estimate) / se)
         t_stat = (threshold - estimate) / se
-        expected = 1 - stats.t.cdf(t_stat, df=df)
+        expected = stats.t.sf(t_stat, df=df)
 
         assert abs(prob - expected) < 1e-10
 
@@ -304,6 +310,27 @@ class TestCalculatePosteriorProbability:
             calculate_posterior_probability(
                 estimate=5.0, standard_error=2.0, degrees_freedom=30, threshold="0.0"
             )
+
+    def test_python_int_beyond_int64_range(self):
+        """Test that Python ints too large for int64 are accepted."""
+        prob = calculate_posterior_probability(
+            estimate=10**20, standard_error=1, degrees_freedom=30
+        )
+        assert prob == 1.0
+
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    @pytest.mark.parametrize("name", ["estimate", "standard_error", "threshold"])
+    def test_non_finite_inputs(self, name, value):
+        """Test that non-finite inputs raise instead of returning 1.0."""
+        kwargs = {
+            "estimate": 5.0,
+            "standard_error": 2.0,
+            "degrees_freedom": 30,
+            "threshold": 0.0,
+        }
+        kwargs[name] = value
+        with pytest.raises(ValueError, match=f"{name} must be finite"):
+            calculate_posterior_probability(**kwargs)
 
 
 class TestCalculateCredibleInterval:

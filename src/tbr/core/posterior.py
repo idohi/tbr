@@ -61,6 +61,7 @@ seamlessly with the basic inference module.
 See individual function documentation for detailed usage and examples.
 """
 
+import math
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -264,7 +265,7 @@ def perform_threshold_sensitivity_analysis(
     t_statistics = (thresholds - estimate) / standard_error
 
     # Calculate posterior probabilities
-    probabilities = 1 - stats.t.cdf(t_statistics, df=degrees_freedom)
+    probabilities = stats.t.sf(t_statistics, df=degrees_freedom)
 
     # Ensure probabilities are bounded
     probabilities = np.clip(probabilities, 0.0, 1.0)
@@ -389,7 +390,7 @@ def calculate_incremental_posterior_probabilities(
     t_statistics = (threshold - estimates) / standard_errors
 
     # Calculate posterior probabilities
-    probabilities = 1 - stats.t.cdf(t_statistics, df=degrees_freedom)
+    probabilities = stats.t.sf(t_statistics, df=degrees_freedom)
 
     # Ensure probabilities are bounded
     probabilities = np.clip(probabilities, 0.0, 1.0)
@@ -450,8 +451,9 @@ def optimize_threshold_selection(
     Raises
     ------
     ValueError
-        If standard_error is not positive, degrees_freedom is not positive,
-        or utility_function is not recognized
+        If estimate or standard_error is not finite, standard_error is not
+        positive, degrees_freedom is not positive, or utility_function is not
+        recognized
     TypeError
         If inputs have incorrect types
 
@@ -507,6 +509,10 @@ def optimize_threshold_selection(
             f"got '{utility_function}'"
         )
 
+    for name, value in (("estimate", estimate), ("standard_error", standard_error)):
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be finite, got {value}")
+
     if standard_error <= 0:
         raise ValueError(f"standard_error must be positive, got {standard_error}")
 
@@ -521,26 +527,20 @@ def optimize_threshold_selection(
     # Define utility functions
     def balanced_utility(threshold: float) -> float:
         """Balanced utility: equal weight to Type I and Type II errors."""
-        prob = 1 - stats.t.cdf(
-            (threshold - estimate) / standard_error, df=degrees_freedom
-        )
+        prob = stats.t.sf((threshold - estimate) / standard_error, df=degrees_freedom)
         # Utility = probability of correct decision - probability of incorrect decision
         return float(2 * prob - 1 if threshold <= estimate else 1 - 2 * prob)
 
     def conservative_utility(threshold: float) -> float:
         """Conservative utility: higher penalty for false positives."""
-        prob = 1 - stats.t.cdf(
-            (threshold - estimate) / standard_error, df=degrees_freedom
-        )
+        prob = stats.t.sf((threshold - estimate) / standard_error, df=degrees_freedom)
         # Higher penalty for claiming effect when threshold is high
         penalty_factor = 1.5 if threshold > estimate else 1.0
         return float(prob - penalty_factor * (1 - prob))
 
     def aggressive_utility(threshold: float) -> float:
         """Aggressive utility: higher penalty for false negatives."""
-        prob = 1 - stats.t.cdf(
-            (threshold - estimate) / standard_error, df=degrees_freedom
-        )
+        prob = stats.t.sf((threshold - estimate) / standard_error, df=degrees_freedom)
         # Higher penalty for missing effect when threshold is low
         penalty_factor = 1.5 if threshold < estimate else 1.0
         return float(penalty_factor * prob - (1 - prob))
@@ -562,10 +562,9 @@ def optimize_threshold_selection(
     max_utility = -result.fun
 
     # Calculate additional metrics
-    prob_at_optimal = 1 - stats.t.cdf(
+    prob_at_optimal = stats.t.sf(
         (optimal_threshold - estimate) / standard_error, df=degrees_freedom
     )
-    prob_at_optimal = max(0.0, min(1.0, prob_at_optimal))
 
     # Calculate confidence width (95% credible interval width)
     t_critical = stats.t.ppf(0.975, df=degrees_freedom)
@@ -585,10 +584,9 @@ def compare_posterior_probabilities(
     """
     Compare posterior probabilities across multiple scenarios.
 
-    Calculates and compares posterior probabilities for different scenarios
-    (e.g., different experiments, time periods, or model specifications).
-    This enables comparative analysis and helps identify scenarios with
-    stronger or weaker evidence for treatment effects.
+    Calculates the posterior probability that the effect exceeds a common
+    threshold for each scenario (e.g., different experiments, time periods,
+    or model specifications) and ranks the scenarios by that probability.
 
     Parameters
     ----------
@@ -603,43 +601,38 @@ def compare_posterior_probabilities(
 
     Returns
     -------
-    Dict[str, Union[List[float], np.ndarray]]
+    Dict[str, Union[List[str], List[float], List[int]]]
         Dictionary containing:
         - 'scenario_names': Names or indices of scenarios
         - 'probabilities': Posterior probabilities for each scenario
-        - 'relative_strength': Relative evidence strength (normalized)
-        - 'ranking': Ranking of scenarios by probability (1 = highest)
+        - 'ranking': Ranking of scenarios by probability (1 = highest;
+          tied scenarios share the same rank)
 
     Raises
     ------
     ValueError
-        If scenarios list is empty or scenarios have invalid parameters
+        If scenarios list is empty, threshold is not finite, or scenarios have
+        invalid parameters (missing keys, non-finite values, or a non-positive
+        standard error or degrees of freedom)
     TypeError
         If inputs have incorrect types
 
     Examples
     --------
     >>> scenarios = [
-    ...     {'estimate': 10.0, 'standard_error': 3.0, 'degrees_freedom': 30, 'name': 'Week1'},
-    ...     {'estimate': 15.0, 'standard_error': 4.0, 'degrees_freedom': 30, 'name': 'Week2'},
-    ...     {'estimate': 8.0, 'standard_error': 2.5, 'degrees_freedom': 30, 'name': 'Week3'}
+    ...     {'estimate': 10.0, 'standard_error': 3.0, 'degrees_freedom': 30, 'name': 'Experiment A'},
+    ...     {'estimate': 15.0, 'standard_error': 4.0, 'degrees_freedom': 30, 'name': 'Experiment B'},
+    ...     {'estimate': 8.0, 'standard_error': 2.5, 'degrees_freedom': 30, 'name': 'Experiment C'}
     ... ]
     >>> comparison = compare_posterior_probabilities(scenarios)
-    >>> print(f"Strongest evidence: {comparison['scenario_names'][0]}")
-    Strongest evidence: Week1
+    >>> best = comparison['scenario_names'][comparison['ranking'].index(1)]
+    >>> print(f"Highest posterior probability: {best}")
+    Highest posterior probability: Experiment B
 
     Mathematical Formula
     --------------------
     For each scenario i:
     P_i(θ > threshold | data_i) = 1 - F_t((threshold - estimate_i) / SE_i; df_i)
-
-    Relative strength: RS_i = P_i / Σ(P_j) for j = 1, ..., n
-
-    Notes
-    -----
-    This function enables systematic comparison of evidence strength across
-    multiple scenarios, helping identify the most compelling cases for
-    treatment effects and supporting meta-analytic thinking.
     """
     # Lazy import to minimize overhead
     from scipy import stats
@@ -654,6 +647,9 @@ def compare_posterior_probabilities(
     if not isinstance(threshold, (int, float, np.integer, np.floating)):
         raise TypeError(f"threshold must be numeric, got {type(threshold)}")
 
+    if not math.isfinite(threshold):
+        raise ValueError(f"threshold must be finite, got {threshold}")
+
     # Validate each scenario
     required_keys = ["estimate", "standard_error", "degrees_freedom"]
     for i, scenario in enumerate(scenarios):
@@ -663,6 +659,12 @@ def compare_posterior_probabilities(
         for key in required_keys:
             if key not in scenario:
                 raise ValueError(f"scenario {i} missing required key: {key}")
+
+        for key in required_keys:
+            if not math.isfinite(scenario[key]):
+                raise ValueError(
+                    f"scenario {i} {key} must be finite, got {scenario[key]}"
+                )
 
         if scenario["standard_error"] <= 0:
             raise ValueError(
@@ -689,31 +691,17 @@ def compare_posterior_probabilities(
         df = scenario["degrees_freedom"]
 
         t_stat = (threshold - estimate) / se
-        prob = 1 - stats.t.cdf(t_stat, df=df)
-        prob = max(0.0, min(1.0, prob))  # Ensure bounds
+        prob = stats.t.sf(t_stat, df=df)
         probabilities_list.append(prob)
 
-    # Convert to numpy array for easier manipulation
     probabilities = np.array(probabilities_list)
 
-    # Calculate relative strength (normalized probabilities)
-    total_prob = np.sum(probabilities)
-    if total_prob > 0:
-        relative_strength = probabilities / total_prob
-    else:
-        relative_strength = np.ones(len(probabilities)) / len(probabilities)
-
-    # Calculate ranking (1 = highest probability)
-    # Sort indices by probability in descending order, then assign ranks
-    sorted_indices = np.argsort(probabilities)[::-1]  # Highest to lowest
-    ranking = np.zeros(len(probabilities), dtype=int)
-    for rank, idx in enumerate(sorted_indices):
-        ranking[idx] = rank + 1  # Ranks start from 1
+    # Calculate ranking (1 = highest probability; ties share the lowest rank)
+    ranking = stats.rankdata(-probabilities, method="min").astype(int)
 
     return {
         "scenario_names": scenario_names,
         "probabilities": probabilities.tolist(),
-        "relative_strength": relative_strength.tolist(),
         "ranking": ranking.tolist(),
     }
 
@@ -827,7 +815,7 @@ def validate_posterior_assumptions(
         # Rough approximation: reject independence if DW < 1.5 or DW > 2.5
         independence_valid = 1.5 <= dw_stat <= 2.5
         independence_pvalue = 2 * min(
-            stats.norm.cdf((dw_stat - 2) / 0.5), 1 - stats.norm.cdf((dw_stat - 2) / 0.5)
+            stats.norm.cdf((dw_stat - 2) / 0.5), stats.norm.sf((dw_stat - 2) / 0.5)
         )
     else:
         dw_stat = np.nan

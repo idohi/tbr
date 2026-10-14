@@ -14,6 +14,7 @@ All functions maintain mathematical accuracy and statistical rigor while providi
 clean, documented interfaces for production use.
 """
 
+import math
 from typing import Dict
 
 import numpy as np
@@ -316,6 +317,15 @@ def create_tbr_summary(
         - 'prob': Posterior probability of exceeding threshold
         - Model parameters and metadata
 
+    Raises
+    ------
+    ValueError
+        If the dataframe is empty, lacks required columns, or has no test
+        period rows; if level is outside [0, 1], degrees_freedom is not
+        positive, or sigma is not positive; if the final cumulative effect,
+        its standard deviation, or threshold is not finite; or if that standard
+        deviation is negative
+
     Examples
     --------
     >>> import pandas as pd
@@ -363,6 +373,19 @@ def create_tbr_summary(
     # se: Final cumulative standard deviation from test period
     se = test_period_data["cumsd"].iloc[-1]
 
+    for name, value in (
+        ("Final cumulative effect (cumdif)", estimate),
+        ("Final cumulative standard deviation (cumsd)", se),
+        ("Threshold", threshold),
+    ):
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be finite, got: {value}")
+
+    if se < 0:
+        raise ValueError(
+            f"Final cumulative standard deviation (cumsd) must be non-negative, got: {se}"
+        )
+
     # Calculate credible interval using t-distribution
     alpha_level = 1 - level  # Probability outside interval
     t_critical = stats.t.ppf(1 - alpha_level / 2, df=degrees_freedom)
@@ -376,11 +399,11 @@ def create_tbr_summary(
     precision = margin_of_error
 
     # prob: Posterior probability that true cumulative effect exceeds threshold
-    t_stat = (threshold - estimate) / se if se > 0 else 0
-    prob = 1 - stats.t.cdf(t_stat, df=degrees_freedom)
-
-    # Ensure probability is between 0 and 1
-    prob = max(0.0, min(1.0, prob))
+    if se > 0:
+        t_stat = (threshold - estimate) / se
+        prob = stats.t.sf(t_stat, df=degrees_freedom)
+    else:
+        prob = 1.0 if estimate > threshold else 0.0
 
     # Create summary dictionary
     summary_data = {

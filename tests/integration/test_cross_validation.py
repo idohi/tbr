@@ -408,7 +408,7 @@ class TestCoreInferenceFunctionalCrossValidation:
 
             # Test p-value calculation
             core_p = core_p_value(core_t, df)
-            scipy_p = 2 * (1 - stats.t.cdf(abs(core_t), df))
+            scipy_p = 2 * stats.t.sf(abs(core_t), df)
             np.testing.assert_allclose(
                 core_p,
                 scipy_p,
@@ -420,7 +420,7 @@ class TestCoreInferenceFunctionalCrossValidation:
             threshold = 0.0
             core_post_prob = core_posterior_prob(estimate, se, df, threshold)
             t_stat = (threshold - estimate) / se
-            scipy_post_prob = 1 - stats.t.cdf(t_stat, df)
+            scipy_post_prob = stats.t.sf(t_stat, df)
             np.testing.assert_allclose(
                 core_post_prob,
                 scipy_post_prob,
@@ -559,7 +559,7 @@ class TestIntegratedWorkflowCrossValidation:
         from scipy import stats
 
         t_stat_for_posterior = (threshold - estimate) / se
-        expected_post_prob = 1 - stats.t.cdf(t_stat_for_posterior, df)
+        expected_post_prob = stats.t.sf(t_stat_for_posterior, df)
 
         np.testing.assert_allclose(
             core_post_prob,

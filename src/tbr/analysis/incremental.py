@@ -38,10 +38,10 @@ Analyze effect progression:
 
 Find when posterior probability exceeds a declared threshold:
 
->>> significant_days = incremental[incremental['prob'] > 0.8]
->>> if not significant_days.empty:
-...     first_sig_day = significant_days.iloc[0]['test_day']
-...     print(f"Posterior probability exceeds 0.8 from day {first_sig_day}")
+>>> days_above_threshold = incremental[incremental['prob'] > 0.8]
+>>> if not days_above_threshold.empty:
+...     first_day_above_threshold = days_above_threshold.iloc[0]['test_day']
+...     print(f"Posterior probability exceeds 0.8 from day {first_day_above_threshold}")
 """
 
 import pandas as pd

@@ -1,13 +1,11 @@
 """
 Incremental Analysis Example.
 
-==============================
-
 This example demonstrates how to analyze the progression of treatment effects
 over time using incremental summaries and subinterval analysis.
 
-Use Case: Understanding how effects evolve, finding optimal intervention windows,
-         and tracking cumulative impact over time.
+Use Case: Examining how the estimated effect evolves over the test period and
+         tracking cumulative impact over time.
 """
 
 import numpy as np
@@ -15,27 +13,38 @@ import pandas as pd
 
 from tbr import TBRAnalysis
 
-np.random.seed(42)
+# Random number generator with a fixed seed, for reproducibility
+rng = np.random.default_rng(122)
+
+n_pretest_days = 60
+n_test_days = 60
+window_length = 15  # Length of each subinterval window, in test days
 
 # Generate sample data with ramping effect
-dates = pd.date_range("2024-01-01", periods=120)
-control = np.random.normal(1000, 50, 120)
+dates = pd.date_range("2024-01-01", periods=n_pretest_days + n_test_days)
+control = rng.normal(1000, 50, len(dates))
 
-# Test group: gradual ramping effect that grows over time
-test = control.copy()
-# Days 1-60: pretest (no effect)
-# Days 61-120: test period with ramping effect (0% → 10%)
-for i in range(60, 120):
-    days_into_test = i - 60
-    ramp_factor = 1.0 + (0.10 * days_into_test / 60)  # Linearly ramp to 10%
-    test[i] = test[i] * ramp_factor + np.random.normal(0, 10)
+# Test group: tracks control with noise, plus a ramping effect in the test period
+test = control + rng.normal(0, 25, len(dates))
+# Known only because the data is simulated; unknown in real experiments
+no_effect = test.copy()
+# 2024-01-01 to 2024-02-29: pretest (no effect)
+# 2024-03-01 to 2024-04-29: test period with ramping effect (0% → 2%)
+for days_into_test in range(n_test_days):
+    i = n_pretest_days + days_into_test
+    ramp_factor = 1.0 + (0.02 * days_into_test / (n_test_days - 1))  # Ramp to 2%
+    test[i] = test[i] * ramp_factor
+true_daily_effect = (test - no_effect)[n_pretest_days:]
 
 data = pd.DataFrame({"date": dates, "control": control, "test": test})
 
 print("=" * 80)
 print("INCREMENTAL ANALYSIS EXAMPLE")
 print("=" * 80)
-print("Scenario: Treatment effect ramps from 0% to 10% over 60-day test period")
+print(
+    f"Scenario: Treatment effect ramps from 0% to 2% over {n_test_days}-day "
+    "test period"
+)
 print()
 
 # =============================================================================
@@ -48,13 +57,14 @@ model.fit(
     time_col="date",
     control_col="control",
     test_col="test",
-    pretest_start="2024-01-01",
-    test_start="2024-03-01",  # Day 61
-    test_end="2024-04-29",  # Day 120
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-03-01"),  # First test day
+    # test_end is exclusive by default, so the last test day is 2024-04-29
+    test_end=pd.Timestamp("2024-04-30"),
 )
 
-print("Pretest period: 60 days")
-print("Test period: 60 days")
+print(f"Pretest days: {(model.results_['period'] == 0).sum()}")
+print(f"Test days: {(model.results_['period'] == 1).sum()}")
 print()
 
 # =============================================================================
@@ -68,51 +78,54 @@ print("=" * 80)
 incremental = model.summarize_incremental()
 
 # Show progression at key points
-print("Cumulative effect progression:")
+print(f"Cumulative effect progression ({model.level * 100:g}% credible intervals):")
 print()
 
-checkpoints = [1, 7, 14, 21, 30, 45, 60]
+checkpoints = [1, 15, 30, 45, 60]
 for day in checkpoints:
-    if day <= len(incremental):
-        row = incremental.iloc[day - 1]
-        print(
-            f"Day {day:2d}: Effect = {row['estimate']:8.2f}, "
-            f"SE = {row['se']:6.2f}, "
-            f"CI = [{row['lower']:8.2f}, {row['upper']:8.2f}], "
-            f"P(>0) = {row['prob']:.3f}"
-        )
+    row = incremental.iloc[day - 1]
+    print(
+        f"Test day {day:2d}: Effect = {row['estimate']:8.2f}, "
+        f"SE = {row['se']:6.2f}, "
+        f"CI = [{row['lower']:8.2f}, {row['upper']:8.2f}], "
+        f"P(>{model.threshold:g}) = {row['prob']:.3f}"
+    )
 
 print()
 
 # =============================================================================
-# 3. Weekly Subinterval Analysis
+# 3. Subinterval Analysis in 15-Day Windows
 # =============================================================================
 
 print("=" * 80)
-print("WEEKLY SUBINTERVAL ANALYSIS")
+print(f"SUBINTERVAL ANALYSIS IN {window_length}-DAY WINDOWS")
 print("=" * 80)
 
-weeks = []
-for week_num in range(1, 9):
-    start_day = (week_num - 1) * 7 + 1
-    end_day = min(week_num * 7, 60)
+# Each window covers only 15 test days, so its interval is wide relative to the
+# effect. Compare the estimates with the simulated true effect: differences
+# between windows can be noise, and an 80% interval is expected to miss the
+# true effect about 1 time in 5.
+windows = []
+for start_day in range(1, n_test_days + 1, window_length):
+    end_day = start_day + window_length - 1
+    result = model.analyze_subinterval(start_day, end_day)
+    windows.append(
+        {
+            "test_days": f"{start_day}-{end_day}",
+            "true_effect": true_daily_effect[start_day - 1 : end_day].sum(),
+            "effect": result.estimate,
+            "lower": result.lower,
+            "upper": result.upper,
+            "interval_positive": result.is_positive(),
+        }
+    )
 
-    if start_day <= 60:
-        result = model.analyze_subinterval(start_day, end_day)
-        weeks.append(
-            {
-                "week": week_num,
-                "days": f"{start_day}-{end_day}",
-                "effect": result.estimate,
-                "lower": result.lower,
-                "upper": result.upper,
-                "significant": result.is_positive(),
-            }
-        )
-
-weeks_df = pd.DataFrame(weeks)
-print("\nWeekly effects:")
-print(weeks_df.to_string(index=False))
+windows_df = pd.DataFrame(windows)
+print(
+    f"\nEffects in {window_length}-day windows "
+    f"({model.level * 100:g}% credible intervals):"
+)
+print(windows_df.round(2).to_string(index=False))
 print()
 
 # =============================================================================
@@ -123,59 +136,30 @@ print("=" * 80)
 print("PERIOD COMPARISON")
 print("=" * 80)
 
-# Compare early, middle, and late periods
+# Compare the early and late halves of the test period
+half = n_test_days // 2
 periods = [
-    ("Early (Days 1-20)", 1, 20),
-    ("Middle (Days 21-40)", 21, 40),
-    ("Late (Days 41-60)", 41, 60),
+    ("Early", 1, half),
+    ("Late", half + 1, n_test_days),
 ]
 
 print("\nComparing different phases:")
+period_results = {}
 for name, start, end in periods:
     result = model.analyze_subinterval(start, end)
-    print(f"\n{name}:")
+    period_results[name] = result
+    print(f"\n{name} (test days {start}-{end}):")
     print(f"  Effect: {result.estimate:.2f}")
-    print(f"  CI: [{result.lower:.2f}, {result.upper:.2f}]")
-    print(f"  Positive: {result.is_positive()}")
-
-print()
-
-# =============================================================================
-# 5. Finding Optimal Window
-# =============================================================================
-
-print("=" * 80)
-print("FINDING OPTIMAL INTERVENTION WINDOW")
-print("=" * 80)
-
-# Analyze all possible 14-day windows
-window_size = 14
-windows = []
-
-for start in range(1, 60 - window_size + 2):
-    end = start + window_size - 1
-    result = model.analyze_subinterval(start, end)
-    windows.append(
-        {
-            "start_day": start,
-            "end_day": end,
-            "effect": result.estimate,
-            "significant": result.is_positive(),
-        }
+    print(
+        f"  {result.ci_level * 100:g}% credible interval: "
+        f"[{result.lower:.2f}, {result.upper:.2f}]"
     )
+    print(f"  Interval entirely positive: {result.is_positive()}")
 
-windows_df = pd.DataFrame(windows)
-
-# Find window with largest effect
-best_window = windows_df.loc[windows_df["effect"].idxmax()]
-print("\nBest 14-day window:")
-print(f"  Days {best_window['start_day']:.0f}-{best_window['end_day']:.0f}")
-print(f"  Effect: {best_window['effect']:.2f}")
-print(f"  Significant: {bool(best_window['significant'])}")
 print()
 
 # =============================================================================
-# 6. Cumulative Growth Analysis
+# 5. Cumulative Growth Analysis
 # =============================================================================
 
 print("=" * 80)
@@ -183,70 +167,46 @@ print("CUMULATIVE GROWTH ANALYSIS")
 print("=" * 80)
 
 # Show how cumulative effect grows
-print("\nCumulative effect growth every 10 days:")
-for day in range(10, 61, 10):
+print(f"\nCumulative effect growth every {window_length} test days:")
+for day in range(window_length, n_test_days + 1, window_length):
     row = incremental.iloc[day - 1]
     # Calculate average daily effect
     avg_daily = row["estimate"] / day
     print(
-        f"Day {day:2d}: Total = {row['estimate']:8.2f}, " f"Avg/day = {avg_daily:6.2f}"
+        f"Test day {day:2d}: Total = {row['estimate']:8.2f}, "
+        f"Avg/day = {avg_daily:6.2f}"
     )
 
 print()
 
 # =============================================================================
-# 7. Confidence Evolution
+# 6. Credible Interval Width Over Time
 # =============================================================================
 
 print("=" * 80)
-print("CONFIDENCE EVOLUTION")
+print("CREDIBLE INTERVAL WIDTH OVER TIME")
 print("=" * 80)
 
-# Show how confidence (precision) improves over time
-print("\nConfidence interval width over time:")
-checkpoints = [1, 7, 14, 30, 45, 60]
+# The interval is for the cumulative effect. Its posterior variance,
+# T * sigma^2 + T^2 * v, includes terms that scale with the number of test
+# days T. See:
+# https://tbr.readthedocs.io/en/stable/mathematical_methodology.html#posterior-variance-of-the-cumulative-effect
+print(
+    "\nCumulative credible interval width and precision "
+    "(half-width; smaller is more precise):"
+)
 for day in checkpoints:
-    if day <= len(incremental):
-        row = incremental.iloc[day - 1]
-        ci_width = row["upper"] - row["lower"]
-        print(
-            f"Day {day:2d}: Width = {ci_width:8.2f}, "
-            f"Precision = {row['precision']:8.2f}"
-        )
-
-print()
-
-# =============================================================================
-# 8. Early Stopping Decision
-# =============================================================================
-
-print("=" * 80)
-print("EARLY STOPPING DECISION")
-print("=" * 80)
-
-# Determine when effect becomes statistically significant
-print("\nDetecting when effect becomes significant:")
-
-significant_day = None
-for day in range(1, len(incremental) + 1):
     row = incremental.iloc[day - 1]
-    if row["lower"] > 0:  # Significant
-        significant_day = day
-        break
-
-if significant_day:
-    result = model.analyze_subinterval(1, significant_day)
-    print(f"\nEffect becomes significant on Day {significant_day}")
-    print(f"  Cumulative effect: {result.estimate:.2f}")
-    print(f"  CI: [{result.lower:.2f}, {result.upper:.2f}]")
-    print(f"  Could stop testing early and save {60 - significant_day} days")
-else:
-    print("\nEffect not yet significant")
+    ci_width = row["upper"] - row["lower"]
+    print(
+        f"Test day {day:2d}: Width = {ci_width:8.2f}, "
+        f"Precision = {row['precision']:8.2f}"
+    )
 
 print()
 
 # =============================================================================
-# 9. Incremental Summary Export
+# 7. Incremental Summary Export
 # =============================================================================
 
 print("=" * 80)
@@ -257,21 +217,26 @@ print("=" * 80)
 incremental.to_csv("incremental_summaries.csv", index=False)
 print("✓ Incremental summaries exported to 'incremental_summaries.csv'")
 
-# Export weekly analysis
-weeks_df.to_csv("weekly_analysis.csv", index=False)
-print("✓ Weekly analysis exported to 'weekly_analysis.csv'")
+# Export the 15-day window analysis
+windows_df.to_csv("window_analysis.csv", index=False)
+print(f"✓ {window_length}-day window analysis exported to 'window_analysis.csv'")
 
 print()
 print("=" * 80)
 print("INCREMENTAL ANALYSIS COMPLETE")
 print("=" * 80)
 print()
-print("Key Insights:")
-print("• Effect ramped from early to late period as expected")
+early = period_results["Early"]
+late = period_results["Late"]
+first_day = incremental.iloc[0]
+last_day = incremental.iloc[-1]
+print("Summary:")
 print(
-    f"• Best 14-day window: Days {best_window['start_day']:.0f}-{best_window['end_day']:.0f}"
+    f"• Estimated effect: {early.estimate:.2f} in test days 1-{half}, "
+    f"{late.estimate:.2f} in test days {half + 1}-{n_test_days}"
 )
-if significant_day:
-    print(f"• Significance detected on Day {significant_day} (could stop early)")
-print("• Later weeks show stronger effects due to ramping")
-print("• Confidence improves over time (narrower CI, higher precision)")
+print(
+    f"• Cumulative credible interval width: "
+    f"{first_day['upper'] - first_day['lower']:.2f} on test day 1, "
+    f"{last_day['upper'] - last_day['lower']:.2f} on test day {len(incremental)}"
+)

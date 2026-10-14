@@ -671,7 +671,9 @@ def create_tbr_summary(
     ValueError
         If ``tbr_dataframe`` is empty or lacks ``period``, ``cumdif``, or
         ``cumsd``; ``level`` is outside ``[0, 1]``; ``degrees_freedom`` or
-        ``sigma`` is not positive; or no row has ``period == 1``.
+        ``sigma`` is not positive; no row has ``period == 1``; the final
+        ``cumdif``, the final ``cumsd``, or ``threshold`` is not finite; or the
+        final ``cumsd`` is negative.
 
     Examples
     --------

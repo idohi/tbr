@@ -59,6 +59,7 @@ All functions use lazy imports to minimize import overhead.
 See individual function documentation for detailed usage and examples.
 """
 
+import math
 from typing import Dict
 
 import numpy as np
@@ -164,7 +165,7 @@ def calculate_p_value(
     Raises
     ------
     ValueError
-        If degrees_freedom is not positive
+        If t_statistic is not finite or degrees_freedom is not positive
     TypeError
         If inputs have incorrect types
 
@@ -207,22 +208,22 @@ def calculate_p_value(
     if not isinstance(two_tailed, bool):
         raise TypeError(f"two_tailed must be boolean, got {type(two_tailed)}")
 
+    if not math.isfinite(t_statistic):
+        raise ValueError(f"t_statistic must be finite, got {t_statistic}")
+
     if degrees_freedom <= 0:
         raise ValueError(f"degrees_freedom must be positive, got {degrees_freedom}")
 
     # Calculate p-value
     if two_tailed:
         # Two-tailed test: P(|T| >= |t|)
-        p_value = 2 * (1 - stats.t.cdf(abs(t_statistic), df=degrees_freedom))
+        p_value = 2 * stats.t.sf(abs(t_statistic), df=degrees_freedom)
     else:
         # One-tailed test: P(T >= t) for positive t, P(T <= t) for negative t
         if t_statistic >= 0:
-            p_value = 1 - stats.t.cdf(t_statistic, df=degrees_freedom)
+            p_value = stats.t.sf(t_statistic, df=degrees_freedom)
         else:
             p_value = stats.t.cdf(t_statistic, df=degrees_freedom)
-
-    # Ensure p-value is between 0 and 1
-    p_value = max(0.0, min(1.0, p_value))
 
     return float(p_value)
 
@@ -260,7 +261,8 @@ def calculate_posterior_probability(
     Raises
     ------
     ValueError
-        If standard_error is not positive or degrees_freedom is not positive
+        If estimate, standard_error, or threshold is not finite,
+        standard_error is negative, or degrees_freedom is not positive
     TypeError
         If inputs have incorrect types
 
@@ -309,6 +311,14 @@ def calculate_posterior_probability(
     if not isinstance(threshold, (int, float, np.integer, np.floating)):
         raise TypeError(f"threshold must be numeric, got {type(threshold)}")
 
+    for name, value in (
+        ("estimate", estimate),
+        ("standard_error", standard_error),
+        ("threshold", threshold),
+    ):
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be finite, got {value}")
+
     if standard_error < 0:
         raise ValueError(f"standard_error must be non-negative, got {standard_error}")
 
@@ -318,14 +328,11 @@ def calculate_posterior_probability(
     # Calculate standardized threshold
     if standard_error > 0:
         t_stat = (threshold - estimate) / standard_error
-        # P(θ > threshold) = 1 - P(T <= t_stat)
-        probability = 1 - stats.t.cdf(t_stat, df=degrees_freedom)
+        # P(θ > threshold) = P(T > t_stat)
+        probability = stats.t.sf(t_stat, df=degrees_freedom)
     else:
         # If standard error is zero, probability is deterministic
         probability = 1.0 if estimate > threshold else 0.0
-
-    # Ensure probability is between 0 and 1
-    probability = max(0.0, min(1.0, probability))
 
     return float(probability)
 

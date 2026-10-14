@@ -149,7 +149,7 @@ class TestPValueMathematical:
             our_p_value = calculate_p_value(t_stat, df)
 
             # Calculate using scipy (two-tailed)
-            scipy_p_value = 2 * (1 - stats.t.cdf(abs(t_stat), df))
+            scipy_p_value = 2 * stats.t.sf(abs(t_stat), df)
 
             # Should be identical to machine precision
             np.testing.assert_allclose(our_p_value, scipy_p_value, rtol=1e-14)
@@ -211,7 +211,7 @@ class TestPosteriorProbabilityMathematical:
             # Calculate using scipy
             if se > 0:
                 t_stat = (thresh - est) / se
-                scipy_prob = 1 - stats.t.cdf(t_stat, df)
+                scipy_prob = stats.t.sf(t_stat, df)
             else:
                 scipy_prob = 1.0 if est > thresh else 0.0
 
@@ -491,7 +491,7 @@ class TestInferenceModuleIntegrationMathematical:
 
         # Cross-validate with scipy
         scipy_t = (est - null_val) / se
-        scipy_p = 2 * (1 - stats.t.cdf(abs(scipy_t), df))
+        scipy_p = 2 * stats.t.sf(abs(scipy_t), df)
 
         assert (
             abs(t_stat - scipy_t) < 1e-14
