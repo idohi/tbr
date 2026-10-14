@@ -533,6 +533,15 @@ class TestOptimizeThresholdSelection:
         with pytest.raises(ValueError, match="degrees_freedom must be positive"):
             optimize_threshold_selection(10.0, 2.0, -5)
 
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    @pytest.mark.parametrize("name", ["estimate", "standard_error"])
+    def test_non_finite_inputs(self, name, value):
+        """Test that non-finite inputs raise a ValueError."""
+        kwargs = {"estimate": 10.0, "standard_error": 2.0, "degrees_freedom": 30}
+        kwargs[name] = value
+        with pytest.raises(ValueError, match=f"{name} must be finite"):
+            optimize_threshold_selection(**kwargs)
+
 
 class TestComparePosteriorProbabilities:
     """Test posterior probability comparison function."""
@@ -567,23 +576,18 @@ class TestComparePosteriorProbabilities:
         required_keys = [
             "scenario_names",
             "probabilities",
-            "relative_strength",
             "ranking",
         ]
-        assert all(key in result for key in required_keys)
+        assert set(result) == set(required_keys)
 
         # Check array lengths
         n_scenarios = len(scenarios)
         assert len(result["scenario_names"]) == n_scenarios
         assert len(result["probabilities"]) == n_scenarios
-        assert len(result["relative_strength"]) == n_scenarios
         assert len(result["ranking"]) == n_scenarios
 
         # Check probabilities are bounded
         assert all(0.0 <= p <= 1.0 for p in result["probabilities"])
-
-        # Check relative strengths sum to 1
-        assert abs(sum(result["relative_strength"]) - 1.0) < 1e-10
 
         # Check ranking values
         rankings = result["ranking"]
@@ -663,23 +667,31 @@ class TestComparePosteriorProbabilities:
 
     def test_zero_probabilities_edge_case(self):
         """Test edge case where all probabilities are zero."""
-        # Create scenarios with very negative estimates and high threshold
+        # Tail probabilities below the smallest positive float64 underflow to 0
         scenarios = [
-            {"estimate": -100.0, "standard_error": 1.0, "degrees_freedom": 30},
-            {"estimate": -200.0, "standard_error": 1.0, "degrees_freedom": 30},
+            {"estimate": -1e12, "standard_error": 1.0, "degrees_freedom": 30},
+            {"estimate": -2e12, "standard_error": 1.0, "degrees_freedom": 30},
         ]
-        threshold = 100.0  # Very high threshold
+        threshold = 100.0
 
         result = compare_posterior_probabilities(scenarios, threshold)
 
-        # All probabilities should be essentially 0
-        assert all(p < 0.001 for p in result["probabilities"])
+        assert all(p == 0.0 for p in result["probabilities"])
+        assert result["ranking"] == [1, 1]
 
-        # Relative strengths should be equal when all probabilities are ~0
-        relative_strengths = result["relative_strength"]
-        expected_equal_strength = 1.0 / len(scenarios)
-        for strength in relative_strengths:
-            assert abs(strength - expected_equal_strength) < 0.01
+    def test_tied_probabilities_share_rank(self):
+        """Test that tied scenarios share the lowest rank of their group."""
+        # Upper tail probabilities that round to exactly 1.0 in float64
+        scenarios = [
+            {"estimate": 1e12, "standard_error": 1.0, "degrees_freedom": 30},
+            {"estimate": 2e12, "standard_error": 1.0, "degrees_freedom": 30},
+            {"estimate": 0.0, "standard_error": 1.0, "degrees_freedom": 30},
+        ]
+
+        result = compare_posterior_probabilities(scenarios, threshold=0.0)
+
+        assert result["probabilities"] == [1.0, 1.0, 0.5]
+        assert result["ranking"] == [1, 1, 3]
 
     def test_input_validation(self):
         """Test input validation for posterior probability comparison."""
@@ -721,6 +733,28 @@ class TestComparePosteriorProbabilities:
             ValueError, match="scenario 0 degrees_freedom must be positive"
         ):
             compare_posterior_probabilities(invalid_scenarios)
+
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    @pytest.mark.parametrize("key", ["estimate", "standard_error", "degrees_freedom"])
+    def test_non_finite_scenario_values(self, key, value):
+        """Test that non-finite scenario values raise instead of returning 1.0."""
+        scenario = {"estimate": 10.0, "standard_error": 2.0, "degrees_freedom": 30}
+        scenario[key] = value
+        with pytest.raises(ValueError, match=f"scenario 0 {key} must be finite"):
+            compare_posterior_probabilities([scenario])
+
+    def test_python_int_beyond_int64_range(self):
+        """Test that Python ints too large for int64 are accepted."""
+        scenario = {"estimate": 10**20, "standard_error": 1, "degrees_freedom": 30}
+        result = compare_posterior_probabilities([scenario])
+        assert result["probabilities"] == [1.0]
+
+    @pytest.mark.parametrize("threshold", [np.nan, np.inf, -np.inf])
+    def test_non_finite_threshold(self, threshold):
+        """Test that a non-finite threshold raises a ValueError."""
+        scenario = {"estimate": 10.0, "standard_error": 2.0, "degrees_freedom": 30}
+        with pytest.raises(ValueError, match="threshold must be finite"):
+            compare_posterior_probabilities([scenario], threshold=threshold)
 
 
 class TestValidatePosteriorAssumptions:

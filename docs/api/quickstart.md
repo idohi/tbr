@@ -22,19 +22,14 @@ import pandas as pd
 
 from tbr import TBRAnalysis
 
-rng = np.random.default_rng(42)
-dates = pd.date_range("2024-01-01", periods=60)
-control = rng.normal(1000.0, 35.0, len(dates))
-noise = rng.normal(0.0, 8.0, len(dates))
-treatment_lift = np.where(dates >= pd.Timestamp("2024-02-15"), 12.0, 0.0)
+rng = np.random.default_rng(114)
+dates = pd.date_range("2024-01-01", periods=90)
+control = rng.normal(1000.0, 50.0, len(dates))
+test = control + rng.normal(0.0, 25.0, len(dates))
+in_test_period = dates >= pd.Timestamp("2024-02-15")
+test[in_test_period] = test[in_test_period] * 1.01  # 1% lift in the test period
 
-data = pd.DataFrame(
-    {
-        "date": dates,
-        "control": control,
-        "test": 20.0 + 1.02 * control + noise + treatment_lift,
-    }
-)
+data = pd.DataFrame({"date": dates, "control": control, "test": test})
 ```
 
 Here `control` is $x_t$ and `test` is $y_t$. The pretest regression estimates
@@ -44,7 +39,7 @@ the residual standard deviation $\sigma$ as `sigma`.
 ## Fit and summarize
 
 By default, `test_end` is exclusive. This example therefore analyzes
-2024-02-15 through 2024-02-28.
+2024-02-15 through 2024-03-30.
 
 ```python
 model = TBRAnalysis(level=0.80, threshold=0.0)
@@ -55,7 +50,7 @@ model.fit(
     test_col="test",
     pretest_start=pd.Timestamp("2024-01-01"),
     test_start=pd.Timestamp("2024-02-15"),
-    test_end=pd.Timestamp("2024-03-01"),
+    test_end=pd.Timestamp("2024-03-31"),
 )
 
 summary = model.summarize()
@@ -106,7 +101,7 @@ one_call_summary = TBRAnalysis(level=0.80).fit_summarize(
     "test",
     pretest_start=pd.Timestamp("2024-01-01"),
     test_start=pd.Timestamp("2024-02-15"),
-    test_end=pd.Timestamp("2024-03-01"),
+    test_end=pd.Timestamp("2024-03-31"),
 )
 print(one_call_summary.estimate)
 ```
@@ -126,7 +121,7 @@ results = perform_tbr_analysis(
     test_col="test",
     pretest_start=pd.Timestamp("2024-01-01"),
     test_start=pd.Timestamp("2024-02-15"),
-    test_end=pd.Timestamp("2024-03-01"),
+    test_end=pd.Timestamp("2024-03-31"),
     level=0.80,
     threshold=0.0,
 )

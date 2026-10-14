@@ -1599,7 +1599,7 @@ class TBRAnalysis:
         >>> model.fit(data, "date", "control", "test", **b)
         >>> summaries = model.summaries_
         >>> final_effect = summaries.iloc[-1]['estimate']
-        >>> is_significant = summaries.iloc[-1]['lower'] > 0
+        >>> interval_entirely_positive = summaries.iloc[-1]['lower'] > 0
         """
         if not self._fitted:
             raise AttributeError(

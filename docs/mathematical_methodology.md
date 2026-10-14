@@ -529,11 +529,11 @@ TBR reports several metrics that summarize how well the pretest regression model
 | $R^2$ | $1 - SS_{\text{res}} / SS_{\text{tot}}$ | Proportion of variance in $y$ explained by the model |
 | Adjusted $R^2$ | $1 - (1 - R^2) \cdot \frac{n-1}{n-k-1}$ | $R^2$ corrected for the number of predictors |
 | $F$-statistic | $\frac{SS_{\text{reg}} / k}{SS_{\text{res}} / (n - k - 1)}$ | Tests overall model significance |
-| RMSE | $\sqrt{\frac{1}{n-2} \sum e_i^2}$ | Residual standard deviation in original units |
+| RMSE | $\sqrt{\frac{1}{n} \sum e_i^2}$ | Root mean squared error of the pretest residuals, in original units |
 
 where $SS_{\text{tot}} = \sum(y_i - \bar{y})^2$, $SS_{\text{res}} = \sum e_i^2$, $SS_{\text{reg}} = SS_{\text{tot}} - SS_{\text{res}}$, and $k$ is the number of predictors (typically 1 for simple linear regression).
 
-A high $R^2$ indicates a strong pretest relationship between the control and treatment groups, which improves the precision of counterfactual predictions. A statistically significant $F$-statistic confirms that the linear relationship is meaningful.
+A high $R^2$ indicates a strong pretest relationship between the control and treatment groups, which improves the precision of counterfactual predictions. A statistically significant $F$-statistic is evidence against $\beta_1 = 0$.
 
 ---
 

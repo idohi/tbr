@@ -48,42 +48,46 @@ pip install tbr[examples]  # Example dependencies
 ## Quick Start
 
 ```python
-import pandas as pd
 import numpy as np
+import pandas as pd
 from tbr import TBRAnalysis
 
-# Create example time series data
-np.random.seed(42)
-dates = pd.date_range('2023-01-01', periods=100, freq='D')
-data = pd.DataFrame({
-    'date': dates,
-    'control': np.random.normal(100, 10, 100),
-    'test': np.random.normal(105, 10, 100)
-})
+# Simulated daily data: the test group tracks the control group, with a 1% lift
+# from 2024-02-15
+rng = np.random.default_rng(114)
+dates = pd.date_range("2024-01-01", periods=90, freq="D")
+control = rng.normal(1000, 50, len(dates))
+test = control + rng.normal(0, 25, len(dates))
+in_test_period = dates >= pd.Timestamp("2024-02-15")
+test[in_test_period] = test[in_test_period] * 1.01
+data = pd.DataFrame({"date": dates, "control": control, "test": test})
 
 # Initialize and fit model
-model = TBRAnalysis(level=0.90)
+model = TBRAnalysis(level=0.80)
 model.fit(
     data=data,
-    time_col='date',
-    control_col='control',
-    test_col='test',
-    pretest_start=pd.Timestamp('2023-01-01'),
-    test_start=pd.Timestamp('2023-02-15'),
-    test_end=pd.Timestamp('2023-04-10')
+    time_col="date",
+    control_col="control",
+    test_col="test",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-31"),  # Exclusive: last test day is 2024-03-30
 )
 
 # Get results
 summary = model.summarize()
-print(f"Treatment Effect: {summary.estimate:.2f}")
-print(f"90% credible interval: [{summary.lower:.2f}, {summary.upper:.2f}]")
-print(f"Posterior probability above threshold: {summary.prob:.3f}")
+print(f"Cumulative effect: {summary.estimate:.2f}")
+print(
+    f"{summary.level * 100:g}% credible interval: "
+    f"[{summary.lower:.2f}, {summary.upper:.2f}]"
+)
+print(f"Posterior probability (effect > {summary.threshold:g}): {summary.prob:.3f}")
 
 # Additional capabilities
 predictions = model.predict()
 subinterval = model.analyze_subinterval(start_day=1, end_day=10)
 incremental = model.summarize_incremental()
-summary.to_json('results.json')
+summary.to_json("results.json")
 ```
 
 ## Key Capabilities

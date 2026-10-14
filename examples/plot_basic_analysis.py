@@ -1,12 +1,10 @@
 """
 Basic TBR Analysis Example.
 
-===========================
-
 This example demonstrates a basic time-based regression analysis workflow.
 
 Use Case: Measuring the impact of any treatment/intervention on a metric over time.
-Domain: Universal (works for marketing, medical, economic, or any other domain)
+Domain: Universal (applies to marketing, medical, economic, or any other domain)
 """
 
 import numpy as np
@@ -14,22 +12,28 @@ import pandas as pd
 
 from tbr import TBRAnalysis
 
-# Set random seed for reproducibility
-np.random.seed(42)
+# Random number generator with a fixed seed, for reproducibility
+rng = np.random.default_rng(114)
 
 # =============================================================================
 # 1. Generate Sample Data
 # =============================================================================
 
-# Create 90 days of daily data
-dates = pd.date_range("2024-01-01", periods=90, freq="D")
+n_pretest_days = 45
+n_test_days = 45
+n_days = n_pretest_days + n_test_days
+
+# Create daily data
+dates = pd.date_range("2024-01-01", periods=n_days, freq="D")
 
 # Control group: baseline behavior
-control = np.random.normal(1000, 50, 90)
+control = rng.normal(1000, 50, n_days)
 
-# Test group: same as control in pretest, then 5% lift in test period
-test = control.copy()
-test[45:] = test[45:] * 1.05 + np.random.normal(0, 10, 45)  # 5% lift + noise
+# Test group: tracks control with noise, then 1% lift in test period
+test = control + rng.normal(0, 25, n_days)
+# Known only because the data is simulated; unknown in real experiments
+true_effect = 0.01 * test[n_pretest_days:].sum()
+test[n_pretest_days:] = test[n_pretest_days:] * 1.01  # 1% lift
 
 # Create DataFrame
 data = pd.DataFrame({"date": dates, "control_metric": control, "test_metric": test})
@@ -38,7 +42,7 @@ print("=" * 80)
 print("DATA SUMMARY")
 print("=" * 80)
 print(f"Total days: {len(data)}")
-print(f"Date range: {data['date'].min()} to {data['date'].max()}")
+print(f"Date range: {data['date'].min().date()} to {data['date'].max().date()}")
 print("\nFirst 5 rows:")
 print(data.head())
 print()
@@ -47,15 +51,13 @@ print()
 # 2. Initialize TBR Model
 # =============================================================================
 
-# Create model with 80% credibility level
-model = TBRAnalysis(
-    level=0.80, threshold=0.0  # 80% credible interval  # Test if effect > 0
-)
+# 80% credible intervals; posterior probability that the effect exceeds 0
+model = TBRAnalysis(level=0.80, threshold=0.0)
 
 print("=" * 80)
 print("MODEL CONFIGURATION")
 print("=" * 80)
-print(f"Credibility level: {model.level * 100:.0f}%")
+print(f"Credibility level: {model.level * 100:g}%")
 print(f"Threshold: {model.threshold}")
 print(f"Test end inclusive: {model.test_end_inclusive}")
 print()
@@ -65,15 +67,17 @@ print()
 # =============================================================================
 
 # Define time periods
-pretest_start = "2024-01-01"  # Day 1
-test_start = "2024-02-15"  # Day 45 (intervention starts)
-test_end = "2024-03-31"  # Day 90 (end of observation)
+pretest_start = pd.Timestamp("2024-01-01")  # First pretest day
+test_start = pd.Timestamp("2024-02-15")  # First test day (intervention starts)
+# test_end is exclusive by default, so the last test day is 2024-03-30
+test_end = pd.Timestamp("2024-03-31")
 
 print("=" * 80)
 print("FITTING MODEL")
 print("=" * 80)
-print(f"Pretest period: {pretest_start} to {test_start}")
-print(f"Test period: {test_start} to {test_end}")
+one_day = pd.Timedelta(days=1)
+print(f"Pretest period: {pretest_start.date()} to {(test_start - one_day).date()}")
+print(f"Test period: {test_start.date()} to {(test_end - one_day).date()}")
 print()
 
 # Fit model
@@ -88,8 +92,8 @@ model.fit(
 )
 
 print(f"Model fitted: {model.fitted_}")
-print(f"Pretest days: {model._fit_info['n_pretest']}")
-print(f"Test days: {model._fit_info['n_test']}")
+print(f"Pretest days: {(model.results_['period'] == 0).sum()}")
+print(f"Test days: {(model.results_['period'] == 1).sum()}")
 print()
 
 # =============================================================================
@@ -101,11 +105,16 @@ summary = model.summarize()
 print("=" * 80)
 print("ANALYSIS RESULTS")
 print("=" * 80)
-print(f"Treatment Effect: {summary.estimate:.2f}")
-print(f"Standard Error: {summary.se:.2f}")
-print(f"80% Credible Interval: [{summary.lower:.2f}, {summary.upper:.2f}]")
-print(f"Probability (effect > 0): {summary.prob:.3f}")
-print(f"Probability >= 0.95: {summary.meets_probability_threshold()}")
+print(f"Cumulative treatment effect: {summary.estimate:.2f}")
+print(f"Simulated true effect: {true_effect:.2f}")
+print(f"Standard error: {summary.se:.2f}")
+print(
+    f"{summary.level * 100:g}% credible interval: "
+    f"[{summary.lower:.2f}, {summary.upper:.2f}]"
+)
+print(f"Posterior probability (effect > {summary.threshold:g}): {summary.prob:.3f}")
+# The 0.95 cutoff is separate from the credibility level of the interval
+print(f"Posterior probability >= 0.95: {summary.meets_probability_threshold(0.95)}")
 print()
 
 # Regression parameters
@@ -123,29 +132,19 @@ print("=" * 80)
 print("SUBINTERVAL ANALYSIS")
 print("=" * 80)
 
-# Analyze first week
-week1 = model.analyze_subinterval(start_day=1, end_day=7)
-print("Week 1 (Days 1-7):")
-print(f"  Effect: {week1.estimate:.2f}")
-print(f"  CI: [{week1.lower:.2f}, {week1.upper:.2f}]")
-print(f"  Positive effect: {week1.is_positive()}")
-print()
-
-# Analyze second week
-week2 = model.analyze_subinterval(start_day=8, end_day=14)
-print("Week 2 (Days 8-14):")
-print(f"  Effect: {week2.estimate:.2f}")
-print(f"  CI: [{week2.lower:.2f}, {week2.upper:.2f}]")
-print(f"  Positive effect: {week2.is_positive()}")
-print()
-
-# Analyze last two weeks
-final_period = model.analyze_subinterval(start_day=32, end_day=45)
-print("Final Period (Days 32-45):")
-print(f"  Effect: {final_period.estimate:.2f}")
-print(f"  CI: [{final_period.lower:.2f}, {final_period.upper:.2f}]")
-print(f"  Positive effect: {final_period.is_positive()}")
-print()
+# Analyze consecutive 15-day windows of the test period
+window_length = 15
+for start_day in range(1, n_test_days + 1, window_length):
+    end_day = start_day + window_length - 1
+    window = model.analyze_subinterval(start_day=start_day, end_day=end_day)
+    print(f"Test days {start_day}-{end_day}:")
+    print(f"  Effect: {window.estimate:.2f}")
+    print(
+        f"  {window.ci_level * 100:g}% credible interval: "
+        f"[{window.lower:.2f}, {window.upper:.2f}]"
+    )
+    print(f"  Interval entirely positive: {window.is_positive()}")
+    print()
 
 # =============================================================================
 # 6. Generate Predictions
@@ -160,7 +159,7 @@ predictions = model.predict()
 
 print(f"Number of predictions: {predictions.n_predictions}")
 print(f"Mean prediction: {predictions.mean_pred:.2f}")
-print(f"Mean uncertainty: {predictions.mean_uncertainty:.2f}")
+print(f"Mean prediction standard deviation: {predictions.mean_uncertainty:.2f}")
 print()
 print("First 5 predictions:")
 print(predictions.predictions.head())

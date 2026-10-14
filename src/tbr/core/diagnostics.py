@@ -407,7 +407,7 @@ def calculate_goodness_of_fit(
     # Lazy import to minimize dependencies
     from scipy import stats
 
-    f_p_value = 1 - stats.f.cdf(f_statistic, df_reg, df_res) if f_statistic > 0 else 1.0
+    f_p_value = stats.f.sf(f_statistic, df_reg, df_res) if f_statistic > 0 else 1.0
 
     # Calculate error metrics
     mse = ss_res / n  # Mean squared error
@@ -626,7 +626,7 @@ def check_homoscedasticity(
     # Lazy import to minimize dependencies (reuse from earlier in function)
     from scipy import stats
 
-    p_value = 1 - stats.chi2.cdf(bp_statistic, df=1)
+    p_value = stats.chi2.sf(bp_statistic, df=1)
 
     # Determine homoscedasticity at α = 0.05
     is_homoscedastic = p_value > 0.05

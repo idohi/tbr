@@ -500,7 +500,6 @@ class TestPosteriorComparisonMathematical:
         result = compare_posterior_probabilities(scenarios)
 
         probs = result["probabilities"]
-        relative_strength = result["relative_strength"]
         ranking = result["ranking"]
 
         # Property 1: All probabilities should be in [0, 1]
@@ -508,17 +507,13 @@ class TestPosteriorComparisonMathematical:
             (np.array(probs) >= 0) & (np.array(probs) <= 1)
         ), "All probabilities must be in [0,1]"
 
-        # Property 2: Relative strengths should sum to 1
-        total_strength = sum(relative_strength)
-        assert abs(total_strength - 1.0) < 1e-14, "Relative strengths should sum to 1"
-
-        # Property 3: Rankings should be unique and in range [1, n]
+        # Property 2: Without ties, rankings are a permutation of 1, ..., n
         n_scenarios = len(scenarios)
         assert set(ranking) == set(
             range(1, n_scenarios + 1)
         ), "Rankings should be unique and complete"
 
-        # Property 4: Highest probability should have rank 1
+        # Property 3: Highest probability should have rank 1
         max_prob_idx = np.argmax(probs)
         assert ranking[max_prob_idx] == 1, "Highest probability should have rank 1"
 

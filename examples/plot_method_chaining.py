@@ -1,8 +1,6 @@
 """
 Method Chaining and Fluent API Example.
 
-========================================
-
 This example demonstrates the fluent API and method chaining capabilities
 of the TBR package, allowing for concise and readable analysis workflows.
 
@@ -14,12 +12,18 @@ import pandas as pd
 
 from tbr import TBRAnalysis
 
-np.random.seed(42)
+# Random number generator with a fixed seed, for reproducibility
+rng = np.random.default_rng(114)
 
 # Generate sample data
-dates = pd.date_range("2024-01-01", periods=90)
-control = np.random.normal(1000, 50, 90)
-test = control * 1.03 + np.random.normal(0, 10, 90)  # 3% lift
+n_pretest_days = 45
+n_test_days = 45
+n_days = n_pretest_days + n_test_days
+
+dates = pd.date_range("2024-01-01", periods=n_days)
+control = rng.normal(1000, 50, n_days)
+test = control + rng.normal(0, 25, n_days)
+test[n_pretest_days:] = test[n_pretest_days:] * 1.01  # 1% lift in the test period
 
 data = pd.DataFrame({"date": dates, "control": control, "test": test})
 
@@ -41,14 +45,19 @@ summary = TBRAnalysis().fit_summarize(
     "date",
     "control",
     "test",
-    pretest_start="2024-01-01",
-    test_start="2024-02-15",
-    test_end="2024-03-31",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-31"),
 )
 
-print(f"Effect: {summary.estimate:.2f}")
-print(f"CI: [{summary.lower:.2f}, {summary.upper:.2f}]")
-print(f"Probability >= 0.95: {summary.meets_probability_threshold()}")
+print(f"Cumulative effect: {summary.estimate:.2f}")
+print(
+    f"{summary.level * 100:g}% credible interval: "
+    f"[{summary.lower:.2f}, {summary.upper:.2f}]"
+)
+print(f"Posterior probability (effect > {summary.threshold:g}): {summary.prob:.3f}")
+# The 0.95 cutoff is separate from the credibility level of the interval
+print(f"Posterior probability >= 0.95: {summary.meets_probability_threshold(0.95)}")
 print()
 
 # =============================================================================
@@ -58,23 +67,33 @@ print()
 print("2. CONFIGURATION AND FIT CHAINING")
 print("-" * 40)
 
-# Chain configuration, fitting, and access
-final_effect = (
+# Chain configuration, fitting, and summary
+# prob is the posterior probability that the cumulative effect exceeds the
+# threshold (100 here, for illustration)
+configured_summary = (
     TBRAnalysis()
-    .set_params(level=0.90, threshold=5.0)
+    .set_params(level=0.90, threshold=100.0)
     .fit(
         data,
         "date",
         "control",
         "test",
-        pretest_start="2024-01-01",
-        test_start="2024-02-15",
-        test_end="2024-03-31",
+        pretest_start=pd.Timestamp("2024-01-01"),
+        test_start=pd.Timestamp("2024-02-15"),
+        test_end=pd.Timestamp("2024-03-31"),
     )
-    .final_effect
+    .summarize()
 )
 
-print(f"Final effect (90% CI, threshold=5.0): {final_effect:.2f}")
+print(f"Cumulative effect: {configured_summary.estimate:.2f}")
+print(
+    f"{configured_summary.level * 100:g}% credible interval: "
+    f"[{configured_summary.lower:.2f}, {configured_summary.upper:.2f}]"
+)
+print(
+    f"Posterior probability (effect > {configured_summary.threshold:g}): "
+    f"{configured_summary.prob:.3f}"
+)
 print()
 
 # =============================================================================
@@ -96,14 +115,17 @@ variant_summary = (
         "date",
         "control",
         "test",
-        pretest_start="2024-01-01",
-        test_start="2024-02-15",
-        test_end="2024-03-31",
+        pretest_start=pd.Timestamp("2024-01-01"),
+        test_start=pd.Timestamp("2024-02-15"),
+        test_end=pd.Timestamp("2024-03-31"),
     )
 )
 
-print(f"Variant (95% CI): {variant_summary.estimate:.2f}")
-print(f"CI: [{variant_summary.lower:.2f}, {variant_summary.upper:.2f}]")
+print(f"Variant cumulative effect: {variant_summary.estimate:.2f}")
+print(
+    f"{variant_summary.level * 100:g}% credible interval: "
+    f"[{variant_summary.lower:.2f}, {variant_summary.upper:.2f}]"
+)
 print()
 
 # =============================================================================
@@ -121,15 +143,15 @@ predictions = (
         "date",
         "control",
         "test",
-        pretest_start="2024-01-01",
-        test_start="2024-02-15",
-        test_end="2024-03-31",
+        pretest_start=pd.Timestamp("2024-01-01"),
+        test_start=pd.Timestamp("2024-02-15"),
+        test_end=pd.Timestamp("2024-03-31"),
     )
     .predict()
 )
 
 print(f"Mean prediction: {predictions.mean_pred:.2f}")
-print(f"Mean uncertainty: {predictions.mean_uncertainty:.2f}")
+print(f"Mean prediction standard deviation: {predictions.mean_uncertainty:.2f}")
 print()
 
 # =============================================================================
@@ -142,25 +164,34 @@ print("-" * 40)
 # Complete workflow with chaining
 model = (
     TBRAnalysis()
-    .set_params(level=0.90, threshold=0.0)
+    .set_params(level=0.90)
     .fit(
         data,
         "date",
         "control",
         "test",
-        pretest_start="2024-01-01",
-        test_start="2024-02-15",
-        test_end="2024-03-31",
+        pretest_start=pd.Timestamp("2024-01-01"),
+        test_start=pd.Timestamp("2024-02-15"),
+        test_end=pd.Timestamp("2024-03-31"),
     )
 )
 
 # Now access different results
 summary = model.summarize()
 predictions = model.predict()
-week1 = model.analyze_subinterval(1, 7)
+# analyze_subinterval() uses the model's level unless ci_level is given
+first_window = model.analyze_subinterval(1, 15)
 
-print(f"Overall effect: {summary.estimate:.2f}")
-print(f"Week 1 effect: {week1.estimate:.2f}")
+print(
+    f"Cumulative effect: {summary.estimate:.2f}, "
+    f"{summary.level * 100:g}% credible interval: "
+    f"[{summary.lower:.2f}, {summary.upper:.2f}]"
+)
+print(
+    f"Test days 1-15 effect: {first_window.estimate:.2f}, "
+    f"{first_window.ci_level * 100:g}% credible interval: "
+    f"[{first_window.lower:.2f}, {first_window.upper:.2f}]"
+)
 print(f"Mean prediction: {predictions.mean_pred:.2f}")
 print()
 
@@ -171,12 +202,14 @@ print()
 print("6. COMPARING MULTIPLE CONFIGURATIONS")
 print("-" * 40)
 
-# Compare different confidence levels
+# Compare different credibility levels
+# The level changes only the credible interval: the estimate is the same at
+# every level, and a higher level gives a wider interval.
 levels = [0.80, 0.90, 0.95, 0.99]
 results = []
 
 for level in levels:
-    effect = (
+    level_summary = (
         TBRAnalysis()
         .set_params(level=level)
         .fit_summarize(
@@ -184,23 +217,22 @@ for level in levels:
             "date",
             "control",
             "test",
-            pretest_start="2024-01-01",
-            test_start="2024-02-15",
-            test_end="2024-03-31",
+            pretest_start=pd.Timestamp("2024-01-01"),
+            test_start=pd.Timestamp("2024-02-15"),
+            test_end=pd.Timestamp("2024-03-31"),
         )
     )
     results.append(
         {
             "level": level,
-            "estimate": effect.estimate,
-            "lower": effect.lower,
-            "upper": effect.upper,
-            "probability_threshold_met": effect.meets_probability_threshold(),
+            "estimate": level_summary.estimate,
+            "lower": level_summary.lower,
+            "upper": level_summary.upper,
         }
     )
 
 comparison_df = pd.DataFrame(results)
-print(comparison_df.to_string(index=False))
+print(comparison_df.round(2).to_string(index=False))
 print()
 
 # =============================================================================
@@ -251,15 +283,21 @@ model = TBRAnalysis().fit(
     "date",
     "control",
     "test",
-    pretest_start="2024-01-01",
-    test_start="2024-02-15",
-    test_end="2024-03-31",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-31"),
 )
 
 # Access different properties
-print(f"Final effect: {model.final_effect:.2f}")
+# final_effect and final_summary cover the full test period
+final = model.final_summary  # Same result as model.summarize()
+print(f"Final cumulative effect: {model.final_effect:.2f}")
+print(
+    f"{final.level * 100:g}% credible interval: "
+    f"[{final.lower:.2f}, {final.upper:.2f}]"
+)
 print(f"Fitted: {model.fitted_}")
-print(f"Test days: {len(model.summaries_)}")
+print(f"Test days: {len(model.summaries_)}")  # summaries_ has one row per test day
 print()
 
 # =============================================================================
@@ -275,13 +313,13 @@ summary = TBRAnalysis().fit_summarize(
     "date",
     "control",
     "test",
-    pretest_start="2024-01-01",
-    test_start="2024-02-15",
-    test_end="2024-03-31",
+    pretest_start=pd.Timestamp("2024-01-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-03-31"),
 )
 summary.to_json("quick_analysis.json")
 
-print(f"Quick analysis: {summary.estimate:.2f} (saved to JSON)")
+print(f"Cumulative effect: {summary.estimate:.2f} (saved to quick_analysis.json)")
 print()
 
 print("=" * 80)

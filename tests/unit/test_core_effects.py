@@ -8,6 +8,7 @@ and backward compatibility with the functional implementation.
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from tbr.core.effects import (
     calculate_cumulative_standard_deviation,
@@ -338,6 +339,52 @@ class TestCreateTbrSummary:
             assert (
                 abs(core_val - func_val) < 1e-10
             ), f"Mismatch in {col}: {core_val} vs {func_val}"
+
+    @staticmethod
+    def _summary(cumdif, cumsd, threshold=0.0):
+        tbr_df = pd.DataFrame(
+            {"period": [0, 1], "cumdif": [np.nan, cumdif], "cumsd": [0.0, cumsd]}
+        )
+        return create_tbr_summary(
+            tbr_df,
+            alpha=50.0,
+            beta=0.95,
+            sigma=25.0,
+            var_alpha=100.0,
+            var_beta=0.001,
+            cov_alpha_beta=-0.05,
+            degrees_freedom=43,
+            level=0.80,
+            threshold=threshold,
+        )
+
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    @pytest.mark.parametrize(
+        "field, match",
+        [
+            ("cumdif", r"Final cumulative effect \(cumdif\) must be finite"),
+            ("cumsd", r"Final cumulative standard deviation \(cumsd\) must be finite"),
+            ("threshold", "Threshold must be finite"),
+        ],
+    )
+    def test_non_finite_inputs(self, field, match, value):
+        """Test that non-finite inputs raise instead of returning 1.0."""
+        kwargs = {"cumdif": 10.0, "cumsd": 3.0, "threshold": 0.0}
+        kwargs[field] = value
+        with pytest.raises(ValueError, match=match):
+            self._summary(**kwargs)
+
+    def test_negative_standard_error(self):
+        """Test that a negative standard error raises a ValueError."""
+        with pytest.raises(
+            ValueError, match=r"standard deviation \(cumsd\) must be non-negative"
+        ):
+            self._summary(cumdif=10.0, cumsd=-3.0)
+
+    def test_zero_standard_error(self):
+        """Test that a zero standard error gives a deterministic probability."""
+        assert self._summary(cumdif=10.0, cumsd=0.0)["prob"].iloc[0] == 1.0
+        assert self._summary(cumdif=-10.0, cumsd=0.0)["prob"].iloc[0] == 0.0
 
 
 class TestCreateIncrementalTbrSummaries:

@@ -30,6 +30,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `validate_subinterval_parameters`. An `end_day` beyond the last test day
   raises `ValueError` instead of silently using fewer days, and an empty
   `tbr_summary` raises a descriptive `ValueError` instead of `IndexError`.
+- The scripts in `examples/` failed because they passed time boundaries as
+  strings, where `pd.Timestamp` values are required, and
+  `plot_incremental_analysis.py` analyzed a 60th test day that its 59-day test
+  period did not have. Two used noise-free sample data and reported zero
+  uncertainty, and `plot_method_chaining.py` applied its simulated lift to the
+  pretest period too, so its data contained no treatment effect. The examples
+  now run, and a test executes each one.
+- The examples no longer suggest stopping a test early, claim that the
+  cumulative credible interval narrows over time (it widens), call credible
+  intervals confidence intervals, or label an interval entirely above zero as
+  significant. The credibility level and probability threshold in their output
+  now come from the fitted model and its results, and they print the simulated
+  true effect for comparison.
+- The Quick Start in `README.md` simulated a test group unrelated to the
+  control group and with no treatment effect, so its reported effect was
+  noise. `docs/api/quickstart.md` gave 2024-02-28 as the last test day instead
+  of 2024-02-29. Both now use the simulated data of `plot_basic_analysis.py`.
+- `docs/mathematical_methodology.md` stated that a statistically significant
+  F-statistic confirms that the linear relationship is meaningful. It now
+  states that it is evidence against a zero slope.
+- The RMSE formula in `docs/mathematical_methodology.md` divided by n - 2,
+  while the `rmse` reported by `calculate_goodness_of_fit` divides by n. The
+  document now gives the formula the package uses.
+- Upper-tail probabilities and p-values are computed with the survival
+  function (`sf`) instead of `1 - cdf`, which loses precision in the upper tail
+  and rounds probabilities below about 1e-16 to 0.
+- The `compare_posterior_probabilities` docstring example reported the first
+  scenario as the one with the strongest evidence; it now selects the scenario
+  ranked 1.
+- `calculate_p_value`, `calculate_posterior_probability`, `create_tbr_summary`,
+  and `compare_posterior_probabilities` returned a probability or p-value of
+  1.0 or 0.5 when an input was NaN, and accepted infinite inputs. They now
+  raise `ValueError` for non-finite inputs. `optimize_threshold_selection` now
+  raises the same error, instead of an error about optimization bounds.
+- `create_tbr_summary` returned a probability of 0.5 when the final cumulative
+  standard deviation was 0 or negative. It now returns 1 or 0 when it is 0, as
+  `calculate_posterior_probability` does, and raises `ValueError` when it is
+  negative.
 
 ### Changed
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes
@@ -61,6 +99,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `TBRSummaryResult.is_significant()` is renamed to
   `meets_probability_threshold()`. Behavior is unchanged: it returns whether
   `prob` is at least `probability_threshold`. It is not a hypothesis test.
+- `compare_posterior_probabilities` gives tied scenarios the same rank
+  (for example, 1, 1, 3); previously, ties were ranked in arbitrary order.
+
+### Removed
+- **Breaking:** `compare_posterior_probabilities` no longer returns
+  `relative_strength`. It divided each scenario's posterior probability by
+  their sum, which is neither a probability nor a measure of evidence, because
+  the scenarios' events are not mutually exclusive.
 
 ## [0.1.6] - 2026-07-20
 
