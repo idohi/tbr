@@ -10,13 +10,12 @@ Test Categories
 1. Posterior variance calculation tests
 2. Threshold sensitivity analysis tests
 3. Incremental posterior probability tests
-4. Threshold optimization tests
-5. Posterior probability comparison tests
-6. Assumption validation tests
-7. Input validation and error handling
-8. Mathematical property verification
-9. Edge case handling
-10. Integration with TBR workflow
+4. Posterior probability comparison tests
+5. Assumption validation tests
+6. Input validation and error handling
+7. Mathematical property verification
+8. Edge case handling
+9. Integration with TBR workflow
 
 Mathematical Validation
 -----------------------
@@ -31,7 +30,6 @@ from tbr.core.posterior import (
     calculate_incremental_posterior_probabilities,
     calculate_posterior_variance,
     compare_posterior_probabilities,
-    optimize_threshold_selection,
     perform_threshold_sensitivity_analysis,
     validate_posterior_assumptions,
 )
@@ -417,132 +415,6 @@ class TestCalculateIncrementalPosteriorProbabilities:
             )
 
 
-class TestOptimizeThresholdSelection:
-    """Test threshold optimization function."""
-
-    def test_basic_threshold_optimization(self):
-        """Test basic threshold optimization."""
-        estimate = 12.0
-        se = 3.0
-        df = 40
-
-        result = optimize_threshold_selection(estimate, se, df)
-
-        # Check structure
-        assert isinstance(result, dict)
-        required_keys = [
-            "optimal_threshold",
-            "max_utility",
-            "probability_at_optimal",
-            "confidence_width",
-        ]
-        assert all(key in result for key in required_keys)
-
-        # Check types
-        assert isinstance(result["optimal_threshold"], float)
-        assert isinstance(result["max_utility"], float)
-        assert isinstance(result["probability_at_optimal"], float)
-        assert isinstance(result["confidence_width"], float)
-
-        # Probability should be bounded
-        assert 0.0 <= result["probability_at_optimal"] <= 1.0
-
-        # Confidence width should be positive
-        assert result["confidence_width"] > 0
-
-    def test_different_utility_functions(self):
-        """Test different utility functions."""
-        estimate = 10.0
-        se = 2.0
-        df = 30
-
-        utilities = ["balanced", "conservative", "aggressive"]
-        results = {}
-
-        for utility in utilities:
-            results[utility] = optimize_threshold_selection(estimate, se, df, utility)
-
-        # Check that all utility functions produce valid results
-        for utility in utilities:
-            result = results[utility]
-
-            # All should produce valid optimization results
-            assert isinstance(result["optimal_threshold"], float)
-            assert isinstance(result["max_utility"], float)
-            assert 0.0 <= result["probability_at_optimal"] <= 1.0
-            assert result["confidence_width"] > 0
-
-            # Threshold should be reasonable (within 3 standard errors of estimate)
-            threshold = result["optimal_threshold"]
-            assert estimate - 3 * se <= threshold <= estimate + 3 * se
-
-    def test_threshold_range_specification(self):
-        """Test custom threshold range specification."""
-        estimate = 15.0
-        se = 4.0
-        df = 35
-        custom_range = (5.0, 25.0)
-
-        result = optimize_threshold_selection(
-            estimate, se, df, threshold_range=custom_range
-        )
-
-        # Optimal threshold should be within specified range
-        assert custom_range[0] <= result["optimal_threshold"] <= custom_range[1]
-
-    def test_extreme_scenarios(self):
-        """Test threshold optimization in extreme scenarios."""
-        # Very certain positive effect
-        result_certain = optimize_threshold_selection(
-            estimate=20.0, standard_error=1.0, degrees_freedom=50
-        )
-
-        # Very uncertain effect
-        result_uncertain = optimize_threshold_selection(
-            estimate=5.0, standard_error=10.0, degrees_freedom=20
-        )
-
-        # Certain case should have higher optimal threshold
-        assert (
-            result_certain["optimal_threshold"] > result_uncertain["optimal_threshold"]
-        )
-
-    def test_input_validation(self):
-        """Test input validation for threshold optimization."""
-        # Test invalid types
-        with pytest.raises(TypeError, match="estimate must be numeric"):
-            optimize_threshold_selection("10.0", 2.0, 30)
-
-        with pytest.raises(TypeError, match="standard_error must be numeric"):
-            optimize_threshold_selection(10.0, "2.0", 30)
-
-        with pytest.raises(TypeError, match="degrees_freedom must be integer"):
-            optimize_threshold_selection(10.0, 2.0, 30.5)
-
-        with pytest.raises(TypeError, match="utility_function must be string"):
-            optimize_threshold_selection(10.0, 2.0, 30, utility_function=123)
-
-        # Test invalid utility function
-        with pytest.raises(ValueError, match="utility_function must be"):
-            optimize_threshold_selection(10.0, 2.0, 30, utility_function="invalid")
-
-        # Test invalid parameters
-        with pytest.raises(ValueError, match="standard_error must be positive"):
-            optimize_threshold_selection(10.0, -1.0, 30)
-
-        with pytest.raises(ValueError, match="degrees_freedom must be positive"):
-            optimize_threshold_selection(10.0, 2.0, -5)
-
-    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
-    @pytest.mark.parametrize("name", ["estimate", "standard_error"])
-    def test_non_finite_inputs(self, name, value):
-        """Test that non-finite inputs raise a ValueError."""
-        kwargs = {"estimate": 10.0, "standard_error": 2.0, "degrees_freedom": 30}
-        kwargs[name] = value
-        with pytest.raises(ValueError, match=f"{name} must be finite"):
-            optimize_threshold_selection(**kwargs)
-
-
 class TestComparePosteriorProbabilities:
     """Test posterior probability comparison function."""
 
@@ -872,13 +744,9 @@ class TestIntegrationWithTBRWorkflow:
             estimates[-1], std_errors[-1], df, thresholds
         )
 
-        # 3. Optimize threshold
-        optimization = optimize_threshold_selection(estimates[-1], std_errors[-1], df)
-
-        # Verify all components work together
+        # Verify both components work together
         assert len(incremental["probabilities"]) == len(estimates)
         assert len(sensitivity["probabilities"]) == len(thresholds)
-        assert isinstance(optimization["optimal_threshold"], float)
 
         # Check consistency: final incremental probability should match
         # sensitivity analysis at threshold=0

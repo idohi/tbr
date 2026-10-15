@@ -10,13 +10,12 @@ Test Categories
 1. Posterior variance calculation mathematical validation
 2. Threshold sensitivity analysis mathematical validation
 3. Incremental posterior probabilities mathematical validation
-4. Bayesian threshold optimization mathematical validation
-5. Multi-scenario posterior comparison mathematical validation
-6. Posterior assumption validation mathematical validation
-7. Cross-validation with scipy.stats and inference module
-8. Statistical property verification
-9. Edge case mathematical behavior
-10. Numerical precision validation
+4. Multi-scenario posterior comparison mathematical validation
+5. Posterior assumption validation mathematical validation
+6. Cross-validation with scipy.stats and inference module
+7. Statistical property verification
+8. Edge case mathematical behavior
+9. Numerical precision validation
 
 Mathematical Validation
 -----------------------
@@ -29,7 +28,6 @@ scipy.stats and the basic inference module to ensure mathematical correctness. T
 - Statistical property preservation and relationships
 - Numerical stability and precision
 - Edge case behavior and boundary conditions
-- Bayesian decision theory implementations
 """
 
 import numpy as np
@@ -39,7 +37,6 @@ from tbr.core.posterior import (
     calculate_incremental_posterior_probabilities,
     calculate_posterior_variance,
     compare_posterior_probabilities,
-    optimize_threshold_selection,
     perform_threshold_sensitivity_analysis,
     validate_posterior_assumptions,
 )
@@ -351,98 +348,6 @@ class TestIncrementalPosteriorMathematical:
         assert len(result["probabilities"]) == len(estimates)
         assert len(result["probability_change"]) == len(estimates)
         assert len(result["day"]) == len(estimates)
-
-
-class TestThresholdOptimizationMathematical:
-    """Mathematical validation tests for Bayesian threshold optimization."""
-
-    def test_utility_function_properties(self):
-        """Test mathematical properties of utility functions."""
-        estimate = 12.0
-        se = 3.5
-        df = 45
-
-        # Test all utility functions
-        for utility_type in ["balanced", "conservative", "aggressive"]:
-            result = optimize_threshold_selection(estimate, se, df, utility_type)
-
-            # Property 1: Optimal threshold should be finite
-            assert np.isfinite(
-                result["optimal_threshold"]
-            ), f"Optimal threshold must be finite for {utility_type}"
-
-            # Property 2: Maximum utility should be finite
-            assert np.isfinite(
-                result["max_utility"]
-            ), f"Maximum utility must be finite for {utility_type}"
-
-            # Property 3: Probability at optimal should be in [0, 1]
-            prob = result["probability_at_optimal"]
-            assert (
-                0.0 <= prob <= 1.0
-            ), f"Probability must be in [0,1] for {utility_type}"
-
-            # Property 4: Confidence width should be positive
-            assert (
-                result["confidence_width"] > 0
-            ), f"Confidence width must be positive for {utility_type}"
-
-    def test_utility_function_differences(self):
-        """Test differences between utility functions."""
-        estimate = 15.0
-        se = 4.0
-        df = 50
-
-        balanced = optimize_threshold_selection(estimate, se, df, "balanced")
-        conservative = optimize_threshold_selection(estimate, se, df, "conservative")
-        aggressive = optimize_threshold_selection(estimate, se, df, "aggressive")
-
-        # Conservative should generally choose higher thresholds (more cautious)
-        # Aggressive should generally choose lower thresholds (less cautious)
-        # This relationship may not always hold, but should be true on average
-
-        # All should be different (unless by coincidence)
-        thresholds = [
-            balanced["optimal_threshold"],
-            conservative["optimal_threshold"],
-            aggressive["optimal_threshold"],
-        ]
-
-        # At least some should be different
-        assert (
-            len(set(np.round(thresholds, 6))) >= 2
-        ), "Different utility functions should yield different thresholds"
-
-    def test_threshold_range_effect(self):
-        """Test effect of threshold range on optimization."""
-        estimate = 10.0
-        se = 3.0
-        df = 40
-
-        # Default range
-        result_default = optimize_threshold_selection(estimate, se, df)
-
-        # Narrow range
-        result_narrow = optimize_threshold_selection(
-            estimate, se, df, threshold_range=(8.0, 12.0)
-        )
-
-        # Wide range
-        result_wide = optimize_threshold_selection(
-            estimate, se, df, threshold_range=(0.0, 20.0)
-        )
-
-        # Narrow range optimal should be within narrow bounds
-        assert (
-            8.0 <= result_narrow["optimal_threshold"] <= 12.0
-        ), "Optimal should be within specified range"
-
-        # All should be finite and reasonable
-        for result in [result_default, result_narrow, result_wide]:
-            assert np.isfinite(
-                result["optimal_threshold"]
-            ), "Optimal threshold must be finite"
-            assert np.isfinite(result["max_utility"]), "Maximum utility must be finite"
 
 
 class TestPosteriorComparisonMathematical:

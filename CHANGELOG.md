@@ -62,8 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `calculate_p_value`, `calculate_posterior_probability`, `create_tbr_summary`,
   and `compare_posterior_probabilities` returned a probability or p-value of
   1.0 or 0.5 when an input was NaN, and accepted infinite inputs. They now
-  raise `ValueError` for non-finite inputs. `optimize_threshold_selection` now
-  raises the same error, instead of an error about optimization bounds.
+  raise `ValueError` for non-finite inputs.
 - `create_tbr_summary` returned a probability of 0.5 when the final cumulative
   standard deviation was 0 or negative. It now returns 1 or 0 when it is 0, as
   `calculate_posterior_probability` does, and raises `ValueError` when it is
@@ -107,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `relative_strength`. It divided each scenario's posterior probability by
   their sum, which is neither a probability nor a measure of evidence, because
   the scenarios' events are not mutually exclusive.
+- **Breaking:** Removed `tbr.core.optimize_threshold_selection`. Its objectives
+  selected a boundary of the arbitrary search range rather than a statistically
+  meaningful optimum.
 
 ## [0.1.6] - 2026-07-20
 
