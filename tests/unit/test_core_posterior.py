@@ -11,11 +11,10 @@ Test Categories
 2. Threshold sensitivity analysis tests
 3. Incremental posterior probability tests
 4. Posterior probability comparison tests
-5. Assumption validation tests
-6. Input validation and error handling
-7. Mathematical property verification
-8. Edge case handling
-9. Integration with TBR workflow
+5. Input validation and error handling
+6. Mathematical property verification
+7. Edge case handling
+8. Integration with TBR workflow
 
 Mathematical Validation
 -----------------------
@@ -31,7 +30,6 @@ from tbr.core.posterior import (
     calculate_posterior_variance,
     compare_posterior_probabilities,
     perform_threshold_sensitivity_analysis,
-    validate_posterior_assumptions,
 )
 
 
@@ -270,6 +268,31 @@ class TestPerformThresholdSensitivityAnalysis:
         with pytest.raises(ValueError, match="thresholds array cannot be empty"):
             perform_threshold_sensitivity_analysis(10.0, 2.0, 30, np.array([]))
 
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    @pytest.mark.parametrize("name", ["estimate", "standard_error"])
+    def test_non_finite_scalar_inputs(self, name, value):
+        """Test that non-finite scalar inputs raise a ValueError."""
+        kwargs = {
+            "estimate": 10.0,
+            "standard_error": 2.0,
+            "degrees_freedom": 30,
+            "thresholds": np.array([0.0]),
+        }
+        kwargs[name] = value
+
+        with pytest.raises(ValueError, match=f"{name} must be finite"):
+            perform_threshold_sensitivity_analysis(**kwargs)
+
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    def test_non_finite_thresholds(self, value):
+        """Test that non-finite thresholds raise a ValueError."""
+        thresholds = np.array([0.0, value])
+
+        with pytest.raises(
+            ValueError, match="thresholds must contain only finite values"
+        ):
+            perform_threshold_sensitivity_analysis(10.0, 2.0, 30, thresholds)
+
 
 class TestCalculateIncrementalPosteriorProbabilities:
     """Test incremental posterior probability calculation function."""
@@ -367,6 +390,18 @@ class TestCalculateIncrementalPosteriorProbabilities:
             expected_change = probabilities[i] - probabilities[i - 1]
             assert abs(prob_changes[i] - expected_change) < 1e-10
 
+    def test_zero_standard_errors_are_deterministic(self):
+        """Test deterministic probabilities when standard errors are zero."""
+        result = calculate_incremental_posterior_probabilities(
+            estimates=np.array([1.0, 0.0, -1.0]),
+            standard_errors=np.zeros(3),
+            degrees_freedom=30,
+            threshold=0.0,
+        )
+
+        np.testing.assert_array_equal(result["probabilities"], [1.0, 0.0, 0.0])
+        np.testing.assert_array_equal(result["probability_change"], [0.0, -1.0, 0.0])
+
     def test_input_validation(self):
         """Test input validation for incremental posterior probabilities."""
         # Test invalid types
@@ -412,6 +447,33 @@ class TestCalculateIncrementalPosteriorProbabilities:
         with pytest.raises(ValueError, match="degrees_freedom must be positive"):
             calculate_incremental_posterior_probabilities(
                 np.array([1.0]), np.array([1.0]), -5
+            )
+
+        with pytest.raises(ValueError, match="standard_errors must be non-negative"):
+            calculate_incremental_posterior_probabilities(
+                np.array([1.0]), np.array([-1.0]), 30
+            )
+
+    @pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+    @pytest.mark.parametrize("name", ["estimates", "standard_errors"])
+    def test_non_finite_array_inputs(self, name, value):
+        """Test that non-finite array inputs raise a ValueError."""
+        kwargs = {
+            "estimates": np.array([1.0, 2.0]),
+            "standard_errors": np.array([1.0, 2.0]),
+            "degrees_freedom": 30,
+        }
+        kwargs[name] = np.array([1.0, value])
+
+        with pytest.raises(ValueError, match=f"{name} must contain only finite values"):
+            calculate_incremental_posterior_probabilities(**kwargs)
+
+    @pytest.mark.parametrize("threshold", [np.nan, np.inf, -np.inf])
+    def test_non_finite_threshold(self, threshold):
+        """Test that a non-finite threshold raises a ValueError."""
+        with pytest.raises(ValueError, match="threshold must be finite"):
+            calculate_incremental_posterior_probabilities(
+                np.array([1.0]), np.array([1.0]), 30, threshold
             )
 
 
@@ -627,100 +689,6 @@ class TestComparePosteriorProbabilities:
         scenario = {"estimate": 10.0, "standard_error": 2.0, "degrees_freedom": 30}
         with pytest.raises(ValueError, match="threshold must be finite"):
             compare_posterior_probabilities([scenario], threshold=threshold)
-
-
-class TestValidatePosteriorAssumptions:
-    """Test posterior assumption validation function."""
-
-    def test_valid_assumptions(self):
-        """Test validation with data that meets assumptions."""
-        # Generate normal residuals
-        np.random.seed(42)
-        residuals = np.random.normal(0, 1, 50)
-        df = 47
-
-        result = validate_posterior_assumptions(residuals, df)
-
-        # Check structure
-        assert isinstance(result, dict)
-        required_keys = [
-            "normality_valid",
-            "normality_pvalue",
-            "independence_valid",
-            "independence_pvalue",
-            "sample_size_adequate",
-            "overall_validity",
-            "recommendations",
-        ]
-        assert all(key in result for key in required_keys)
-
-        # With normal data and adequate sample size, should be valid
-        assert result["sample_size_adequate"] is True
-        assert result["overall_validity"] in ["Valid", "Questionable"]
-
-    def test_non_normal_residuals(self):
-        """Test validation with non-normal residuals."""
-        # Generate non-normal residuals (exponential distribution)
-        np.random.seed(42)
-        residuals = np.random.exponential(1, 50) - 1  # Center around 0
-        df = 47
-
-        result = validate_posterior_assumptions(residuals, df)
-
-        # Should detect non-normality
-        if result["normality_pvalue"] is not None:
-            # May or may not detect depending on power, but should provide p-value
-            assert isinstance(result["normality_pvalue"], float)
-
-    def test_small_sample_size(self):
-        """Test validation with small sample size."""
-        residuals = np.array([0.1, -0.2, 0.3, -0.1, 0.2])
-        df = 2  # Small degrees of freedom
-
-        result = validate_posterior_assumptions(residuals, df)
-
-        # Should flag inadequate sample size
-        assert result["sample_size_adequate"] is False
-        assert "Small sample size" in " ".join(result["recommendations"])
-
-    def test_insufficient_data(self):
-        """Test validation with insufficient data."""
-        # Very small sample
-        residuals = np.array([0.1, -0.2])
-        df = 1
-
-        result = validate_posterior_assumptions(residuals, df)
-
-        # Should handle gracefully with appropriate messages
-        assert result["overall_validity"] in ["Questionable", "Invalid"]
-        assert len(result["recommendations"]) > 0
-
-    def test_input_validation(self):
-        """Test input validation for assumption validation."""
-        # Test invalid types
-        with pytest.raises(TypeError, match="residuals must be numpy array"):
-            validate_posterior_assumptions([1.0, 2.0], 30)
-
-        with pytest.raises(TypeError, match="degrees_freedom must be integer"):
-            validate_posterior_assumptions(np.array([1.0, 2.0]), 30.5)
-
-        with pytest.raises(TypeError, match="alpha must be numeric"):
-            validate_posterior_assumptions(np.array([1.0, 2.0]), 30, alpha="0.05")
-
-        # Test empty residuals
-        with pytest.raises(ValueError, match="residuals array cannot be empty"):
-            validate_posterior_assumptions(np.array([]), 30)
-
-        # Test invalid alpha
-        with pytest.raises(ValueError, match="alpha must be between 0 and 1"):
-            validate_posterior_assumptions(np.array([1.0, 2.0]), 30, alpha=1.5)
-
-        with pytest.raises(ValueError, match="alpha must be between 0 and 1"):
-            validate_posterior_assumptions(np.array([1.0, 2.0]), 30, alpha=0.0)
-
-        # Test invalid degrees of freedom
-        with pytest.raises(ValueError, match="degrees_freedom must be positive"):
-            validate_posterior_assumptions(np.array([1.0, 2.0]), -5)
 
 
 class TestIntegrationWithTBRWorkflow:

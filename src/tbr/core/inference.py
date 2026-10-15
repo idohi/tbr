@@ -43,7 +43,10 @@ statistical methods:
 1. **T-statistic**: t = (θ̂ - θ₀) / SE(θ̂)
    where θ̂ is the estimate, θ₀ is the null value, SE is standard error
 
-2. **P-value**: P(T ≥ |t|) = 2 × [1 - F_t(|t|; df)]
+2. **P-value**:
+   - two-sided: 2 × P(T ≥ |t|) = 2 × [1 - F_t(|t|; df)]
+   - greater: P(T ≥ t) = 1 - F_t(t; df)
+   - less: P(T ≤ t) = F_t(t; df)
    where F_t is the cumulative t-distribution function
 
 3. **Credible Interval**: θ̂ ± t_α/2,df × SE(θ̂)
@@ -139,7 +142,9 @@ def calculate_t_statistic(
 
 
 def calculate_p_value(
-    t_statistic: float, degrees_freedom: int, two_tailed: bool = True
+    t_statistic: float,
+    degrees_freedom: int,
+    alternative: str = "two-sided",
 ) -> float:
     """
     Calculate p-value from t-statistic using t-distribution.
@@ -154,8 +159,9 @@ def calculate_p_value(
         The computed t-statistic
     degrees_freedom : int
         Degrees of freedom for the t-distribution
-    two_tailed : bool, default=True
-        Whether to compute two-tailed (True) or one-tailed (False) p-value
+    alternative : {"two-sided", "greater", "less"}, default="two-sided"
+        Alternative hypothesis. "greater" tests whether the parameter is
+        greater than its null value; "less" tests whether it is smaller.
 
     Returns
     -------
@@ -165,35 +171,39 @@ def calculate_p_value(
     Raises
     ------
     ValueError
-        If t_statistic is not finite or degrees_freedom is not positive
+        If t_statistic is not finite, degrees_freedom is not positive, or
+        alternative is not recognized
     TypeError
         If inputs have incorrect types
 
     Examples
     --------
-    >>> # Two-tailed p-value
+    >>> # Two-sided p-value
     >>> p_val = calculate_p_value(t_statistic=2.58, degrees_freedom=45)
-    >>> print(f"Two-tailed p-value: {p_val:.4f}")
-    Two-tailed p-value: 0.0132
+    >>> print(f"Two-sided p-value: {p_val:.4f}")
+    Two-sided p-value: 0.0132
 
-    >>> # One-tailed p-value
+    >>> # Pre-specified greater alternative
     >>> p_val = calculate_p_value(
-    ...     t_statistic=1.96, degrees_freedom=100, two_tailed=False
+    ...     t_statistic=1.96, degrees_freedom=100, alternative="greater"
     ... )
-    >>> print(f"One-tailed p-value: {p_val:.4f}")
-    One-tailed p-value: 0.0264
+    >>> print(f"Greater-alternative p-value: {p_val:.4f}")
+    Greater-alternative p-value: 0.0264
 
     Mathematical Formula
     --------------------
-    Two-tailed: P = 2 × [1 - F_t(|t|; df)]
-    One-tailed: P = 1 - F_t(t; df) for t > 0, F_t(t; df) for t < 0
+    Two-sided: P = 2 × [1 - F_t(|t|; df)]
+    Greater: P = 1 - F_t(t; df)
+    Less: P = F_t(t; df)
 
     where F_t is the cumulative t-distribution function.
 
     Notes
     -----
     Uses lazy import to minimize import overhead.
-    The p-value represents the probability of Type I error under the null hypothesis.
+    The p-value is the probability, under the null hypothesis, of obtaining a
+    test statistic at least as extreme in the direction specified by
+    ``alternative`` as the observed statistic.
     """
     # Lazy import to minimize overhead
     from scipy import stats
@@ -205,8 +215,14 @@ def calculate_p_value(
     if not isinstance(degrees_freedom, (int, np.integer)):
         raise TypeError(f"degrees_freedom must be integer, got {type(degrees_freedom)}")
 
-    if not isinstance(two_tailed, bool):
-        raise TypeError(f"two_tailed must be boolean, got {type(two_tailed)}")
+    if not isinstance(alternative, str):
+        raise TypeError(f"alternative must be string, got {type(alternative)}")
+
+    if alternative not in {"two-sided", "greater", "less"}:
+        raise ValueError(
+            "alternative must be 'two-sided', 'greater', or 'less', "
+            f"got '{alternative}'"
+        )
 
     if not math.isfinite(t_statistic):
         raise ValueError(f"t_statistic must be finite, got {t_statistic}")
@@ -215,15 +231,15 @@ def calculate_p_value(
         raise ValueError(f"degrees_freedom must be positive, got {degrees_freedom}")
 
     # Calculate p-value
-    if two_tailed:
-        # Two-tailed test: P(|T| >= |t|)
+    if alternative == "two-sided":
+        # Two-sided test: P(|T| >= |t|)
         p_value = 2 * stats.t.sf(abs(t_statistic), df=degrees_freedom)
+    elif alternative == "greater":
+        # Greater alternative: P(T >= t)
+        p_value = stats.t.sf(t_statistic, df=degrees_freedom)
     else:
-        # One-tailed test: P(T >= t) for positive t, P(T <= t) for negative t
-        if t_statistic >= 0:
-            p_value = stats.t.sf(t_statistic, df=degrees_freedom)
-        else:
-            p_value = stats.t.cdf(t_statistic, df=degrees_freedom)
+        # Less alternative: P(T <= t)
+        p_value = stats.t.cdf(t_statistic, df=degrees_freedom)
 
     return float(p_value)
 
