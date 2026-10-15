@@ -77,7 +77,6 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "calculate_posterior_variance",
             "perform_threshold_sensitivity_analysis",
             "calculate_incremental_posterior_probabilities",
-            "optimize_threshold_selection",
             "compare_posterior_probabilities",
             "validate_posterior_assumptions",
         ],

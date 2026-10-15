@@ -49,3 +49,12 @@ class TestCoreModuleImports:
         assert core_module.__doc__ is not None
         assert len(core_module.__doc__.strip()) > 0
         assert "TBR Core Modules" in core_module.__doc__
+
+    def test_removed_threshold_optimizer_is_not_available(self):
+        """Test that the unsupported threshold optimizer is not available."""
+        import tbr.core as core_module
+        from tbr.core import posterior
+
+        assert "optimize_threshold_selection" not in core_module.__all__
+        assert not hasattr(core_module, "optimize_threshold_selection")
+        assert not hasattr(posterior, "optimize_threshold_selection")

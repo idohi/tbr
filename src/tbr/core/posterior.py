@@ -10,7 +10,6 @@ The implementation builds upon the basic inference module to provide:
 - Advanced posterior variance calculations
 - Threshold sensitivity analysis
 - Incremental posterior probability tracking
-- Bayesian threshold optimization
 - Multi-scenario posterior comparisons
 - Posterior distribution validation
 
@@ -19,7 +18,6 @@ Key Features
 - Sophisticated threshold testing strategies
 - Multi-threshold sensitivity analysis
 - Time-series posterior probability evolution
-- Bayesian decision theory implementations
 - Posterior distribution characterization
 - Statistical validation
 
@@ -50,9 +48,6 @@ statistical methods:
 3. **Incremental Probabilities**: P(θₜ > τ | data₁:ₜ) for t = 1, 2, ..., T
    Time-series evolution of posterior beliefs
 
-4. **Optimal Threshold**: τ* = argmax U(τ, θ̂, SE(θ̂))
-   Bayesian decision-theoretic threshold selection
-
 Notes
 -----
 All functions use lazy imports to minimize import overhead. Functions integrate
@@ -62,7 +57,7 @@ See individual function documentation for detailed usage and examples.
 """
 
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Union
 
 import numpy as np
 
@@ -408,173 +403,6 @@ def calculate_incremental_posterior_probabilities(
         "standard_errors": standard_errors.copy(),
         "probabilities": probabilities,
         "probability_change": probability_change,
-    }
-
-
-def optimize_threshold_selection(
-    estimate: float,
-    standard_error: float,
-    degrees_freedom: int,
-    utility_function: str = "balanced",
-    threshold_range: Optional[Tuple[float, float]] = None,
-) -> Dict[str, float]:
-    """
-    Optimize threshold selection using Bayesian decision theory.
-
-    Finds the optimal threshold that maximizes expected utility given the
-    posterior distribution of the treatment effect. This enables principled
-    threshold selection based on decision-theoretic considerations rather
-    than arbitrary choices.
-
-    Parameters
-    ----------
-    estimate : float
-        Point estimate of the treatment effect
-    standard_error : float
-        Standard error of the estimate
-    degrees_freedom : int
-        Degrees of freedom for the t-distribution
-    utility_function : str, default="balanced"
-        Utility function type: "balanced", "conservative", "aggressive"
-    threshold_range : Tuple[float, float], optional
-        Range of thresholds to consider. If None, uses estimate ± 3*SE
-
-    Returns
-    -------
-    Dict[str, float]
-        Dictionary containing:
-        - 'optimal_threshold': Threshold that maximizes expected utility
-        - 'max_utility': Maximum expected utility value
-        - 'probability_at_optimal': Posterior probability at optimal threshold
-        - 'confidence_width': Width of high-confidence region
-
-    Raises
-    ------
-    ValueError
-        If estimate or standard_error is not finite, standard_error is not
-        positive, degrees_freedom is not positive, or utility_function is not
-        recognized
-    TypeError
-        If inputs have incorrect types
-
-    Examples
-    --------
-    >>> optimal = optimize_threshold_selection(
-    ...     estimate=12.5, standard_error=4.2, degrees_freedom=45,
-    ...     utility_function="balanced"
-    ... )
-    >>> print(f"Optimal threshold: {optimal['optimal_threshold']:.2f}")
-    Optimal threshold: -0.10
-
-    Utility Functions
-    -----------------
-    - "balanced": Equal weight to Type I and Type II errors
-    - "conservative": Higher penalty for false positives
-    - "aggressive": Higher penalty for false negatives
-
-    Mathematical Foundation
-    ----------------------
-    Expected Utility: EU(τ) = ∫ U(τ, θ) × p(θ | data) dθ
-
-    Where U(τ, θ) depends on the chosen utility function and represents
-    the decision-theoretic value of choosing threshold τ when true effect is θ.
-
-    Notes
-    -----
-    This function implements Bayesian decision theory for threshold selection,
-    providing principled alternatives to arbitrary threshold choices like 0.
-    The optimization considers both the posterior distribution and decision costs.
-    """
-    # Lazy import to minimize overhead
-    from scipy import optimize, stats
-
-    # Input validation
-    if not isinstance(estimate, (int, float, np.integer, np.floating)):
-        raise TypeError(f"estimate must be numeric, got {type(estimate)}")
-
-    if not isinstance(standard_error, (int, float, np.integer, np.floating)):
-        raise TypeError(f"standard_error must be numeric, got {type(standard_error)}")
-
-    if not isinstance(degrees_freedom, (int, np.integer)):
-        raise TypeError(f"degrees_freedom must be integer, got {type(degrees_freedom)}")
-
-    if not isinstance(utility_function, str):
-        raise TypeError(
-            f"utility_function must be string, got {type(utility_function)}"
-        )
-
-    if utility_function not in ["balanced", "conservative", "aggressive"]:
-        raise ValueError(
-            f"utility_function must be 'balanced', 'conservative', or 'aggressive', "
-            f"got '{utility_function}'"
-        )
-
-    for name, value in (("estimate", estimate), ("standard_error", standard_error)):
-        if not math.isfinite(value):
-            raise ValueError(f"{name} must be finite, got {value}")
-
-    if standard_error <= 0:
-        raise ValueError(f"standard_error must be positive, got {standard_error}")
-
-    if degrees_freedom <= 0:
-        raise ValueError(f"degrees_freedom must be positive, got {degrees_freedom}")
-
-    # Set threshold range if not provided
-    if threshold_range is None:
-        margin = 3 * standard_error
-        threshold_range = (estimate - margin, estimate + margin)
-
-    # Define utility functions
-    def balanced_utility(threshold: float) -> float:
-        """Balanced utility: equal weight to Type I and Type II errors."""
-        prob = stats.t.sf((threshold - estimate) / standard_error, df=degrees_freedom)
-        # Utility = probability of correct decision - probability of incorrect decision
-        return float(2 * prob - 1 if threshold <= estimate else 1 - 2 * prob)
-
-    def conservative_utility(threshold: float) -> float:
-        """Conservative utility: higher penalty for false positives."""
-        prob = stats.t.sf((threshold - estimate) / standard_error, df=degrees_freedom)
-        # Higher penalty for claiming effect when threshold is high
-        penalty_factor = 1.5 if threshold > estimate else 1.0
-        return float(prob - penalty_factor * (1 - prob))
-
-    def aggressive_utility(threshold: float) -> float:
-        """Aggressive utility: higher penalty for false negatives."""
-        prob = stats.t.sf((threshold - estimate) / standard_error, df=degrees_freedom)
-        # Higher penalty for missing effect when threshold is low
-        penalty_factor = 1.5 if threshold < estimate else 1.0
-        return float(penalty_factor * prob - (1 - prob))
-
-    # Select utility function
-    utility_map = {
-        "balanced": balanced_utility,
-        "conservative": conservative_utility,
-        "aggressive": aggressive_utility,
-    }
-    utility_func = utility_map[utility_function]
-
-    # Optimize threshold (minimize negative utility)
-    result = optimize.minimize_scalar(
-        lambda x: -utility_func(x), bounds=threshold_range, method="bounded"
-    )
-
-    optimal_threshold = result.x
-    max_utility = -result.fun
-
-    # Calculate additional metrics
-    prob_at_optimal = stats.t.sf(
-        (optimal_threshold - estimate) / standard_error, df=degrees_freedom
-    )
-
-    # Calculate confidence width (95% credible interval width)
-    t_critical = stats.t.ppf(0.975, df=degrees_freedom)
-    confidence_width = 2 * t_critical * standard_error
-
-    return {
-        "optimal_threshold": float(optimal_threshold),
-        "max_utility": float(max_utility),
-        "probability_at_optimal": float(prob_at_optimal),
-        "confidence_width": float(confidence_width),
     }
 
 
