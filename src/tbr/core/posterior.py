@@ -11,7 +11,6 @@ The implementation builds upon the basic inference module to provide:
 - Threshold sensitivity analysis
 - Incremental posterior probability tracking
 - Multi-scenario posterior comparisons
-- Posterior distribution validation
 
 Key Features
 ------------
@@ -19,7 +18,6 @@ Key Features
 - Multi-threshold sensitivity analysis
 - Time-series posterior probability evolution
 - Posterior distribution characterization
-- Statistical validation
 
 Examples
 --------
@@ -202,8 +200,9 @@ def perform_threshold_sensitivity_analysis(
     Raises
     ------
     ValueError
-        If standard_error is not positive, degrees_freedom is not positive,
-        or thresholds array is empty
+        If estimate, standard_error, or any threshold is not finite;
+        standard_error or degrees_freedom is not positive; or thresholds is
+        empty
     TypeError
         If inputs have incorrect types
 
@@ -247,6 +246,10 @@ def perform_threshold_sensitivity_analysis(
     if not isinstance(thresholds, np.ndarray):
         raise TypeError(f"thresholds must be numpy array, got {type(thresholds)}")
 
+    for name, value in (("estimate", estimate), ("standard_error", standard_error)):
+        if not math.isfinite(value):
+            raise ValueError(f"{name} must be finite, got {value}")
+
     if standard_error <= 0:
         raise ValueError(f"standard_error must be positive, got {standard_error}")
 
@@ -256,14 +259,14 @@ def perform_threshold_sensitivity_analysis(
     if len(thresholds) == 0:
         raise ValueError("thresholds array cannot be empty")
 
+    if not np.all(np.isfinite(thresholds)):
+        raise ValueError("thresholds must contain only finite values")
+
     # Calculate t-statistics for all thresholds
     t_statistics = (thresholds - estimate) / standard_error
 
     # Calculate posterior probabilities
     probabilities = stats.t.sf(t_statistics, df=degrees_freedom)
-
-    # Ensure probabilities are bounded
-    probabilities = np.clip(probabilities, 0.0, 1.0)
 
     # Calculate log odds ratios (avoiding division by zero)
     epsilon = 1e-15
@@ -320,7 +323,9 @@ def calculate_incremental_posterior_probabilities(
     Raises
     ------
     ValueError
-        If arrays have different lengths, are empty, or degrees_freedom is not positive
+        If arrays have different lengths, are empty, or contain non-finite
+        values; standard_errors contains a negative value; threshold is not
+        finite; or degrees_freedom is not positive
     TypeError
         If inputs have incorrect types
 
@@ -337,8 +342,11 @@ def calculate_incremental_posterior_probabilities(
 
     Mathematical Formula
     --------------------
-    For each day t:
+    For each day t with SE_t > 0:
     P(θₜ > threshold | data₁:ₜ) = 1 - F_t((threshold - estimate_t) / SE_t; df)
+
+    When SE_t = 0, the probability is 1 if estimate_t > threshold and 0
+    otherwise.
 
     Probability change: ΔP_t = P_t - P_{t-1}
 
@@ -378,17 +386,28 @@ def calculate_incremental_posterior_probabilities(
             f"{len(estimates)} vs {len(standard_errors)}"
         )
 
+    for name, values in (
+        ("estimates", estimates),
+        ("standard_errors", standard_errors),
+    ):
+        if not np.all(np.isfinite(values)):
+            raise ValueError(f"{name} must contain only finite values")
+
+    if not math.isfinite(threshold):
+        raise ValueError(f"threshold must be finite, got {threshold}")
+
+    if np.any(standard_errors < 0):
+        raise ValueError("standard_errors must be non-negative")
+
     if degrees_freedom <= 0:
         raise ValueError(f"degrees_freedom must be positive, got {degrees_freedom}")
 
-    # Calculate t-statistics for all time periods
-    t_statistics = (threshold - estimates) / standard_errors
-
-    # Calculate posterior probabilities
-    probabilities = stats.t.sf(t_statistics, df=degrees_freedom)
-
-    # Ensure probabilities are bounded
-    probabilities = np.clip(probabilities, 0.0, 1.0)
+    # Calculate posterior probabilities for uncertain and deterministic periods
+    probabilities = np.empty_like(estimates, dtype=float)
+    positive_se = standard_errors > 0
+    t_statistics = (threshold - estimates[positive_se]) / standard_errors[positive_se]
+    probabilities[positive_se] = stats.t.sf(t_statistics, df=degrees_freedom)
+    probabilities[~positive_se] = (estimates[~positive_se] > threshold).astype(float)
 
     # Calculate probability changes (difference from previous day)
     probability_change = np.zeros_like(probabilities)
@@ -531,167 +550,4 @@ def compare_posterior_probabilities(
         "scenario_names": scenario_names,
         "probabilities": probabilities.tolist(),
         "ranking": ranking.tolist(),
-    }
-
-
-def validate_posterior_assumptions(
-    residuals: np.ndarray,
-    degrees_freedom: int,
-    alpha: float = 0.05,
-) -> Dict[str, Union[bool, float, str, List[str], None]]:
-    """
-    Validate assumptions underlying posterior probability calculations.
-
-    Performs statistical tests to validate the assumptions required for
-    valid posterior probability calculations, including normality of residuals,
-    independence, and appropriate degrees of freedom. This ensures the
-    reliability of posterior probability estimates.
-
-    Parameters
-    ----------
-    residuals : np.ndarray
-        Array of regression residuals
-    degrees_freedom : int
-        Degrees of freedom used in posterior calculations
-    alpha : float, default=0.05
-        Significance level for statistical tests
-
-    Returns
-    -------
-    Dict[str, Union[bool, float, str]]
-        Dictionary containing:
-        - 'normality_valid': Whether normality assumption is satisfied
-        - 'normality_pvalue': P-value from Shapiro-Wilk test
-        - 'independence_valid': Whether independence assumption is satisfied
-        - 'independence_pvalue': P-value from Durbin-Watson test
-        - 'sample_size_adequate': Whether sample size is adequate
-        - 'overall_validity': Overall assessment ("Valid", "Questionable", "Invalid")
-        - 'recommendations': List of recommendations for improvement
-
-    Raises
-    ------
-    ValueError
-        If residuals array is empty, degrees_freedom is not positive,
-        or alpha is not between 0 and 1
-    TypeError
-        If inputs have incorrect types
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> residuals = np.random.normal(0, 1, 50)  # Simulated residuals
-    >>> validation = validate_posterior_assumptions(residuals, degrees_freedom=47)
-    >>> print(f"Overall validity: {validation['overall_validity']}")
-    Overall validity: Valid
-
-    Statistical Tests
-    -----------------
-    1. **Normality**: Shapiro-Wilk test for normal distribution of residuals
-    2. **Independence**: Durbin-Watson test for serial correlation
-    3. **Sample Size**: Check for adequate degrees of freedom (>= 30 preferred)
-
-    Notes
-    -----
-    This function provides diagnostic capabilities to ensure that posterior
-    probability calculations are based on valid statistical assumptions.
-    Violations may indicate need for robust methods or model adjustments.
-    """
-    # Lazy import to minimize overhead
-    from scipy import stats
-
-    # Input validation
-    if not isinstance(residuals, np.ndarray):
-        raise TypeError(f"residuals must be numpy array, got {type(residuals)}")
-
-    if not isinstance(degrees_freedom, (int, np.integer)):
-        raise TypeError(f"degrees_freedom must be integer, got {type(degrees_freedom)}")
-
-    if not isinstance(alpha, (int, float, np.integer, np.floating)):
-        raise TypeError(f"alpha must be numeric, got {type(alpha)}")
-
-    if len(residuals) == 0:
-        raise ValueError("residuals array cannot be empty")
-
-    if degrees_freedom <= 0:
-        raise ValueError(f"degrees_freedom must be positive, got {degrees_freedom}")
-
-    if not (0 < alpha < 1):
-        raise ValueError(f"alpha must be between 0 and 1, got {alpha}")
-
-    recommendations = []
-
-    # Test 1: Normality (Shapiro-Wilk test)
-    if len(residuals) >= 3:  # Minimum for Shapiro-Wilk
-        normality_stat, normality_pvalue = stats.shapiro(residuals)
-        normality_valid = normality_pvalue > alpha
-    else:
-        normality_pvalue = np.nan
-        normality_valid = False
-        recommendations.append("Insufficient data for normality test (n < 3)")
-
-    # Test 2: Independence (Durbin-Watson test approximation)
-    if len(residuals) >= 4:  # Minimum for meaningful autocorrelation test
-        # Calculate first-order autocorrelation
-        residuals_lag1 = residuals[1:]
-        residuals_lag0 = residuals[:-1]
-        correlation = np.corrcoef(residuals_lag0, residuals_lag1)[0, 1]
-
-        # Approximate Durbin-Watson statistic
-        dw_stat = 2 * (1 - correlation)
-
-        # Test for independence (DW should be around 2 for independence)
-        # Rough approximation: reject independence if DW < 1.5 or DW > 2.5
-        independence_valid = 1.5 <= dw_stat <= 2.5
-        independence_pvalue = 2 * min(
-            stats.norm.cdf((dw_stat - 2) / 0.5), stats.norm.sf((dw_stat - 2) / 0.5)
-        )
-    else:
-        dw_stat = np.nan
-        independence_pvalue = np.nan
-        independence_valid = False
-        recommendations.append("Insufficient data for independence test (n < 4)")
-
-    # Test 3: Sample size adequacy
-    sample_size_adequate = degrees_freedom >= 30
-    if not sample_size_adequate:
-        recommendations.append(
-            f"Small sample size (df={degrees_freedom}). "
-            f"Consider df >= 30 for reliable t-distribution approximation"
-        )
-
-    # Overall validity assessment
-    valid_tests = sum([normality_valid, independence_valid, sample_size_adequate])
-
-    if valid_tests == 3:
-        overall_validity = "Valid"
-    elif valid_tests >= 2:
-        overall_validity = "Questionable"
-    else:
-        overall_validity = "Invalid"
-
-    # Add specific recommendations
-    if not normality_valid and not np.isnan(normality_pvalue):
-        recommendations.append(
-            f"Residuals may not be normally distributed (p={normality_pvalue:.4f}). "
-            f"Consider robust methods or data transformation"
-        )
-
-    if not independence_valid and not np.isnan(independence_pvalue):
-        recommendations.append(
-            f"Residuals may be serially correlated (DW={dw_stat:.2f}). "
-            f"Consider time series methods or clustering"
-        )
-
-    return {
-        "normality_valid": bool(normality_valid),
-        "normality_pvalue": (
-            float(normality_pvalue) if not np.isnan(normality_pvalue) else None
-        ),
-        "independence_valid": bool(independence_valid),
-        "independence_pvalue": (
-            float(independence_pvalue) if not np.isnan(independence_pvalue) else None
-        ),
-        "sample_size_adequate": bool(sample_size_adequate),
-        "overall_validity": overall_validity,
-        "recommendations": recommendations,
     }

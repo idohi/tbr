@@ -11,11 +11,10 @@ Test Categories
 2. Threshold sensitivity analysis mathematical validation
 3. Incremental posterior probabilities mathematical validation
 4. Multi-scenario posterior comparison mathematical validation
-5. Posterior assumption validation mathematical validation
-6. Cross-validation with scipy.stats and inference module
-7. Statistical property verification
-8. Edge case mathematical behavior
-9. Numerical precision validation
+5. Cross-validation with scipy.stats and inference module
+6. Statistical property verification
+7. Edge case mathematical behavior
+8. Numerical precision validation
 
 Mathematical Validation
 -----------------------
@@ -38,7 +37,6 @@ from tbr.core.posterior import (
     calculate_posterior_variance,
     compare_posterior_probabilities,
     perform_threshold_sensitivity_analysis,
-    validate_posterior_assumptions,
 )
 
 
@@ -449,80 +447,6 @@ class TestPosteriorComparisonMathematical:
         expected_ranking[sorted_prob_indices] = np.arange(1, len(probs) + 1)
 
         np.testing.assert_array_equal(ranking, expected_ranking)
-
-
-class TestPosteriorAssumptionValidationMathematical:
-    """Mathematical validation tests for posterior assumption validation."""
-
-    def test_normality_test_properties(self):
-        """Test mathematical properties of normality testing."""
-        # Normal residuals (should pass)
-        np.random.seed(42)
-        normal_residuals = np.random.normal(0, 1, 50)
-
-        result_normal = validate_posterior_assumptions(normal_residuals, 47)
-
-        # Should generally pass normality test (p > 0.05)
-        assert isinstance(result_normal["normality_valid"], bool)
-        assert isinstance(result_normal["normality_pvalue"], (float, type(np.nan)))
-
-        # Non-normal residuals (should fail)
-        non_normal_residuals = np.random.exponential(2, 50) - 2  # Shifted exponential
-
-        result_non_normal = validate_posterior_assumptions(non_normal_residuals, 47)
-
-        # Should fail normality test (p < 0.05) - though this is stochastic
-        assert isinstance(result_non_normal["normality_valid"], bool)
-        assert isinstance(result_non_normal["normality_pvalue"], (float, type(np.nan)))
-
-    def test_sample_size_assessment(self):
-        """Test sample size adequacy assessment."""
-        # Small sample
-        small_residuals = np.random.normal(0, 1, 10)
-        result_small = validate_posterior_assumptions(small_residuals, 8)
-
-        # Large sample
-        large_residuals = np.random.normal(0, 1, 100)
-        result_large = validate_posterior_assumptions(large_residuals, 97)
-
-        # Sample size adequacy should be assessed correctly
-        assert isinstance(result_small["sample_size_adequate"], bool)
-        assert isinstance(result_large["sample_size_adequate"], bool)
-
-        # Large sample should generally be adequate
-        # (df >= 30 is preferred, but this is a guideline)
-
-    def test_overall_validity_assessment(self):
-        """Test overall validity assessment logic."""
-        # Good residuals
-        np.random.seed(123)
-        good_residuals = np.random.normal(0, 1, 60)
-
-        result = validate_posterior_assumptions(good_residuals, 57)
-
-        # Overall validity should be one of the expected values
-        assert result["overall_validity"] in ["Valid", "Questionable", "Invalid"]
-
-        # Recommendations should be a list
-        assert isinstance(result["recommendations"], list)
-
-    def test_edge_cases_validation(self):
-        """Test edge cases in validation."""
-        # Minimum sample size for Shapiro-Wilk
-        min_residuals = np.array([0.1, -0.1, 0.0])
-        result_min = validate_posterior_assumptions(min_residuals, 1)
-
-        # Should handle minimum case
-        assert isinstance(result_min["normality_valid"], bool)
-
-        # Very small sample (< 3)
-        tiny_residuals = np.array([0.1, -0.1])
-        result_tiny = validate_posterior_assumptions(tiny_residuals, 1)
-
-        # Should handle tiny sample appropriately
-        assert not result_tiny[
-            "normality_valid"
-        ]  # Should be False for insufficient data
 
 
 class TestPosteriorModuleIntegrationMathematical:

@@ -58,3 +58,12 @@ class TestCoreModuleImports:
         assert "optimize_threshold_selection" not in core_module.__all__
         assert not hasattr(core_module, "optimize_threshold_selection")
         assert not hasattr(posterior, "optimize_threshold_selection")
+
+    def test_removed_posterior_assumption_validator_is_not_available(self):
+        """Test that the unsupported assumption validator is not available."""
+        import tbr.core as core_module
+        from tbr.core import posterior
+
+        assert "validate_posterior_assumptions" not in core_module.__all__
+        assert not hasattr(core_module, "validate_posterior_assumptions")
+        assert not hasattr(posterior, "validate_posterior_assumptions")

@@ -106,40 +106,40 @@ class TestCalculateTStatistic:
 class TestCalculatePValue:
     """Test p-value calculation function."""
 
-    def test_two_tailed_p_value(self):
-        """Test two-tailed p-value calculation."""
+    def test_two_sided_p_value(self):
+        """Test two-sided p-value calculation."""
         # Test with known t-statistic and degrees of freedom
         t_stat = 2.0
         df = 20
 
         p_val = calculate_p_value(
-            t_statistic=t_stat, degrees_freedom=df, two_tailed=True
+            t_statistic=t_stat, degrees_freedom=df, alternative="two-sided"
         )
 
         # Cross-validate with scipy
         expected = 2 * stats.t.sf(abs(t_stat), df=df)
         assert abs(p_val - expected) < 1e-10
 
-    def test_one_tailed_p_value_positive(self):
-        """Test one-tailed p-value for positive t-statistic."""
-        t_stat = 1.5
+    @pytest.mark.parametrize("t_stat", [1.5, -1.5])
+    def test_greater_p_value(self, t_stat):
+        """Test p-value for a pre-specified greater alternative."""
         df = 25
 
         p_val = calculate_p_value(
-            t_statistic=t_stat, degrees_freedom=df, two_tailed=False
+            t_statistic=t_stat, degrees_freedom=df, alternative="greater"
         )
 
         # Cross-validate with scipy
         expected = stats.t.sf(t_stat, df=df)
         assert abs(p_val - expected) < 1e-10
 
-    def test_one_tailed_p_value_negative(self):
-        """Test one-tailed p-value for negative t-statistic."""
-        t_stat = -1.5
+    @pytest.mark.parametrize("t_stat", [1.5, -1.5])
+    def test_less_p_value(self, t_stat):
+        """Test p-value for a pre-specified less alternative."""
         df = 25
 
         p_val = calculate_p_value(
-            t_statistic=t_stat, degrees_freedom=df, two_tailed=False
+            t_statistic=t_stat, degrees_freedom=df, alternative="less"
         )
 
         # Cross-validate with scipy
@@ -160,11 +160,19 @@ class TestCalculatePValue:
 
     def test_zero_t_statistic(self):
         """Test p-value calculation with t-statistic of zero."""
-        p_val = calculate_p_value(t_statistic=0.0, degrees_freedom=20, two_tailed=True)
-        assert abs(p_val - 1.0) < 1e-10
+        two_sided = calculate_p_value(
+            t_statistic=0.0, degrees_freedom=20, alternative="two-sided"
+        )
+        greater = calculate_p_value(
+            t_statistic=0.0, degrees_freedom=20, alternative="greater"
+        )
+        less = calculate_p_value(
+            t_statistic=0.0, degrees_freedom=20, alternative="less"
+        )
 
-        p_val = calculate_p_value(t_statistic=0.0, degrees_freedom=20, two_tailed=False)
-        assert abs(p_val - 0.5) < 1e-10
+        assert abs(two_sided - 1.0) < 1e-10
+        assert abs(greater - 0.5) < 1e-10
+        assert abs(less - 0.5) < 1e-10
 
     def test_numpy_input_types(self):
         """Test p-value calculation with numpy input types."""
@@ -191,8 +199,13 @@ class TestCalculatePValue:
         with pytest.raises(TypeError, match="degrees_freedom must be integer"):
             calculate_p_value(t_statistic=2.0, degrees_freedom=20.5)
 
-        with pytest.raises(TypeError, match="two_tailed must be boolean"):
-            calculate_p_value(t_statistic=2.0, degrees_freedom=20, two_tailed="True")
+        with pytest.raises(TypeError, match="alternative must be string"):
+            calculate_p_value(t_statistic=2.0, degrees_freedom=20, alternative=True)
+
+        with pytest.raises(ValueError, match="alternative must be"):
+            calculate_p_value(
+                t_statistic=2.0, degrees_freedom=20, alternative="invalid"
+            )
 
     @pytest.mark.parametrize("t_statistic", [np.nan, np.inf, -np.inf])
     def test_non_finite_t_statistic(self, t_statistic):

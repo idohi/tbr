@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `compare_posterior_probabilities` returned a probability or p-value of
   1.0 or 0.5 when an input was NaN, and accepted infinite inputs. They now
   raise `ValueError` for non-finite inputs.
+- `perform_threshold_sensitivity_analysis` and
+  `calculate_incremental_posterior_probabilities` accepted non-finite inputs
+  and could return NaN probabilities. They now raise `ValueError`.
+  `calculate_incremental_posterior_probabilities` also rejects negative
+  standard errors and handles zero standard errors deterministically.
 - `create_tbr_summary` returned a probability of 0.5 when the final cumulative
   standard deviation was 0 or negative. It now returns 1 or 0 when it is 0, as
   `calculate_posterior_probability` does, and raises `ValueError` when it is
@@ -98,6 +103,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `TBRSummaryResult.is_significant()` is renamed to
   `meets_probability_threshold()`. Behavior is unchanged: it returns whether
   `prob` is at least `probability_threshold`. It is not a hypothesis test.
+- **Breaking:** `calculate_p_value` replaces `two_tailed` with
+  `alternative="two-sided"`, `"greater"`, or `"less"`. A one-sided direction
+  must now be specified before observing the statistic. The previous
+  `two_tailed=False` behavior selected the direction from the statistic's sign,
+  doubling the nominal false-positive rate under the symmetric t null.
 - `compare_posterior_probabilities` gives tied scenarios the same rank
   (for example, 1, 1, 3); previously, ties were ranked in arbitrary order.
 
@@ -109,6 +119,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** Removed `tbr.core.optimize_threshold_selection`. Its objectives
   selected a boundary of the arbitrary search range rather than a statistically
   meaningful optimum.
+- **Breaking:** Removed `tbr.core.validate_posterior_assumptions`. Its
+  independence p-value used a fixed scale of 0.5, matching its approximate
+  null standard deviation of 2/√n only when n = 16. Its unsupported overall
+  labels combined unrelated diagnostic checks into "Valid", "Questionable",
+  or "Invalid".
 
 ## [0.1.6] - 2026-07-20
 
