@@ -36,23 +36,20 @@ from tbr.core.results import (
     TBRSummaryResult,
 )
 
-rng = np.random.default_rng(11)
-dates = pd.date_range("2024-01-01", periods=50)
-control = rng.normal(100.0, 8.0, len(dates))
-test = (
-    4.0
-    + 1.1 * control
-    + rng.normal(0.0, 2.0, len(dates))
-    + np.where(dates >= pd.Timestamp("2024-02-05"), 3.0, 0.0)
-)
+rng = np.random.default_rng(114)
+dates = pd.date_range("2024-01-01", periods=90)
+control = rng.normal(1000.0, 50.0, len(dates))
+test = control + rng.normal(0.0, 25.0, len(dates))
+in_test_period = dates >= pd.Timestamp("2024-02-15")
+test[in_test_period] = test[in_test_period] * 1.01
 data = pd.DataFrame({"date": dates, "control": control, "test": test})
 boundaries = {
     "pretest_start": pd.Timestamp("2024-01-01"),
-    "test_start": pd.Timestamp("2024-02-05"),
-    "test_end": pd.Timestamp("2024-02-20"),
+    "test_start": pd.Timestamp("2024-02-15"),
+    "test_end": pd.Timestamp("2024-03-31"),
 }
 
-model = TBRAnalysis(level=0.90, threshold=0.0).fit(
+model = TBRAnalysis(level=0.80, threshold=0.0).fit(
     data, "date", "control", "test", **boundaries
 )
 summary = model.summarize()
@@ -63,7 +60,7 @@ results = perform_tbr_analysis(
     "date",
     "control",
     "test",
-    level=0.90,
+    level=0.80,
     threshold=0.0,
     **boundaries,
 )
