@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   control group and with no treatment effect, so its reported effect was
   noise. `docs/api/quickstart.md` gave 2024-02-28 as the last test day instead
   of 2024-02-29. Both now use the simulated data of `plot_basic_analysis.py`.
+- `docs/api/patterns.md` and `docs/api/results.md` used simulated effects that
+  produced posterior probabilities near 1. They now use the same 1% lift data
+  as the basic example. The patterns page also uses exact credibility-level
+  labels, reports pre-specified monitoring days instead of the first positive
+  interval, and covers the complete test period with its subinterval windows.
 - `docs/mathematical_methodology.md` stated that a statistically significant
   F-statistic confirms that the linear relationship is meaningful. It now
   states that it is evidence against a zero slope.

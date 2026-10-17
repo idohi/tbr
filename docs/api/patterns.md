@@ -15,19 +15,16 @@ import pandas as pd
 
 from tbr import TBRAnalysis
 
-rng = np.random.default_rng(7)
-dates = pd.date_range("2024-01-01", periods=75)
-control = rng.normal(500.0, 20.0, len(dates))
-test_start = pd.Timestamp("2024-03-01")
-test = (
-    15.0
-    + 0.98 * control
-    + rng.normal(0.0, 5.0, len(dates))
-    + np.where(dates >= test_start, 6.0, 0.0)
-)
+rng = np.random.default_rng(114)
+dates = pd.date_range("2024-01-01", periods=90)
+control = rng.normal(1000.0, 50.0, len(dates))
+test = control + rng.normal(0.0, 25.0, len(dates))
+test_start = pd.Timestamp("2024-02-15")
+in_test_period = dates >= test_start
+test[in_test_period] = test[in_test_period] * 1.01
 data = pd.DataFrame({"date": dates, "control": control, "test": test})
 
-model = TBRAnalysis(level=0.90, threshold=0.0)
+model = TBRAnalysis(level=0.80, threshold=0.0)
 model.fit(
     data,
     "date",
@@ -35,7 +32,7 @@ model.fit(
     "test",
     pretest_start=pd.Timestamp("2024-01-01"),
     test_start=test_start,
-    test_end=pd.Timestamp("2024-03-16"),
+    test_end=pd.Timestamp("2024-03-31"),
 )
 ```
 
@@ -57,8 +54,8 @@ integer_model = TBRAnalysis().fit(
     "control",
     "test",
     pretest_start=0,
-    test_start=60,
-    test_end=75,
+    test_start=45,
+    test_end=90,
 )
 
 float_data = data.assign(time=np.arange(len(data), dtype=float))
@@ -68,8 +65,8 @@ float_model = TBRAnalysis().fit(
     "control",
     "test",
     pretest_start=0.0,
-    test_start=60.0,
-    test_end=75.0,
+    test_start=45.0,
+    test_end=90.0,
 )
 ```
 
@@ -128,8 +125,8 @@ same_day = TBRAnalysis(test_end_inclusive=True).fit(
     "control",
     "test",
     pretest_start=pd.Timestamp("2024-01-01"),
-    test_start=pd.Timestamp("2024-03-01"),
-    test_end=pd.Timestamp("2024-03-01"),
+    test_start=pd.Timestamp("2024-02-15"),
+    test_end=pd.Timestamp("2024-02-15"),
 )
 ```
 
@@ -140,8 +137,8 @@ Refit after changing configuration because `set_params()` clears fitted state.
 ```python
 boundaries = {
     "pretest_start": pd.Timestamp("2024-01-01"),
-    "test_start": pd.Timestamp("2024-03-01"),
-    "test_end": pd.Timestamp("2024-03-16"),
+    "test_start": pd.Timestamp("2024-02-15"),
+    "test_end": pd.Timestamp("2024-03-31"),
 }
 
 comparison_rows = []
@@ -187,7 +184,7 @@ credibility level, interval, posterior probability, and threshold together.
 ```python
 print(
     f"Cumulative effect {summary.estimate:.2f}; "
-    f"{summary.level:.0%} credible interval "
+    f"{summary.level * 100:g}% credible interval "
     f"[{summary.lower:.2f}, {summary.upper:.2f}]; "
     f"P(effect > {summary.threshold:g} | data)={summary.prob:.3f}"
 )
@@ -201,9 +198,12 @@ credible-interval half-width.
 
 ```python
 incremental = model.summarize_incremental()
-first_positive = incremental.loc[incremental["lower"] > 0, "test_day"]
-if not first_positive.empty:
-    print(f"Interval first entirely positive on day {int(first_positive.iloc[0])}")
+monitoring_days = (1, 15, 30, 45)
+monitoring = incremental.loc[
+    incremental["test_day"].isin(monitoring_days),
+    ["test_day", "estimate", "lower", "upper", "prob"],
+]
+print(monitoring)
 ```
 
 Repeatedly examining the same evolving experiment can change operating
@@ -218,11 +218,12 @@ row. The returned `TBRSubintervalResult` reports the standard error as `se` and
 the credible-interval half-width as `precision`.
 
 ```python
-weekly_rows = []
-for start_day in (1, 8):
-    end_day = min(start_day + 6, len(model.summaries_))
+window_length = 15
+window_rows = []
+for start_day in range(1, len(model.summaries_) + 1, window_length):
+    end_day = start_day + window_length - 1
     interval = model.analyze_subinterval(start_day, end_day)
-    weekly_rows.append(
+    window_rows.append(
         {
             "start_day": interval.start_day,
             "end_day": interval.end_day,
@@ -234,7 +235,7 @@ for start_day in (1, 8):
         }
     )
 
-weekly = pd.DataFrame(weekly_rows)
+windows = pd.DataFrame(window_rows)
 ```
 
 Comparing point estimates across intervals is descriptive. It is not itself a
@@ -265,7 +266,7 @@ illustrative because they write files:
 summary.to_json("summary.json")
 summary.to_csv("summary.csv", index=False)
 prediction_result.to_csv("predictions.csv", index=False)
-model.analyze_subinterval(1, 7).to_json("week_1.json")
+model.analyze_subinterval(1, 15).to_json("days_1_15.json")
 ```
 
 For in-memory composition, use dictionaries and DataFrames:
@@ -274,7 +275,7 @@ For in-memory composition, use dictionaries and DataFrames:
 report = {
     "summary": summary.to_dict(),
     "predictions": prediction_result.to_dict(),
-    "first_week": model.analyze_subinterval(1, 7).to_dict(),
+    "first_window": model.analyze_subinterval(1, 15).to_dict(),
 }
 summary_frame = summary.to_dataframe()
 ```
