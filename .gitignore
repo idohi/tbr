@@ -71,6 +71,15 @@ instance/
 # Sphinx documentation
 docs/_build/
 docs/api/generated/
+docs/auto_examples/
+
+# Example output files
+tbr_summary.json
+tbr_summary.csv
+tbr_predictions.json
+quick_analysis.json
+incremental_summaries.csv
+window_analysis.csv
 
 # PyBuilder
 .pybuilder/

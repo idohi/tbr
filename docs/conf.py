@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import re
 import sys
 import warnings
 from datetime import datetime
@@ -67,10 +69,21 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
+    "sphinx_gallery.gen_gallery",
 ]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# Executable example gallery
+sphinx_gallery_conf = {
+    "examples_dirs": "../examples",
+    "gallery_dirs": "auto_examples",
+    "filename_pattern": rf"{re.escape(os.sep)}plot_",
+    "within_subsection_order": "ExampleTitleSortKey",
+    "abort_on_example_error": True,
+    "write_computation_times": False,
+}
 
 
 # MyST Markdown support
