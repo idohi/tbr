@@ -6,6 +6,7 @@ Examine how the estimated cumulative treatment effect evolves over a synthetic
 test period and compare non-overlapping subintervals.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -33,6 +34,7 @@ for days_into_test in range(n_test_days):
     ramp_factor = 1.0 + (0.02 * days_into_test / (n_test_days - 1))  # Ramp to 2%
     test[i] = test[i] * ramp_factor
 true_daily_effect = (test - no_effect)[n_pretest_days:]
+true_cumulative_effect = np.cumsum(true_daily_effect)
 
 data = pd.DataFrame({"date": dates, "control": control, "test": test})
 
@@ -91,6 +93,49 @@ for day in checkpoints:
 
 print()
 
+# %%
+# Cumulative effect over the test period
+# ---------------------------------------
+#
+# This retrospective plot summarizes the completed test period. Repeatedly
+# checking whether the interval excludes zero is not a valid sequential
+# stopping rule.
+cumulative_level = incremental["level"].iloc[0]
+cumulative_fig, cumulative_ax = plt.subplots(figsize=(9, 5))
+cumulative_ax.plot(
+    incremental["test_day"],
+    incremental["estimate"],
+    color="tab:blue",
+    linewidth=1.8,
+    label="Estimated cumulative effect",
+)
+cumulative_ax.fill_between(
+    incremental["test_day"],
+    incremental["lower"],
+    incremental["upper"],
+    color="tab:blue",
+    alpha=0.2,
+    label=f"{cumulative_level * 100:g}% credible interval",
+)
+cumulative_ax.plot(
+    incremental["test_day"],
+    true_cumulative_effect,
+    color="tab:orange",
+    linestyle="--",
+    linewidth=1.8,
+    label="Simulated true cumulative effect",
+)
+cumulative_ax.axhline(
+    0, color="black", linewidth=0.9, linestyle=":", label="Zero effect"
+)
+cumulative_ax.set(
+    title="Cumulative effect over the completed test period",
+    xlabel="Test day",
+    ylabel="Cumulative effect",
+)
+cumulative_ax.legend()
+cumulative_fig.tight_layout()
+
 # =============================================================================
 # 3. Subinterval Analysis in 15-Day Windows
 # =============================================================================
@@ -117,6 +162,7 @@ for start_day in range(1, n_test_days + 1, window_length):
             "interval_positive": result.is_positive(),
         }
     )
+subinterval_level = result.ci_level
 
 windows_df = pd.DataFrame(windows)
 print(
@@ -125,6 +171,48 @@ print(
 )
 print(windows_df.round(2).to_string(index=False))
 print()
+
+# %%
+# Effects in non-overlapping subintervals
+# ----------------------------------------
+#
+# Each point estimate covers a separate 15-day period. The asymmetric error
+# bars show that interval's credible limits; the crosses show the simulated
+# true effects, which are available only because these data were generated.
+window_positions = np.arange(len(windows_df))
+lower_errors = windows_df["effect"] - windows_df["lower"]
+upper_errors = windows_df["upper"] - windows_df["effect"]
+subinterval_fig, subinterval_ax = plt.subplots(figsize=(8, 5))
+subinterval_ax.errorbar(
+    window_positions,
+    windows_df["effect"],
+    yerr=np.vstack([lower_errors, upper_errors]),
+    color="tab:blue",
+    marker="o",
+    linestyle="none",
+    capsize=4,
+    label=f"Estimate and {subinterval_level * 100:g}% credible interval",
+)
+subinterval_ax.scatter(
+    window_positions,
+    windows_df["true_effect"],
+    color="tab:orange",
+    marker="x",
+    s=60,
+    label="Simulated true effect",
+)
+subinterval_ax.axhline(
+    0, color="black", linewidth=0.9, linestyle=":", label="Zero effect"
+)
+subinterval_ax.set(
+    title=f"Effects in non-overlapping {window_length}-day periods",
+    xlabel="Test days",
+    ylabel="Subinterval effect",
+    xticks=window_positions,
+    xticklabels=windows_df["test_days"],
+)
+subinterval_ax.legend()
+subinterval_fig.tight_layout()
 
 # =============================================================================
 # 4. Period Comparison

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added an executable Sphinx-Gallery for the three example workflows, with
   captured output and downloadable Python scripts and notebooks.
+- Added Matplotlib figures for counterfactual predictions, cumulative and
+  subinterval effects, and credible-interval precision.
 - `TBRSubintervalResult.precision`: the credible-interval half-width, matching
   `TBRSummaryResult.precision`. It follows `se` in `to_dict()`, `to_json()`,
   and `to_csv()`.
@@ -117,11 +119,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doubling the nominal false-positive rate under the symmetric t null.
 - `compare_posterior_probabilities` gives tied scenarios the same rank
   (for example, 1, 1, 3); previously, ties were ranked in arbitrary order.
+- **Breaking:** The `examples` optional dependency group now installs only
+  Matplotlib. Jupyter and Seaborn were removed because the examples do not use
+  them.
 
 ### Removed
-- **Breaking:** Removed the unused `examples` optional dependency group. The
-  current examples require only the package's runtime dependencies; gallery
-  build tooling is available through the `docs` extra.
 - **Breaking:** `compare_posterior_probabilities` no longer returns
   `relative_strength`. It divided each scenario's posterior probability by
   their sum, which is neither a probability nor a measure of evidence, because

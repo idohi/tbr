@@ -6,6 +6,7 @@ Run a complete time-based regression workflow using synthetic daily data with
 a known simulated treatment effect.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -186,6 +187,61 @@ print(
     ].head()
 )
 print()
+
+# %%
+# Observed series and counterfactual prediction
+# ----------------------------------------------
+#
+# The fitted values describe the observed pretest relationship. In the test
+# period, the same fitted relationship provides the no-treatment
+# counterfactual. The shaded region is plus or minus one prediction standard
+# deviation, not a credible interval.
+pretest_period = results_df[results_df["period"] == 0]
+prediction_fig, prediction_ax = plt.subplots(figsize=(10, 5))
+prediction_ax.plot(
+    results_df["date"],
+    results_df["test_metric"],
+    color="black",
+    linewidth=1.2,
+    label="Observed test group",
+)
+prediction_ax.plot(
+    pretest_period["date"],
+    pretest_period["pred"],
+    color="tab:blue",
+    linewidth=1.5,
+    label="Pretest fitted values",
+)
+prediction_ax.plot(
+    test_period["date"],
+    test_period["pred"],
+    color="tab:orange",
+    linewidth=1.5,
+    label="Test counterfactual prediction",
+)
+prediction_ax.fill_between(
+    test_period["date"],
+    test_period["pred"] - test_period["predsd"],
+    test_period["pred"] + test_period["predsd"],
+    color="tab:orange",
+    alpha=0.2,
+    label="±1 prediction SD",
+)
+prediction_ax.axvline(
+    test_start,
+    color="tab:red",
+    linestyle="--",
+    linewidth=1.2,
+    label="Intervention start",
+)
+prediction_ax.set(
+    title="Observed test group and no-treatment counterfactual",
+    xlabel="Date",
+    ylabel="Test metric",
+)
+prediction_ax.legend()
+prediction_fig.autofmt_xdate()
+prediction_fig.tight_layout()
 
 # =============================================================================
 # 8. Export Results
