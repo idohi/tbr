@@ -191,7 +191,7 @@ Marked as Beta to gather real-world feedback before v1.0 stable release.
 
 #### Core Functionality
 - **Functional API**: Complete `perform_tbr_analysis()` function with all TBR mathematical implementations
-- **OOP API**: `TBRAnalysis` class with sklearn-compatible interface (`fit()`, `predict()`, `get_params()`, `set_params()`)
+- **OOP API**: `TBRAnalysis` class with `fit()`, `predict()`, and scikit-learn-style parameter management through `get_params()` and `set_params()`
 - **Result Objects**: Dataclass-based result containers (`TBRSummaryResult`, `TBRPredictionResult`, `TBRSubintervalResult`)
 - **Export Utilities**: JSON and CSV export with full metadata preservation
 - **Method Chaining**: Fluent API patterns for streamlined workflows
