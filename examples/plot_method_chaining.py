@@ -6,6 +6,7 @@ Use the fluent ``TBRAnalysis`` API for configuration, fitting, prediction,
 copying, and result export.
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -223,10 +224,11 @@ for level in levels:
     )
     results.append(
         {
-            "level": level,
+            "level": level_summary.level,
             "estimate": level_summary.estimate,
             "lower": level_summary.lower,
             "upper": level_summary.upper,
+            "precision": level_summary.precision,
         }
     )
 
@@ -234,9 +236,32 @@ comparison_df = pd.DataFrame(results)
 print(comparison_df.round(2).to_string(index=False))
 print()
 
-# =============================================================================
-# 7. Parameter Inspection
-# =============================================================================
+# %%
+# Credible-interval precision by level
+# -------------------------------------
+#
+# Every fit uses the same data and therefore has the same point estimate.
+# Raising the credibility level increases coverage and the interval half-width,
+# which this package reports as ``precision``.
+precision_fig, precision_ax = plt.subplots(figsize=(8, 5))
+precision_ax.plot(
+    comparison_df["level"] * 100,
+    comparison_df["precision"],
+    color="tab:blue",
+    marker="o",
+    linewidth=1.8,
+)
+precision_ax.set(
+    title="Credible-interval half-width by credibility level",
+    xlabel="Credibility level (%)",
+    ylabel="Precision (credible-interval half-width)",
+    xticks=comparison_df["level"] * 100,
+)
+precision_fig.tight_layout()
+
+# %%
+# Parameter inspection
+# --------------------
 
 print("7. PARAMETER INSPECTION")
 print("-" * 40)
@@ -249,9 +274,9 @@ model.set_params(level=0.95)
 print("After update:", model.get_params())
 print()
 
-# =============================================================================
-# 8. Sklearn-Style Workflow
-# =============================================================================
+# %%
+# Scikit-learn-style parameter access
+# ------------------------------------
 
 print("8. SKLEARN-STYLE WORKFLOW")
 print("-" * 40)
@@ -269,9 +294,9 @@ print(f"Clone params: {estimator_clone.get_params()}")
 print(f"Original params (unchanged): {estimator.get_params()}")
 print()
 
-# =============================================================================
-# 9. Property Access Chaining
-# =============================================================================
+# %%
+# Property access chaining
+# ------------------------
 
 print("9. PROPERTY ACCESS CHAINING")
 print("-" * 40)
@@ -299,9 +324,9 @@ print(f"Fitted: {model.fitted_}")
 print(f"Test days: {len(model.summaries_)}")  # summaries_ has one row per test day
 print()
 
-# =============================================================================
-# 10. One-Liner with Export
-# =============================================================================
+# %%
+# One-liner with export
+# ---------------------
 
 print("10. ONE-LINER WITH EXPORT")
 print("-" * 40)
