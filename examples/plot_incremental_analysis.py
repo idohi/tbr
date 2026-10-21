@@ -136,9 +136,9 @@ cumulative_ax.set(
 cumulative_ax.legend()
 cumulative_fig.tight_layout()
 
-# =============================================================================
-# 3. Subinterval Analysis in 15-Day Windows
-# =============================================================================
+# %%
+# Subinterval analysis in 15-day windows
+# ---------------------------------------
 
 print("=" * 80)
 print(f"SUBINTERVAL ANALYSIS IN {window_length}-DAY WINDOWS")
@@ -214,9 +214,9 @@ subinterval_ax.set(
 subinterval_ax.legend()
 subinterval_fig.tight_layout()
 
-# =============================================================================
-# 4. Period Comparison
-# =============================================================================
+# %%
+# Period comparison
+# -----------------
 
 print("=" * 80)
 print("PERIOD COMPARISON")
@@ -244,9 +244,9 @@ for name, start, end in periods:
 
 print()
 
-# =============================================================================
-# 5. Cumulative Growth Analysis
-# =============================================================================
+# %%
+# Cumulative growth analysis
+# --------------------------
 
 print("=" * 80)
 print("CUMULATIVE GROWTH ANALYSIS")
@@ -265,9 +265,9 @@ for day in range(window_length, n_test_days + 1, window_length):
 
 print()
 
-# =============================================================================
-# 6. Credible Interval Width Over Time
-# =============================================================================
+# %%
+# Credible-interval width over time
+# ---------------------------------
 
 print("=" * 80)
 print("CREDIBLE INTERVAL WIDTH OVER TIME")
@@ -291,9 +291,9 @@ for day in checkpoints:
 
 print()
 
-# =============================================================================
-# 7. Incremental Summary Export
-# =============================================================================
+# %%
+# Export incremental results
+# --------------------------
 
 print("=" * 80)
 print("EXPORT INCREMENTAL RESULTS")

@@ -259,9 +259,9 @@ precision_ax.set(
 )
 precision_fig.tight_layout()
 
-# =============================================================================
-# 7. Parameter Inspection
-# =============================================================================
+# %%
+# Parameter inspection
+# --------------------
 
 print("7. PARAMETER INSPECTION")
 print("-" * 40)
@@ -274,9 +274,9 @@ model.set_params(level=0.95)
 print("After update:", model.get_params())
 print()
 
-# =============================================================================
-# 8. Sklearn-Style Workflow
-# =============================================================================
+# %%
+# Scikit-learn-style parameter access
+# ------------------------------------
 
 print("8. SKLEARN-STYLE WORKFLOW")
 print("-" * 40)
@@ -294,9 +294,9 @@ print(f"Clone params: {estimator_clone.get_params()}")
 print(f"Original params (unchanged): {estimator.get_params()}")
 print()
 
-# =============================================================================
-# 9. Property Access Chaining
-# =============================================================================
+# %%
+# Property access chaining
+# ------------------------
 
 print("9. PROPERTY ACCESS CHAINING")
 print("-" * 40)
@@ -324,9 +324,9 @@ print(f"Fitted: {model.fitted_}")
 print(f"Test days: {len(model.summaries_)}")  # summaries_ has one row per test day
 print()
 
-# =============================================================================
-# 10. One-Liner with Export
-# =============================================================================
+# %%
+# One-liner with export
+# ---------------------
 
 print("10. ONE-LINER WITH EXPORT")
 print("-" * 40)

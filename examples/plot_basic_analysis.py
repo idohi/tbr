@@ -243,9 +243,9 @@ prediction_ax.legend()
 prediction_fig.autofmt_xdate()
 prediction_fig.tight_layout()
 
-# =============================================================================
-# 8. Export Results
-# =============================================================================
+# %%
+# Export results
+# --------------
 
 print("=" * 80)
 print("EXPORT OPTIONS")
