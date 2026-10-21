@@ -77,11 +77,8 @@ docs = [
     "myst-parser>=2.0.0",
     "sphinxcontrib-bibtex>=2.5.0",
     "sphinx-autodoc-typehints>=1.25.0",
-]
-examples = [
-    "jupyter>=1.0.0",
-    "matplotlib~=3.7.0",
-    "seaborn~=0.12.0"
+    "sphinx-gallery>=0.16.0,<0.17.0;python_version<'3.9'",
+    "sphinx-gallery>=0.17.0;python_version>='3.9'",
 ]
 
 [project.urls]

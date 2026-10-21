@@ -42,7 +42,6 @@ Optional dependencies:
 ```bash
 pip install tbr[dev]       # Development tools
 pip install tbr[docs]      # Documentation tools
-pip install tbr[examples]  # Example dependencies
 ```
 
 ## Quick Start

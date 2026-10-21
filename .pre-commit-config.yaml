@@ -40,7 +40,14 @@ repos:
       - id: pydocstyle
         additional_dependencies: [toml]
         args: ["--convention=numpy", "--add-ignore=D104"]
-        exclude: ^tests/
+        # Sphinx-Gallery requires reStructuredText title docstrings that
+        # intentionally do not follow pydocstyle's D205 and D400 summary form.
+        exclude: ^(tests/|examples/plot_.*\.py$)
+      - id: pydocstyle
+        name: pydocstyle (Sphinx-Gallery examples)
+        additional_dependencies: [toml]
+        args: ["--convention=numpy", "--add-ignore=D104,D205,D400"]
+        files: ^examples/plot_.*\.py$
 
   # Docstring coverage validation (local: use project env so setuptools/pkg_resources available in CI)
   - repo: local

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added an executable Sphinx-Gallery for the three example workflows, with
+  captured output and downloadable Python scripts and notebooks.
 - `TBRSubintervalResult.precision`: the credible-interval half-width, matching
   `TBRSummaryResult.precision`. It follows `se` in `to_dict()`, `to_json()`,
   and `to_csv()`.
@@ -117,6 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (for example, 1, 1, 3); previously, ties were ranked in arbitrary order.
 
 ### Removed
+- **Breaking:** Removed the unused `examples` optional dependency group. The
+  current examples require only the package's runtime dependencies; gallery
+  build tooling is available through the `docs` extra.
 - **Breaking:** `compare_posterior_probabilities` no longer returns
   `relative_strength`. It divided each scenario's posterior probability by
   their sum, which is neither a probability nor a measure of evidence, because

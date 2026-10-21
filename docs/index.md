@@ -18,6 +18,7 @@ to Python names.
 api/quickstart
 api/patterns
 api/results
+auto_examples/index
 ```
 
 ```{toctree}

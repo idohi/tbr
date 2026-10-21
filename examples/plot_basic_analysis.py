@@ -1,10 +1,9 @@
 """
-Basic TBR Analysis Example.
+Basic TBR Analysis
+==================
 
-This example demonstrates a basic time-based regression analysis workflow.
-
-Use Case: Measuring the impact of any treatment/intervention on a metric over time.
-Domain: Universal (applies to marketing, medical, economic, or any other domain)
+Run a complete time-based regression workflow using synthetic daily data with
+a known simulated treatment effect.
 """
 
 import numpy as np

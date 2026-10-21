@@ -1,11 +1,9 @@
 """
-Incremental Analysis Example.
+Incremental TBR Analysis
+========================
 
-This example demonstrates how to analyze the progression of treatment effects
-over time using incremental summaries and subinterval analysis.
-
-Use Case: Examining how the estimated effect evolves over the test period and
-         tracking cumulative impact over time.
+Examine how the estimated cumulative treatment effect evolves over a synthetic
+test period and compare non-overlapping subintervals.
 """
 
 import numpy as np

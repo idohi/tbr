@@ -1,10 +1,9 @@
 """
-Method Chaining and Fluent API Example.
+Method Chaining
+===============
 
-This example demonstrates the fluent API and method chaining capabilities
-of the TBR package, allowing for concise and readable analysis workflows.
-
-Use Case: Quick analysis, configuration comparison, and one-liner workflows.
+Use the fluent ``TBRAnalysis`` API for configuration, fitting, prediction,
+copying, and result export.
 """
 
 import numpy as np
