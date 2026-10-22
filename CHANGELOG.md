@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   negative.
 
 ### Changed
+- **Breaking:** Declared Python support is now limited to the tested Python
+  3.8-3.11 range. `Requires-Python` now enforces `>=3.8,<3.12`; the unverified
+  Python 3.12 classifier, Tox environment, Black target, and current README
+  claims were removed because the existing scientific dependency constraints
+  do not install successfully on Python 3.12.
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes
   `(x_values, sigma, var_alpha, var_beta, cov_alpha_beta)` instead of
   `(estsd_values, n_days, sigma)`, and returns the corrected posterior variance.
