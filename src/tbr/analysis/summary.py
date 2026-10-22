@@ -173,7 +173,7 @@ def create_tbr_summary(
     True
     >>> set(summary.dtypes.astype(str)) == {"float64"}
     True
-    >>> summary["estimate"].iloc[0] == 8.0
+    >>> bool(summary["estimate"].iloc[0] == 8.0)
     True
     >>> print(f"Effect estimate: {summary['estimate'].iloc[0]:.2f}")
     >>> print(

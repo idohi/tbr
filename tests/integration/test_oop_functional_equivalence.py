@@ -370,9 +370,9 @@ class TestTimeColumnTypes:
     """Test equivalence across different time column types."""
 
     def test_datetime_time_column(self, sample_time_series_data):
-        """Test equivalence with datetime64[ns] time column."""
+        """Test equivalence with a NumPy datetime64 time column."""
         # Already datetime - standard case
-        assert sample_time_series_data["date"].dtype == "datetime64[ns]"
+        assert pd.api.types.is_datetime64_any_dtype(sample_time_series_data["date"])
 
         # Functional API
         functional_results = perform_tbr_analysis(

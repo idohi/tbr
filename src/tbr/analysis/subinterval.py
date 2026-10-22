@@ -203,9 +203,9 @@ def compute_interval_estimate_and_ci(
     ... )
     >>> list(result) == ["estimate", "se", "precision", "lower", "upper"]
     True
-    >>> result["estimate"] == 12.0
+    >>> bool(result["estimate"] == 12.0)
     True
-    >>> abs(result["precision"] - (result["upper"] - result["lower"]) / 2) < 1e-12
+    >>> bool(abs(result["precision"] - (result["upper"] - result["lower"]) / 2) < 1e-12)
     True
     >>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
     >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")

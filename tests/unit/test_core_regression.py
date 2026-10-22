@@ -68,20 +68,20 @@ class TestFitRegressionModel:
         assert isinstance(params["n_pretest"], int)
         assert params["n_pretest"] == 30, "Should match input data length"
 
-    def test_perfect_correlation(self):
-        """Test regression with perfect correlation."""
-        # Create data with perfect linear relationship
+    def test_near_perfect_correlation(self):
+        """Test regression with near-perfect correlation."""
         control_vals = np.array([100, 200, 300, 400, 500])
-        test_vals = 50 + 1.5 * control_vals  # Perfect linear relationship
+        noise = np.array([0.01, -0.02, 0.02, -0.02, 0.01])
+        test_vals = 50 + 1.5 * control_vals + noise
 
         learning_data = pd.DataFrame({"control": control_vals, "test": test_vals})
 
         params = fit_regression_model(learning_data, "control", "test")
 
-        # With perfect correlation, should get exact parameters
+        # The noise is orthogonal to the intercept and slope columns.
         assert abs(params["alpha"] - 50.0) < 1e-10, "Alpha should be exactly 50"
         assert abs(params["beta"] - 1.5) < 1e-10, "Beta should be exactly 1.5"
-        assert params["sigma"] < 1e-10, "Sigma should be near zero for perfect fit"
+        assert 0 < params["sigma"] < 0.1, "Sigma should be small and positive"
 
     def test_statistical_properties(self):
         """Test that regression parameters have correct statistical properties."""

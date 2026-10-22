@@ -530,13 +530,14 @@ class TestInferenceModuleIntegrationMathematical:
         # Calculate 95% credible interval
         ci = calculate_credible_interval(est, se, df, conf)
 
-        # Posterior probability that effect > lower bound should be > 0.975
+        # The equal-tailed 95% interval leaves exactly 2.5% in each tail.
+        # Older SciPy versions differ by about 4e-11 when composing the
+        # Student's t quantile and tail functions.
         prob_lower = calculate_posterior_probability(est, se, df, ci["lower"])
-        assert prob_lower > 0.975, "P(θ > lower_bound) should be > 97.5% for 95% CI"
+        np.testing.assert_allclose(prob_lower, 0.975, rtol=0.0, atol=1e-10)
 
-        # Posterior probability that effect > upper bound should be < 0.025
         prob_upper = calculate_posterior_probability(est, se, df, ci["upper"])
-        assert prob_upper < 0.025, "P(θ > upper_bound) should be < 2.5% for 95% CI"
+        np.testing.assert_allclose(prob_upper, 0.025, rtol=0.0, atol=1e-10)
 
     def test_numerical_stability_across_functions(self):
         """Test numerical stability across all inference functions."""
