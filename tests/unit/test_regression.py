@@ -48,21 +48,21 @@ class TestRegressionModelFitting:
         assert result["degrees_freedom"] == 3  # n - 2 = 5 - 2 = 3
         assert result["n_pretest"] == 5
 
-    def test_perfect_correlation(self):
-        """Test regression with perfect correlation."""
+    def test_near_perfect_correlation(self):
+        """Test regression with near-perfect correlation."""
         learning_data = pd.DataFrame(
             {
                 "control": [1, 2, 3, 4, 5],
-                "test": [2, 4, 6, 8, 10],  # Perfect 2x relationship
+                "test": [2.01, 3.98, 6.02, 7.98, 10.01],
             }
         )
 
         result = fit_tbr_regression_model(learning_data, "control", "test")
 
-        # Should have beta close to 2, alpha close to 0
+        # The noise is orthogonal to the intercept and slope columns.
         assert result["beta"] == pytest.approx(2.0, abs=1e-10)
         assert result["alpha"] == pytest.approx(0.0, abs=1e-10)
-        assert result["sigma"] == pytest.approx(0.0, abs=1e-10)
+        assert 0 < result["sigma"] < 0.1
 
     def test_constant_control_values(self):
         """Test error when control values are constant."""

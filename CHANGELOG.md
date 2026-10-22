@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Added verified Python 3.12 support to package metadata, Tox, CI, release
+  validation, Black targets, and the README. Python 3.12 installs use tested
+  lower bounds for NumPy, pandas, SciPy, and statsmodels without precautionary
+  upper caps.
 - Added an executable Sphinx-Gallery for the three example workflows, with
   captured output and downloadable Python scripts and notebooks.
 - Added Matplotlib figures for counterfactual predictions, cumulative and
@@ -83,11 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   negative.
 
 ### Changed
-- **Breaking:** Declared Python support is now limited to the tested Python
-  3.8-3.11 range. `Requires-Python` now enforces `>=3.8,<3.12`; the unverified
-  Python 3.12 classifier, Tox environment, Black target, and current README
-  claims were removed because the existing scientific dependency constraints
-  do not install successfully on Python 3.12.
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes
   `(x_values, sigma, var_alpha, var_beta, cov_alpha_beta)` instead of
   `(estsd_values, n_days, sigma)`, and returns the corrected posterior variance.

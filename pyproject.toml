@@ -35,21 +35,26 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed"
 ]
-requires-python = ">=3.8,<3.12"
+requires-python = ">=3.8"
 dependencies = [
     "pandas>=1.5.0,<2.0.0;python_version<'3.9'",
-    "pandas~=2.0.0;python_version>='3.9'",
+    "pandas~=2.0.0;python_version>='3.9' and python_version<'3.12'",
+    "pandas>=2.1.1;python_version>='3.12'",
     "numpy>=1.21.0,<1.25.0;python_version<'3.9'",
-    "numpy~=1.24.0;python_version>='3.9'",
+    "numpy~=1.24.0;python_version>='3.9' and python_version<'3.12'",
+    "numpy>=1.26.0;python_version>='3.12'",
     "scipy>=1.9.0,<1.11.0;python_version<'3.9'",
-    "scipy~=1.10.0;python_version>='3.9'",
+    "scipy~=1.10.0;python_version>='3.9' and python_version<'3.12'",
+    "scipy>=1.11.2;python_version>='3.12'",
     "statsmodels>=0.13.0,<0.15.0;python_version<'3.9'",
-    "statsmodels~=0.14.0;python_version>='3.9'",
+    "statsmodels~=0.14.0;python_version>='3.9' and python_version<'3.12'",
+    "statsmodels>=0.14.0;python_version>='3.12'",
     "lazy_loader>=0.1",
     "psutil>=5.9.0"
 ]
@@ -101,7 +106,7 @@ tbr = ["py.typed"]
 # Black configuration
 [tool.black]
 line-length = 88
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

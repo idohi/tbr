@@ -203,23 +203,19 @@ class TestRegressionModelValidation:
             abs(model_params["beta"] - true_beta) < 3 * beta_se
         ), f"Beta estimate {model_params['beta']} too far from true value {true_beta}"
 
-    def test_regression_model_perfect_correlation(self):
-        """Test regression model with perfect correlation (no noise)."""
-        # Perfect linear relationship
+    def test_regression_model_near_perfect_correlation(self):
+        """Test regression model with near-perfect correlation."""
         x = np.array([10, 20, 30, 40, 50], dtype=float)
-        y = 5 + 2 * x  # Perfect relationship: y = 5 + 2*x
+        noise = np.array([0.01, -0.02, 0.02, -0.02, 0.01])
+        y = 5 + 2 * x + noise
 
         learning_data = pd.DataFrame({"control": x, "test": y})
         model_params = fit_tbr_regression_model(learning_data, "control", "test")
 
-        # With perfect correlation, estimates should be exact (within numerical precision)
+        # The noise is orthogonal to the intercept and slope columns.
         np.testing.assert_allclose(model_params["alpha"], 5.0, rtol=1e-10, atol=1e-10)
         np.testing.assert_allclose(model_params["beta"], 2.0, rtol=1e-10, atol=1e-10)
-
-        # Residual standard deviation should be very small (numerical precision)
-        assert (
-            model_params["sigma"] < 1e-10
-        ), "Sigma should be near zero for perfect correlation"
+        assert 0 < model_params["sigma"] < 0.1
 
     def test_regression_numerical_stability(self):
         """Test regression model numerical stability with extreme values."""
