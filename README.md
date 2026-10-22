@@ -4,7 +4,7 @@
 [![Build Status](https://github.com/idohi/tbr/workflows/CI/badge.svg)](https://github.com/idohi/tbr/actions)
 [![Documentation Status](https://readthedocs.org/projects/tbr/badge/?version=latest)](https://tbr.readthedocs.io/en/latest/?badge=latest)
 [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/idohi/tbr/actions)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.8-3.11](https://img.shields.io/badge/python-3.8--3.11-blue.svg)](https://www.python.org/downloads/)
 [![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Development Status](https://img.shields.io/badge/status-beta-yellow.svg)](https://pypi.org/project/tbr/)
@@ -19,7 +19,7 @@ A comprehensive Python package for Time-Based Regression (TBR) analysis. TBR com
 - Intuitive, type-safe API interfaces
 - Export utilities (JSON, CSV)
 - Performance validated (linear O(n) scalability)
-- Cross-platform support (Python 3.8-3.12)
+- Cross-platform support (Python 3.8-3.11)
 
 **Why Beta?** While comprehensively tested, we're gathering real-world feedback before declaring v1.0 stable. We encourage production use and welcome your feedback!
 
@@ -119,11 +119,10 @@ Python parameters, result fields, and DataFrame columns.
 
 ## Version Compatibility
 
-- **Python**: 3.8+ (tested on 3.8, 3.9, 3.10, 3.11, 3.12)
-- **pandas**: 2.0+
-- **numpy**: 1.24+
-- **scipy**: 1.10+
-- **statsmodels**: 0.14+
+- **Python**: 3.8-3.11
+- **Scientific dependencies**: Installed automatically using the
+  Python-specific constraints in
+  [`pyproject.toml`](https://github.com/idohi/tbr/blob/main/pyproject.toml).
 
 ## References
 
