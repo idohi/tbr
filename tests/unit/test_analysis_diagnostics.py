@@ -2398,13 +2398,13 @@ class TestIntegrationAndEdgeCases:
         analysis_type = diagnostics.TBRResidualAnalysis
 
         assert get_type_hints(statistics_type) == {
-            "mean": np.floating[Any],
-            "std": np.floating[Any],
-            "min": np.floating[Any],
-            "max": np.floating[Any],
-            "q25": np.floating[Any],
-            "median": np.floating[Any],
-            "q75": np.floating[Any],
+            "mean": np.floating,
+            "std": np.floating,
+            "min": np.floating,
+            "max": np.floating,
+            "q25": np.floating,
+            "median": np.floating,
+            "q75": np.floating,
         }
         assert get_type_hints(analysis_type) == {
             "residuals": np.ndarray,
@@ -2414,7 +2414,7 @@ class TestIntegrationAndEdgeCases:
             "outlier_threshold": float,
             "outlier_percentage": float,
             "residual_stats": statistics_type,
-            "residual_std": np.floating[Any],
+            "residual_std": np.floating,
             "n_observations": int,
         }
         assert get_type_hints(diagnostics.analyze_tbr_residuals)["return"] is (
