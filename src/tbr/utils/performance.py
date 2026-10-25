@@ -941,6 +941,7 @@ class PerformanceMonitor:
         self.monitoring = False
         self.samples: List[Dict[str, Any]] = []
         self.start_time: Optional[float] = None
+        self.process: Optional[psutil.Process]
 
         # Initialize system monitoring
         try:
@@ -1012,36 +1013,41 @@ class PerformanceMonitor:
         # Convert to DataFrame for easier analysis
         df = pd.DataFrame(self.samples)
 
+        duration = df["timestamp"].max() if len(df) > 0 else 0
+        sample_count = len(df)
+        cpu_stats: Dict[str, float] = {
+            "mean": df["cpu_percent"].mean(),
+            "max": df["cpu_percent"].max(),
+            "min": df["cpu_percent"].min(),
+            "std": df["cpu_percent"].std(),
+        }
+        memory_stats: Dict[str, float] = {
+            "mean_mb": df["memory_mb"].mean(),
+            "max_mb": df["memory_mb"].max(),
+            "min_mb": df["memory_mb"].min(),
+            "peak_percent": df["memory_percent"].max(),
+        }
+        system_stats: Dict[str, float] = {
+            "cpu_mean": df["system_cpu_percent"].mean(),
+            "cpu_max": df["system_cpu_percent"].max(),
+            "memory_mean": df["system_memory_percent"].mean(),
+            "memory_max": df["system_memory_percent"].max(),
+        }
         report = {
-            "duration": df["timestamp"].max() if len(df) > 0 else 0,
-            "sample_count": len(df),
-            "cpu_stats": {
-                "mean": df["cpu_percent"].mean(),
-                "max": df["cpu_percent"].max(),
-                "min": df["cpu_percent"].min(),
-                "std": df["cpu_percent"].std(),
-            },
-            "memory_stats": {
-                "mean_mb": df["memory_mb"].mean(),
-                "max_mb": df["memory_mb"].max(),
-                "min_mb": df["memory_mb"].min(),
-                "peak_percent": df["memory_percent"].max(),
-            },
-            "system_stats": {
-                "cpu_mean": df["system_cpu_percent"].mean(),
-                "cpu_max": df["system_cpu_percent"].max(),
-                "memory_mean": df["system_memory_percent"].mean(),
-                "memory_max": df["system_memory_percent"].max(),
-            },
+            "duration": duration,
+            "sample_count": sample_count,
+            "cpu_stats": cpu_stats,
+            "memory_stats": memory_stats,
+            "system_stats": system_stats,
         }
 
         # Performance alerts
         alerts = []
-        if report["cpu_stats"]["max"] > 90:
+        if cpu_stats["max"] > 90:
             alerts.append("High CPU usage detected (>90%)")
-        if report["memory_stats"]["peak_percent"] > 85:
+        if memory_stats["peak_percent"] > 85:
             alerts.append("High memory usage detected (>85%)")
-        if report["system_stats"]["memory_max"] > 90:
+        if system_stats["memory_max"] > 90:
             alerts.append("System memory pressure detected (>90%)")
 
         report["alerts"] = alerts

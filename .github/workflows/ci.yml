@@ -29,10 +29,14 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    - name: Set up Python 3.12
+    - name: Set up Python 3.11 and 3.12
       uses: actions/setup-python@v7
       with:
-        python-version: '3.12'
+        # Pre-commit runs the canonical mypy hook on 3.11; quality tools use
+        # the last listed version, 3.12, as the default interpreter.
+        python-version: |
+          3.11
+          3.12
         cache: 'pip'
         cache-dependency-path: pyproject.toml
 
@@ -44,6 +48,33 @@ jobs:
     - name: Run pre-commit hooks
       run: |
         pre-commit run --all-files
+
+  # Canonical static type-check gate
+  type-check:
+    needs: quality
+    runs-on: ubuntu-24.04
+    name: Type Check
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        cache-dependency-path: |
+          pyproject.toml
+          tox.ini
+
+    - name: Install Tox
+      run: |
+        python -m pip install --upgrade pip
+        pip install 'tox>=4.0.0'
+
+    - name: Run static type checks
+      run: |
+        tox -e type-check
 
   # Core Testing Matrix (Multiple Python versions)
   test:

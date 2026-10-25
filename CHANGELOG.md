@@ -22,8 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `compute_interval_estimate_and_ci` and `analyze_multiple_subintervals` return
   an `se` key, and `create_subinterval_summary` returns an `se` column, holding
   the standard error of the subinterval estimate. Both precede `precision`.
+- Added public `TBRResidualStatistics`, `TBRResidualAnalysis`, and
+  `TBRDiagnosticReport` schemas for the mappings returned by the diagnostic
+  API.
 
 ### Fixed
+- Corrected the public return annotations for `analyze_tbr_residuals` and
+  `create_tbr_diagnostic_report` to describe their actual mapping schemas.
+- Diagnostic reports now name linearity when it is the only failed assumption,
+  instead of emitting an empty `Assumption violations:` finding.
 - Subinterval credible intervals (`TBRAnalysis.analyze_subinterval`,
   `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`,
   `create_subinterval_summary`) omitted model uncertainty and were too narrow.
@@ -87,6 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   negative.
 
 ### Changed
+- Static type checking now uses a reproducibly pinned Python 3.8-targeted mypy
+  environment and runs in a dedicated CI job.
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes
   `(x_values, sigma, var_alpha, var_beta, cov_alpha_beta)` instead of
   `(estsd_values, n_days, sigma)`, and returns the corrected posterior variance.

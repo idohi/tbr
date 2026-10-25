@@ -66,6 +66,9 @@ __getattr__, __dir__, __all__ = lazy.attach(
         "core": ["TBRAnalysis"],
         "utils": ["CONTROL_VAL", "TEST_VAL"],
         "analysis": [
+            "TBRResidualStatistics",
+            "TBRResidualAnalysis",
+            "TBRDiagnosticReport",
             "create_tbr_summary",
             "create_incremental_tbr_summaries",
             "compute_interval_estimate_and_ci",

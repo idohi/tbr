@@ -33,6 +33,9 @@ EXPECTED_AUTOSUMMARY_SYMBOLS = (
     "analyze_tbr_residuals",
     "assess_tbr_performance",
     "create_tbr_diagnostic_report",
+    "TBRResidualStatistics",
+    "TBRResidualAnalysis",
+    "TBRDiagnosticReport",
 )
 
 VAGUE_SCHEMA_ENTRIES = {
@@ -498,7 +501,7 @@ def _markdown_table_rows(source: str) -> Sequence[Sequence[str]]:
 
 
 def test_api_reference_has_exact_public_page_inventory() -> None:
-    """Keep the intended 17 autosummary pages explicit and ordered."""
+    """Keep the intended 20 autosummary pages explicit and ordered."""
     source = API_REFERENCE.read_text(encoding="utf-8")
 
     assert _autosummary_symbols(source) == EXPECTED_AUTOSUMMARY_SYMBOLS

@@ -68,7 +68,7 @@ Performance assessment:
 >>> print(f"Heuristic efficiency score: {performance['efficiency_score']:.2f}")
 """
 
-from typing import Any, Dict, List, Mapping, Optional, Union, cast
+from typing import Any, Dict, List, Mapping, Optional, TypedDict, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -96,6 +96,44 @@ _EXPECTED_DIAGNOSTIC_ERRORS = (
     ZeroDivisionError,
     np.linalg.LinAlgError,
 )
+
+
+class TBRResidualStatistics(TypedDict):
+    """Typed residual summary statistics."""
+
+    mean: np.floating[Any]
+    std: np.floating[Any]
+    min: np.floating[Any]
+    max: np.floating[Any]
+    q25: np.floating[Any]
+    median: np.floating[Any]
+    q75: np.floating[Any]
+
+
+class TBRResidualAnalysis(TypedDict):
+    """Typed result returned by :func:`analyze_tbr_residuals`."""
+
+    residuals: np.ndarray
+    standardized_residuals: np.ndarray
+    studentized_residuals: np.ndarray
+    outliers: List[int]
+    outlier_threshold: float
+    outlier_percentage: float
+    residual_stats: TBRResidualStatistics
+    residual_std: np.floating[Any]
+    n_observations: int
+
+
+class TBRDiagnosticReport(TypedDict):
+    """Typed result returned by :func:`create_tbr_diagnostic_report`."""
+
+    executive_summary: str
+    overall_validity: bool
+    warnings_count: int
+    key_findings: List[str]
+    recommendations: List[str]
+    detailed_results: Optional[Dict[str, Any]]
+    report_timestamp: str
 
 
 def _validate_goodness_of_fit_metrics(
@@ -818,7 +856,7 @@ def analyze_tbr_residuals(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
     learning_data: Optional[pd.DataFrame] = None,
-) -> Dict[str, Union[np.ndarray, List, float]]:
+) -> TBRResidualAnalysis:
     r"""
     TBR-specific residual analysis and outlier detection.
 
@@ -841,7 +879,7 @@ def analyze_tbr_residuals(
 
     Returns
     -------
-    Dict[str, Union[np.ndarray, List, float]]
+    TBRResidualAnalysis
         Residual-analysis mapping. See Notes for the stable top-level and
         nested schemas.
 
@@ -874,24 +912,24 @@ def analyze_tbr_residuals(
         Fixed threshold ``2.5``.
     ``outlier_percentage`` : float
         Flagged observations as a percentage.
-    ``residual_stats`` : Dict[str, float]
+    ``residual_stats`` : TBRResidualStatistics
         Contains the following nested keys.
 
-        ``mean`` : numpy.float64
+        ``mean`` : numpy.floating
             Arithmetic mean.
-        ``std`` : numpy.float64
+        ``std`` : numpy.floating
             Population standard deviation (``ddof=0``).
-        ``min`` : numpy.float64
+        ``min`` : numpy.floating
             Minimum.
-        ``max`` : numpy.float64
+        ``max`` : numpy.floating
             Maximum.
-        ``q25`` : numpy.float64
+        ``q25`` : numpy.floating
             25th percentile.
-        ``median`` : numpy.float64
+        ``median`` : numpy.floating
             Median.
-        ``q75`` : numpy.float64
+        ``q75`` : numpy.floating
             75th percentile.
-    ``residual_std`` : float
+    ``residual_std`` : numpy.floating
         Alias of ``residual_stats["std"]``; it is not necessarily the
         fitted summary ``sigma``.
     ``n_observations`` : int
@@ -965,7 +1003,7 @@ def analyze_tbr_residuals(
     outliers = np.where(np.abs(studentized_residuals) > outlier_threshold)[0]
 
     # Residual statistics
-    residual_stats = {
+    residual_stats: TBRResidualStatistics = {
         "mean": np.mean(residuals),
         "std": np.std(residuals),
         "min": np.min(residuals),
@@ -1225,7 +1263,7 @@ def create_tbr_diagnostic_report(
     tbr_summary: pd.DataFrame,
     learning_data: Optional[pd.DataFrame] = None,
     include_detailed_analysis: bool = True,
-) -> Dict[str, Union[str, Dict, List]]:
+) -> TBRDiagnosticReport:
     """
     Create a structured diagnostic report for TBR analysis.
 
@@ -1248,7 +1286,7 @@ def create_tbr_diagnostic_report(
 
     Returns
     -------
-    Dict[str, Union[str, bool, int, List[str], Dict, None]]
+    TBRDiagnosticReport
         Diagnostic-report mapping. See Notes for the stable top-level and
         nested schemas.
 
@@ -1379,6 +1417,8 @@ def create_tbr_diagnostic_report(
                 key_findings.append("All statistical assumptions are satisfied")
             else:
                 failed_assumptions = []
+                if not assumptions.get("linearity_valid", True):
+                    failed_assumptions.append("linearity")
                 if not assumptions.get("normality_valid", True):
                     failed_assumptions.append("normality")
                 if not assumptions.get("homoscedasticity_valid", True):
@@ -1406,12 +1446,13 @@ def create_tbr_diagnostic_report(
             )
 
     # Compile report
-    report = {
+    recommendations = cast(List[str], diagnostics["recommendations"])
+    report: TBRDiagnosticReport = {
         "executive_summary": executive_summary,
         "overall_validity": model_valid,
         "warnings_count": warnings_count,
         "key_findings": key_findings,
-        "recommendations": diagnostics["recommendations"],
+        "recommendations": recommendations,
         "detailed_results": diagnostics if include_detailed_analysis else None,
         "report_timestamp": pd.Timestamp.now().isoformat(),
     }

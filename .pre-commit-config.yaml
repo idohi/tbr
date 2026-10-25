@@ -27,10 +27,13 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.16.1
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports]
+        language_version: python3.11
+        additional_dependencies:
+          - numpy==1.24.4
+          - types-psutil==7.2.2.20260906
         exclude: ^tests/
 
   # Docstring validation
