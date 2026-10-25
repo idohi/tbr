@@ -101,13 +101,13 @@ _EXPECTED_DIAGNOSTIC_ERRORS = (
 class TBRResidualStatistics(TypedDict):
     """Typed residual summary statistics."""
 
-    mean: np.floating[Any]
-    std: np.floating[Any]
-    min: np.floating[Any]
-    max: np.floating[Any]
-    q25: np.floating[Any]
-    median: np.floating[Any]
-    q75: np.floating[Any]
+    mean: np.floating
+    std: np.floating
+    min: np.floating
+    max: np.floating
+    q25: np.floating
+    median: np.floating
+    q75: np.floating
 
 
 class TBRResidualAnalysis(TypedDict):
@@ -120,7 +120,7 @@ class TBRResidualAnalysis(TypedDict):
     outlier_threshold: float
     outlier_percentage: float
     residual_stats: TBRResidualStatistics
-    residual_std: np.floating[Any]
+    residual_std: np.floating
     n_observations: int
 
 
