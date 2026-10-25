@@ -54,7 +54,7 @@ class TestModelParametersValidation:
         """Test validation fails when required keys are missing."""
         incomplete_params = {
             "alpha": 50.0,
-            "beta": 0.95
+            "beta": 0.95,
             # Missing other required keys
         }
 
@@ -228,7 +228,7 @@ class TestTBROutputStructureValidation:
         incomplete_df = pd.DataFrame(
             {
                 "period": [0, 1],
-                "y": [100, 120]
+                "y": [100, 120],
                 # Missing other required columns
             }
         )

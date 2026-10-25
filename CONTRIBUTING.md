@@ -19,11 +19,13 @@ git clone https://github.com/idohi/tbr.git
 cd tbr
 ```
 
-2. Create a virtual environment and install dependencies:
+2. Create a Python 3.12 virtual environment and install dependencies. The
+   contributor quality toolchain uses Python 3.12; the package runtime supports
+   Python 3.8 through 3.12.
 ```bash
-python -m venv .venv
+python3.12 -m venv .venv  # On Windows: py -3.12 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -e .[dev]
+pip install -e ".[dev]"
 ```
 
 3. Install pre-commit hooks:
