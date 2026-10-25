@@ -8,7 +8,6 @@ development dependencies.
 This catches dependency specification bugs before PyPI release.
 """
 
-
 import pytest
 
 

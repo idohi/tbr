@@ -40,9 +40,9 @@ pip install tbr
 
 Optional dependencies:
 ```bash
-pip install tbr[examples]  # Matplotlib for the example figures
-pip install tbr[dev]       # Development tools
-pip install tbr[docs]      # Documentation tools
+pip install "tbr[examples]"  # Matplotlib for the example figures
+pip install "tbr[dev]"       # Development tools
+pip install "tbr[docs]"      # Documentation tools
 ```
 
 ## Quick Start

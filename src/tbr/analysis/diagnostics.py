@@ -1205,9 +1205,7 @@ def assess_tbr_performance(
             "prediction_quality": (
                 "Good"
                 if prediction_metrics.get("mape", 100) < 10
-                else "Moderate"
-                if prediction_metrics.get("mape", 100) < 25
-                else "Poor"
+                else "Moderate" if prediction_metrics.get("mape", 100) < 25 else "Poor"
             ),
             "overall_performance": (
                 "Excellent"
@@ -1215,9 +1213,7 @@ def assess_tbr_performance(
                 else (
                     "Good"
                     if efficiency_score > 0.6
-                    else "Moderate"
-                    if efficiency_score > 0.4
-                    else "Poor"
+                    else "Moderate" if efficiency_score > 0.4 else "Poor"
                 )
             ),
         },
