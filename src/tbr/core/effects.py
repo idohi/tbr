@@ -15,7 +15,7 @@ clean, documented interfaces for production use.
 """
 
 import math
-from typing import Dict
+from typing import Dict, cast
 
 import numpy as np
 import pandas as pd
@@ -180,7 +180,7 @@ def calculate_cumulative_variance(
     # V[Δr(T)] = T · σ² + T² · v
     cum_variance = T_values * (sigma**2) + (T_values**2) * v_values
 
-    return cum_variance
+    return cast(np.ndarray, cum_variance)
 
 
 def compute_interval_estimate_and_ci(

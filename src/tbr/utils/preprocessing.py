@@ -30,7 +30,7 @@ Examples
 ... )
 """
 
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -231,7 +231,7 @@ def prepare_regression_arrays(x: np.ndarray, add_constant: bool = True) -> np.nd
 
         # Add constant for intercept
         X = sm.add_constant(x)
-        return X
+        return cast(np.ndarray, X)
     else:
         return x
 

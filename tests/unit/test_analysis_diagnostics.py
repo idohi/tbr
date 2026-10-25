@@ -6,6 +6,7 @@ ensuring all diagnostic functions work correctly with TBR DataFrames and provide
 accurate model validation, assumption checking, and performance assessment.
 """
 
+from typing import Any, Dict, List, Optional, get_type_hints
 from unittest.mock import patch
 
 import numpy as np
@@ -886,6 +887,35 @@ class TestCreateTbrDiagnosticReport:
 
         assert isinstance(result, dict)
         assert "executive_summary" in result
+
+    def test_create_tbr_diagnostic_report_includes_linearity_only_failure(
+        self, sample_data
+    ):
+        """Report a linearity failure when all other assumptions pass."""
+        tbr_df, tbr_summary = sample_data
+        assumption_results = {
+            "linearity_valid": False,
+            "normality_valid": True,
+            "homoscedasticity_valid": True,
+            "independence_valid": True,
+            "all_assumptions_valid": False,
+            "significance_level": 0.05,
+            "validation_summary": "Some assumptions failed",
+        }
+
+        with patch(
+            "tbr.analysis.diagnostics.validate_model_assumptions",
+            return_value=assumption_results,
+        ):
+            result = create_tbr_diagnostic_report(tbr_df, tbr_summary)
+
+        assert "Assumption violations: linearity" in result["key_findings"]
+        detailed_results = result["detailed_results"]
+        assert detailed_results is not None
+        assert (
+            detailed_results["model_validation"]["assumption_tests"]
+            == assumption_results
+        )
 
 
 class TestGenerateDiagnosticRecommendations:
@@ -2357,6 +2387,67 @@ class TestComprehensiveCoverageScenarios:
 
 class TestIntegrationAndEdgeCases:
     """Test integration scenarios and edge cases."""
+
+    def test_residual_analysis_has_exact_public_typed_dict_schema(self):
+        """Expose exact nested types for the residual-analysis mapping."""
+        import tbr
+        import tbr.analysis as analysis
+        from tbr.analysis import diagnostics
+
+        statistics_type = diagnostics.TBRResidualStatistics
+        analysis_type = diagnostics.TBRResidualAnalysis
+
+        assert get_type_hints(statistics_type) == {
+            "mean": np.floating[Any],
+            "std": np.floating[Any],
+            "min": np.floating[Any],
+            "max": np.floating[Any],
+            "q25": np.floating[Any],
+            "median": np.floating[Any],
+            "q75": np.floating[Any],
+        }
+        assert get_type_hints(analysis_type) == {
+            "residuals": np.ndarray,
+            "standardized_residuals": np.ndarray,
+            "studentized_residuals": np.ndarray,
+            "outliers": List[int],
+            "outlier_threshold": float,
+            "outlier_percentage": float,
+            "residual_stats": statistics_type,
+            "residual_std": np.floating[Any],
+            "n_observations": int,
+        }
+        assert get_type_hints(diagnostics.analyze_tbr_residuals)["return"] is (
+            analysis_type
+        )
+        assert analysis.TBRResidualStatistics is statistics_type
+        assert analysis.TBRResidualAnalysis is analysis_type
+        assert tbr.TBRResidualStatistics is statistics_type
+        assert tbr.TBRResidualAnalysis is analysis_type
+
+    def test_diagnostic_report_has_exact_public_typed_dict_schema(self):
+        """Expose exact types for the diagnostic-report mapping."""
+        import tbr
+        import tbr.analysis as analysis
+        from tbr.analysis import diagnostics
+
+        report_type = diagnostics.TBRDiagnosticReport
+
+        assert get_type_hints(report_type) == {
+            "executive_summary": str,
+            "overall_validity": bool,
+            "warnings_count": int,
+            "key_findings": List[str],
+            "recommendations": List[str],
+            "detailed_results": Optional[Dict[str, Any]],
+            "report_timestamp": str,
+        }
+        assert (
+            get_type_hints(diagnostics.create_tbr_diagnostic_report)["return"]
+            is report_type
+        )
+        assert analysis.TBRDiagnosticReport is report_type
+        assert tbr.TBRDiagnosticReport is report_type
 
     def test_module_imports(self):
         """Test that all functions can be imported correctly."""

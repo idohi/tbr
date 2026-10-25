@@ -53,7 +53,7 @@ All diagnostic functions provide comprehensive statistical information
 for model validation and assumption checking.
 """
 
-from typing import Dict, List, TypedDict, Union
+from typing import Dict, List, TypedDict, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -195,7 +195,7 @@ def calculate_residuals(
     # Calculate residuals
     residuals = y - y_fitted
 
-    return residuals
+    return cast(np.ndarray, residuals)
 
 
 def calculate_standardized_residuals(
@@ -318,7 +318,7 @@ def calculate_studentized_residuals(
     denominator = sigma * np.sqrt(np.maximum(1 - leverage, 1e-10))
     studentized_residuals = residuals / denominator
 
-    return studentized_residuals
+    return cast(np.ndarray, studentized_residuals)
 
 
 def calculate_goodness_of_fit(

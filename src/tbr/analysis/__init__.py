@@ -30,6 +30,9 @@ check_tbr_assumptions : Statistical assumption validation for TBR models
 analyze_tbr_residuals : TBR-specific residual analysis and outlier detection
 assess_tbr_performance : Performance and efficiency diagnostics
 create_tbr_diagnostic_report : Comprehensive diagnostic reporting
+TBRResidualStatistics : Typed residual-statistics result schema
+TBRResidualAnalysis : Typed residual-analysis result schema
+TBRDiagnosticReport : Typed diagnostic-report result schema
 TBRPerformanceAnalyzer : Specialized performance analyzer for TBR workflows
 quick_performance_check : Quick performance analysis of TBR workflows
 optimize_tbr_data_size : Find optimal data size for target performance
@@ -94,6 +97,9 @@ __getattr__, __dir__, __all__ = lazy.attach(
             "validate_subinterval_parameters",
         ],
         "diagnostics": [
+            "TBRResidualStatistics",
+            "TBRResidualAnalysis",
+            "TBRDiagnosticReport",
             "validate_tbr_model",
             "diagnose_tbr_analysis",
             "check_tbr_assumptions",

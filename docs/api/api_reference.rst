@@ -58,6 +58,17 @@ Diagnostics And Performance
    assess_tbr_performance
    create_tbr_diagnostic_report
 
+Diagnostic Result Schemas
+-------------------------
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   TBRResidualStatistics
+   TBRResidualAnalysis
+   TBRDiagnosticReport
+
 Constants
 ---------
 

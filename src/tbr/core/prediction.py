@@ -47,7 +47,7 @@ This module contains the core mathematical implementations for TBR prediction an
 Other modules can import and use these functions as building blocks.
 """
 
-from typing import Dict
+from typing import Dict, cast
 
 import numpy as np
 import pandas as pd
@@ -240,7 +240,7 @@ def calculate_cumulative_standard_deviation(
         )
 
     # Vectorized square root
-    return np.sqrt(cum_variance)
+    return cast(np.ndarray, np.sqrt(cum_variance))
 
 
 def compute_interval_estimate_and_ci(
