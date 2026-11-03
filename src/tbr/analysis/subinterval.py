@@ -43,7 +43,7 @@ Examples
 >>> result = compute_interval_estimate_and_ci(
 ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
 ... )
->>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
+>>> print(f"Positions 1-2 effect: {result['estimate']:.2f}")
 >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
 
 Analyze multiple subintervals:
@@ -55,7 +55,7 @@ Analyze multiple subintervals:
 ... )
 >>> for i, result in enumerate(results):
 ...     start, end = intervals[i]
-...     print(f"Days {start}-{end}: {result['estimate']:.2f} "
+...     print(f"Positions {start}-{end}: {result['estimate']:.2f} "
 ...           f"[{result['lower']:.2f}, {result['upper']:.2f}]")
 
 Create comprehensive summary:
@@ -89,21 +89,28 @@ def compute_interval_estimate_and_ci(
     Compute a subinterval effect estimate and credible interval.
 
     The selected interval has inclusive one-based bounds
-    :math:`a=\mathrm{start\_day}` and :math:`b=\mathrm{end\_day}`, with
-    :math:`T_s=b-a+1`. Test rows are selected in their existing order.
+    :math:`a=\mathrm{start\_day}` and :math:`b=\mathrm{end\_day}`;
+    :math:`T_s=b-a+1` is the selected test-row/time-point count retained under
+    the legacy name ``n_days``. Test rows are selected in their existing order.
 
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period``, ``y``, ``x``, and ``pred``.
-        Rows with ``period == 1`` must be in test-day order.
+        TBR output containing ``period``, ``y``, ``x``, and ``pred``. Rows with
+        ``period == 1`` must be in test-row/time-point order.
     tbr_summary : pd.DataFrame
         Non-empty summary containing ``sigma``, ``t_dist_df``, ``var_alpha``,
-        ``var_beta``, and ``alpha_beta_cov``. Values are read from the last row.
+        ``var_beta``, and ``alpha_beta_cov``. The legacy ``t_dist_df`` maps
+        one way from ``degrees_freedom`` and stores residual/pretest-regression
+        Student-t degrees of freedom. The legacy ``alpha_beta_cov`` maps one
+        way from ``cov_alpha_beta`` and stores covariance between the estimated
+        intercept and slope. Values are read from the last row.
     start_day : int
-        One-based start :math:`a`. Must be at least 1.
+        Legacy name for the one-based inclusive start position :math:`a` among
+        ordered test rows or time points. Must be at least 1.
     end_day : int
-        Inclusive one-based end :math:`b`. Must be at least ``start_day`` and
+        Legacy name for the one-based inclusive end position :math:`b` among
+        ordered test rows or time points. Must be at least ``start_day`` and
         no greater than the number of test rows.
     ci_level : float
         Credibility level in the open interval ``(0, 1)``.
@@ -117,10 +124,10 @@ def compute_interval_estimate_and_ci(
     ------
     ValueError
         If a required input column is absent, ``tbr_summary`` has no rows,
-        ``tbr_df`` has no test rows, the day range is invalid, or ``ci_level``
-        is outside ``(0, 1)``.
+        ``tbr_df`` has no test rows, the positional range is invalid, or
+        ``ci_level`` is outside ``(0, 1)``.
     TypeError
-        If an input is not a DataFrame, a day is not an integer, or
+        If an input is not a DataFrame, a positional bound is not an integer, or
         ``ci_level`` is not numeric.
 
     Notes
@@ -161,6 +168,9 @@ def compute_interval_estimate_and_ci(
     predictions, which are correlated because they share the estimated
     coefficients; :math:`n_{days} × σ^2` is the residual noise.
 
+    In the credible-interval equation, alpha = 1 - ci_level is the interval
+    tail probability.
+
     Mathematical Foundation
     -----------------------
     The subinterval estimate is calculated as:
@@ -169,7 +179,7 @@ def compute_interval_estimate_and_ci(
         estimate = \sum_{i=start}^{end} (y_i - pred_i)
 
     where y_i is the observed value and pred_i is the counterfactual prediction
-    for day i within the subinterval.
+    at test-row position i within the subinterval.
 
     For mathematical background, see the
     :doc:`mathematical methodology guide </mathematical_methodology>`,
@@ -177,7 +187,7 @@ def compute_interval_estimate_and_ci(
 
     Examples
     --------
-    Analyze effect for the first two days of a test period:
+    Analyze the first two test-row positions:
 
     >>> import pandas as pd
     >>> from tbr import compute_interval_estimate_and_ci
@@ -207,16 +217,16 @@ def compute_interval_estimate_and_ci(
     True
     >>> bool(abs(result["precision"] - (result["upper"] - result["lower"]) / 2) < 1e-12)
     True
-    >>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
+    >>> print(f"Positions 1-2 effect: {result['estimate']:.2f}")
     >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
     >>> print(f"Precision: ±{result['precision']:.2f}")
 
-    Analyze single day effect:
+    Analyze one test-row position:
 
     >>> day_3_result = compute_interval_estimate_and_ci(
     ...     tbr_df, tbr_summary, start_day=3, end_day=3, ci_level=0.95
     ... )
-    >>> print(f"Day 3 effect: {day_3_result['estimate']:.2f}")
+    >>> print(f"Position 3 effect: {day_3_result['estimate']:.2f}")
 
     Compare different credibility levels:
 
@@ -257,19 +267,24 @@ def analyze_multiple_subintervals(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'x', 'pred', 'period'.
-        Must contain one row per test day with ``period == 1``, ordered
-        chronologically.
+        TBR output with columns ``y``, ``x``, ``pred``, and ``period``. Rows
+        with ``period == 1`` are interpreted as test rows or time points in
+        their existing order.
     tbr_summary : pd.DataFrame
-        TBR summary containing 'sigma', 't_dist_df', 'var_alpha', 'var_beta',
-        and 'alpha_beta_cov' parameters.
+        TBR summary containing ``sigma``, ``t_dist_df``, ``var_alpha``,
+        ``var_beta``, and ``alpha_beta_cov``. The legacy ``t_dist_df`` maps
+        one way from ``degrees_freedom`` and stores residual/pretest-regression
+        Student-t degrees of freedom. The legacy ``alpha_beta_cov`` maps one
+        way from ``cov_alpha_beta`` and stores covariance between the estimated
+        intercept and slope.
     intervals : List[Tuple[int, int]]
-        Non-empty list of ``(start_day, end_day)`` pairs. Bounds are inclusive
-        one-based positions. Each start must be at least 1 and no greater than
-        its end, and each end no greater than the number of test rows.
+        Non-empty list of ``(start_day, end_day)`` pairs. These legacy names
+        denote inclusive one-based positions among ordered test rows or time
+        points. Each start must be at least 1 and no greater than its end, and
+        each end no greater than the number of test rows.
     ci_level : float, default=0.80
-        Credible interval level for all subintervals.
-        Must be between 0 and 1.
+        Credible interval level for all subintervals in the open interval
+        ``(0, 1)``.
 
     Returns
     -------
@@ -352,7 +367,7 @@ def analyze_multiple_subintervals(
     ... )
     >>> for i, (start, end) in enumerate(intervals):
     ...     result = results[i]
-    ...     print(f"Days {start}-{end}: {result['estimate']:.2f}")
+    ...     print(f"Positions {start}-{end}: {result['estimate']:.2f}")
 
     Compare different interval lengths:
 
@@ -361,9 +376,9 @@ def analyze_multiple_subintervals(
     ...     tbr_df, tbr_summary, intervals
     ... )
     >>> for i, (start, end) in enumerate(intervals):
-    ...     days = end - start + 1
-    ...     avg_daily = results[i]['estimate'] / days
-    ...     print(f"{days}-day period: {avg_daily:.2f} per day")
+    ...     n_positions = end - start + 1
+    ...     average = results[i]['estimate'] / n_positions
+    ...     print(f"{n_positions}-position interval: {average:.2f} per position")
     """
     # Validate inputs
     if not intervals:
@@ -415,14 +430,21 @@ def create_subinterval_summary(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period``, ``y``, ``x``, and ``pred``.
+        TBR output containing ``period``, ``y``, ``x``, and ``pred``.
         Test rows are interpreted in their existing order.
     tbr_summary : pd.DataFrame
         Non-empty summary containing ``sigma``, legacy degrees-of-freedom
         column ``t_dist_df``, ``var_alpha``, ``var_beta``, and
-        ``alpha_beta_cov``.
+        ``alpha_beta_cov``. The legacy ``t_dist_df`` maps one way from
+        ``degrees_freedom`` and stores residual/pretest-regression Student-t
+        degrees of freedom. The legacy ``alpha_beta_cov`` maps one way from
+        ``cov_alpha_beta`` and stores covariance between the estimated
+        intercept and slope.
     intervals : List[Tuple[int, int]]
         Non-empty list of inclusive one-based ``(start_day, end_day)`` pairs.
+        These legacy names are positions among ordered test rows or time
+        points in their existing order. Each pair selects
+        T_s = end_day - start_day + 1 test rows or time points.
     ci_level : float, default=0.80
         Credible interval level for all analyses.
     threshold : float, default=0.0
@@ -452,16 +474,23 @@ def create_subinterval_summary(
     The returned DataFrame has these stable columns:
 
     ``interval`` : object
-        Label formatted as ``"Days {start_day}-{end_day}"``.
+        Legacy generated runtime label formatted exactly as
+        ``"Days {start_day}-{end_day}"``; the bounds are test-row positions,
+        not necessarily calendar days.
     ``start_day`` : integer
-        Inclusive one-based start, normally ``int64``.
+        Legacy name for the inclusive one-based start position among ordered
+        test rows or time points, normally ``int64``.
     ``end_day`` : integer
-        Inclusive one-based end, normally ``int64``.
+        Legacy name for the inclusive one-based end position among ordered
+        test rows or time points, normally ``int64``.
     ``days`` : integer
+        Legacy name for the inclusive selected test-row/time-point count
+        between both endpoints,
         :math:`T_s=\mathrm{end\_day}-\mathrm{start\_day}+1`, normally
         ``int64``. Structured result objects call this value ``n_days``.
     ``estimate`` : floating-point
-        :math:`\Delta(a,b)`, normally ``float64``.
+        :math:`\Delta(a,b)`, where :math:`a=\mathrm{start\_day}` and
+        :math:`b=\mathrm{end\_day}`, normally ``float64``.
     ``se`` : floating-point
         Standard error of the estimate, normally ``float64``.
     ``precision`` : floating-point
@@ -482,9 +511,9 @@ def create_subinterval_summary(
     interval lies entirely above or below ``threshold``.
     It is not a hypothesis test or a posterior-probability result.
 
-    The average daily effect is calculated as the total interval effect
-    divided by the number of days, providing a normalized comparison
-    metric across intervals of different lengths.
+    The legacy ``avg_daily_effect`` is the total interval effect divided by
+    the selected test-row/time-point count, providing a normalized comparison
+    across intervals of different lengths.
 
     Examples
     --------
@@ -519,6 +548,7 @@ def create_subinterval_summary(
     ...     "avg_daily_effect", "ci_level",
     ... ]
     True
+    >>> # interval preserves the exact legacy generated runtime labels.
     >>> summary["interval"].tolist() == ["Days 1-2", "Days 2-3", "Days 1-3"]
     True
     >>> print(summary[['interval', 'estimate', 'interval_excludes_threshold']])
@@ -532,7 +562,7 @@ def create_subinterval_summary(
     >>> flagged_intervals = summary[summary['interval_excludes_threshold']]
     >>> print(f"Intervals excluding threshold: {len(flagged_intervals)}")
 
-    Compare average daily effects:
+    Compare the legacy ``avg_daily_effect`` values:
 
     >>> summary = create_subinterval_summary(
     ...     tbr_df, tbr_summary, [(1, 1), (1, 2), (1, 3)]
@@ -594,13 +624,13 @@ def validate_subinterval_parameters(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output DataFrame to validate.
+        TBR output DataFrame to validate.
     tbr_summary : pd.DataFrame
         TBR summary DataFrame to validate.
     start_day : int
-        Start day of subinterval to validate.
+        Legacy name for the start test-row position to validate.
     end_day : int
-        End day of subinterval to validate.
+        Legacy name for the end test-row position to validate.
     ci_level : float
         Credible interval level to validate.
 
@@ -619,7 +649,7 @@ def validate_subinterval_parameters(
 
     The validation checks include:
     - DataFrame structure and required columns
-    - Day range validity and logical consistency
+    - Positional range validity and logical consistency
     - Credibility level bounds
     - Test period data availability
 
@@ -650,7 +680,7 @@ def validate_subinterval_parameters(
     ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
     ... )  # No error
 
-    An out-of-range day raises ``ValueError``:
+    An out-of-range test-row position raises ``ValueError``:
 
     >>> validate_subinterval_parameters(
     ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80

@@ -99,7 +99,28 @@ _EXPECTED_DIAGNOSTIC_ERRORS = (
 
 
 class TBRResidualStatistics(TypedDict):
-    """Typed residual summary statistics."""
+    """
+    Typed residual summary statistics.
+
+    All keys declared below are required.
+
+    Attributes
+    ----------
+    mean : numpy.floating
+        Arithmetic mean of raw residuals, in response units.
+    std : numpy.floating
+        Population standard deviation of raw residuals, in response units.
+    min : numpy.floating
+        Minimum raw residual, in response units.
+    max : numpy.floating
+        Maximum raw residual, in response units.
+    q25 : numpy.floating
+        25th percentile of raw residuals, in response units.
+    median : numpy.floating
+        Median raw residual, in response units.
+    q75 : numpy.floating
+        75th percentile of raw residuals, in response units.
+    """
 
     mean: np.floating
     std: np.floating
@@ -111,7 +132,35 @@ class TBRResidualStatistics(TypedDict):
 
 
 class TBRResidualAnalysis(TypedDict):
-    """Typed result returned by :func:`analyze_tbr_residuals`."""
+    """
+    Typed result returned by :func:`analyze_tbr_residuals`.
+
+    All keys declared below are required.
+
+    Attributes
+    ----------
+    residuals : np.ndarray
+        Raw residuals in response units, aligned with learning rows in their
+        existing order.
+    standardized_residuals : np.ndarray
+        Dimensionless residuals divided by fitted ``sigma``, with the same row
+        alignment as ``residuals``.
+    studentized_residuals : np.ndarray
+        Dimensionless leverage-adjusted residuals with the same row alignment.
+    outliers : List[int]
+        Zero-based positions whose absolute studentized residual exceeds
+        ``outlier_threshold``.
+    outlier_threshold : float
+        Dimensionless absolute cutoff, fixed at ``2.5``.
+    outlier_percentage : float
+        Percentage of learning observations flagged as outliers.
+    residual_stats : TBRResidualStatistics
+        Summary statistics of the raw residuals.
+    residual_std : numpy.floating
+        Raw-residual population standard deviation in response units.
+    n_observations : int
+        Number of aligned learning observations.
+    """
 
     residuals: np.ndarray
     standardized_residuals: np.ndarray
@@ -125,7 +174,30 @@ class TBRResidualAnalysis(TypedDict):
 
 
 class TBRDiagnosticReport(TypedDict):
-    """Typed result returned by :func:`create_tbr_diagnostic_report`."""
+    """
+    Typed result returned by :func:`create_tbr_diagnostic_report`.
+
+    All keys declared below are required. The ``detailed_results`` key is
+    always present; its value is either a diagnostic ``Dict`` or ``None``.
+
+    Attributes
+    ----------
+    executive_summary : str
+        Generated heuristic status text based on warning presence.
+    overall_validity : bool
+        Whether model validation emitted no warnings; not proof of validity.
+    warnings_count : int
+        Number of model-validation warning strings.
+    key_findings : List[str]
+        Available fit, assumption-status, MAPE, and coverage observations.
+    recommendations : List[str]
+        Heuristic follow-up suggestions.
+    detailed_results : Optional[Dict[str, Any]]
+        Complete diagnostic workflow mapping when requested; otherwise
+        ``None``.
+    report_timestamp : str
+        Timezone-naive ISO-formatted local timestamp with no UTC offset.
+    """
 
     executive_summary: str
     overall_validity: bool
@@ -228,17 +300,17 @@ def validate_tbr_model(
         On success, contains the following nested keys.
 
         ``r_squared`` : float
-            Coefficient of determination.
+            Dimensionless coefficient of determination.
         ``adj_r_squared`` : float
-            Adjusted coefficient of determination.
+            Dimensionless adjusted coefficient of determination.
         ``f_statistic`` : float
-            Overall simple-regression F statistic.
+            Dimensionless overall simple-regression F statistic.
         ``f_p_value`` : float
-            Frequentist p-value for ``f_statistic``.
+            Dimensionless frequentist p-value for ``f_statistic``.
         ``mse`` : float
-            Mean squared learning-period residual.
+            Mean squared learning-period residual, in squared response units.
         ``rmse`` : float
-            Root mean squared learning-period residual.
+            Root mean squared learning-period residual, in response units.
         ``error`` : str
             Sole nested key when an expected calculation failure is caught;
             absent on success.
@@ -246,16 +318,17 @@ def validate_tbr_model(
         On success, contains the following nested keys.
 
         ``residuals`` : np.ndarray
-            Raw learning-period residuals.
+            Raw learning-period residuals, in response units.
         ``standardized_residuals`` : np.ndarray
-            Residuals divided by fitted ``sigma``.
+            Dimensionless residuals divided by fitted ``sigma``.
         ``studentized_residuals`` : np.ndarray
-            Residuals adjusted for fitted ``sigma`` and leverage.
+            Dimensionless residuals adjusted for fitted ``sigma`` and
+            leverage.
         ``outliers`` : List[int]
             Zero-based positions with absolute studentized residual above
             2.5.
         ``outlier_threshold`` : float
-            Fixed absolute threshold ``2.5``.
+            Fixed dimensionless absolute threshold ``2.5``.
         ``outlier_percentage`` : float
             Percentage of learning observations flagged.
         ``error`` : str
@@ -265,15 +338,18 @@ def validate_tbr_model(
         With test rows, contains the following nested keys.
 
         ``mae`` : numpy.float64
-            Mean absolute test-period value of ``y - pred``.
+            Mean absolute test-period value of ``y - pred``, in response units.
         ``mse`` : numpy.float64
-            Mean squared test-period value of ``y - pred``.
+            Mean squared test-period value of ``y - pred``, in squared
+            response units.
         ``rmse`` : numpy.float64
-            Root mean squared test-period value of ``y - pred``.
+            Root mean squared test-period value of ``y - pred``, in response
+            units.
         ``mape`` : numpy.float64
             Mean absolute percentage error, in percent.
         ``prediction_interval_coverage`` : numpy.float64
-            Observed proportion inside ``pred ± 1.96 * predsd``.
+            Dimensionless observed proportion inside
+            ``pred ± 1.96 * predsd``.
         ``n_predictions`` : int
             Number of test rows.
         ``error`` : str
@@ -289,6 +365,10 @@ def validate_tbr_model(
     configured TBR credibility level. Test-period prediction errors can include
     treatment effects, so these metrics do not isolate counterfactual forecast
     accuracy or establish causal validity.
+
+    MAPE is undefined when an observed test response ``y`` is zero and can be
+    unstable when ``y`` is near zero because the observed response is the
+    denominator.
 
     For mathematical background, see the
     :doc:`mathematical methodology guide </mathematical_methodology>`,
@@ -567,14 +647,42 @@ def diagnose_tbr_analysis(
     The returned mapping has these stable keys:
 
     ``model_validation`` : Dict[str, Any]
-        Exact mapping returned by :func:`validate_tbr_model`, including its
-        six top-level keys and success/error variants.
+        Always contains ``overall_validity``, ``warnings``,
+        ``assumption_tests``, ``goodness_of_fit``, ``residual_analysis``, and
+        ``prediction_quality``.
+
+        ``assumption_tests``
+            On success contains ``linearity_valid``, ``normality_valid``,
+            ``homoscedasticity_valid``, ``independence_valid``,
+            ``all_assumptions_valid``, ``significance_level``, and
+            ``validation_summary``. On a caught calculation failure it is
+            ``{"error": str}``.
+
+            ``normality_valid``
+                Boolean Shapiro-Wilk threshold status.
+        ``goodness_of_fit``
+            On success contains ``r_squared``, ``adj_r_squared``,
+            ``f_statistic``, ``f_p_value``, ``mse``, and ``rmse``. On a
+            caught calculation failure it is ``{"error": str}``.
+
+            ``r_squared``
+                Dimensionless coefficient of determination.
+        ``residual_analysis``
+            On success contains ``residuals``, ``standardized_residuals``,
+            ``studentized_residuals``, ``outliers``, ``outlier_threshold``,
+            and ``outlier_percentage``. On a caught calculation failure it is
+            ``{"error": str}``.
+        ``prediction_quality``
+            With test rows, contains ``mae``, ``mse``, ``rmse``, ``mape``,
+            ``prediction_interval_coverage``, and ``n_predictions``. With no
+            test rows or after a caught calculation failure, it is
+            ``{"error": str}``.
     ``diagnostic_summary`` : Dict[str, Any]
         On success, contains the following nested keys.
 
         ``goodness_of_fit`` : Dict[str, float]
-            The six typed metrics documented by
-            :func:`validate_tbr_model`.
+            Contains ``r_squared``, ``adj_r_squared``, ``f_statistic``,
+            ``f_p_value``, ``mse``, and ``rmse``.
         ``information_criteria`` : Dict[str, float]
             Contains the following nested keys.
 
@@ -622,15 +730,41 @@ def diagnose_tbr_analysis(
         ``warnings`` : List[str]
             Assumption-warning messages.
         ``error`` : str
-            Present only after an expected calculation failure; in that
-            variant, ``overall_validity`` is ``False`` and ``warnings`` is
-            a one-element ``List[str]``.
+            After a caught calculation failure, the entire mapping contains
+            only ``error``, ``overall_validity=False``, and one-element
+            ``warnings``.
     ``performance_metrics`` : Dict[str, Any]
-        Exact mapping returned by :func:`assess_tbr_performance`, or an
-        empty mapping when ``include_performance=False``.
+        When ``include_performance=True``, contains ``data_metrics``,
+        ``prediction_metrics``, ``model_complexity``, ``efficiency_score``,
+        and ``performance_summary``. It is an empty mapping when
+        ``include_performance=False``.
+
+        ``prediction_metrics``
+            With test rows, contains ``mae``, ``mse``, ``rmse``, ``mape``,
+            ``mean_error``, ``std_error``, and ``interval_coverage``. It is an
+            empty mapping when no test rows exist.
+
+            ``mape``
+                Mean absolute percentage error.
+        ``data_metrics``
+            Contains ``total_observations``, ``learning_observations``,
+            ``test_observations``, and ``learning_test_ratio``.
+        ``model_complexity``
+            Contains ``degrees_freedom``, residual ``sigma``, and
+            ``r_squared_proxy``.
+        ``efficiency_score``
+            Dimensionless composite heuristic.
+        ``performance_summary``
+            Contains the package-specific ``data_quality``,
+            ``prediction_quality``, and ``overall_performance`` labels.
     ``recommendations`` : List[str]
         Heuristic follow-up suggestions derived from validation and
         performance thresholds; these are not formal inferential results.
+
+    Recommendation triggers are heuristic: any aggregate warning; failed
+    normality, homoscedasticity, or independence status; :math:`R^2<0.3` or
+    :math:`R^2<0.5`; outliers above 10%; MAPE above 15%; coverage below 0.85;
+    fewer than 20 learning rows; or a learning/test ratio below 2.
 
     This helper combines lower-level validation, assumption checks, residual
     diagnostics, and optional performance metrics. A failed diagnostic does not
@@ -736,8 +870,9 @@ def check_tbr_assumptions(
     Compute regression-assumption diagnostic statuses for a TBR model.
 
     Performs diagnostic checks of regression assumptions used by TBR,
-    including linearity, normality, homoscedasticity, and independence. Provides
-    boolean indicators and supporting test statistics for model review.
+    including linearity, normality, homoscedasticity, and independence. It
+    returns boolean statuses and a human-readable validation summary for model
+    review.
 
     Parameters
     ----------
@@ -790,11 +925,11 @@ def check_tbr_assumptions(
     ``validation_summary`` : str
         Human-readable list of failed statuses, or a success label.
 
-    Shapiro-Wilk and Breusch-Pagan provide formal test statistics internally,
-    but this wrapper returns only thresholded booleans. The linearity status is
-    a fit heuristic, and Durbin-Watson uses a rough fixed range rather than a
-    p-value. Failed statuses guide model review; they do not by themselves
-    prove that a treatment effect is invalid.
+    Shapiro-Wilk and Breusch-Pagan compute formal test statistics internally,
+    but this wrapper does not return those test statistics. The linearity
+    status is a fit heuristic, and Durbin-Watson uses a rough fixed range
+    rather than a p-value. Failed statuses guide model review; they do not by
+    themselves prove that a treatment effect is invalid.
 
     See the :doc:`model-diagnostics methodology </mathematical_methodology>` for
     the regression assumptions and diagnostic definitions.
@@ -899,39 +1034,39 @@ def analyze_tbr_residuals(
     The returned mapping has these stable keys:
 
     ``residuals`` : np.ndarray
-        Raw residuals :math:`e_i=y_i-(\beta_0+\beta_1x_i)`.
+        Raw residuals :math:`e_i=y_i-(\beta_0+\beta_1x_i)`, in response units.
     ``standardized_residuals`` : np.ndarray
-        Values :math:`e_i/\sigma`.
+        Dimensionless values :math:`e_i/\sigma`.
     ``studentized_residuals`` : np.ndarray
-        Values :math:`e_i/(\sigma\sqrt{1-h_{ii}})`, with the leverage
-        denominator floored internally.
+        Dimensionless values :math:`e_i/(\sigma\sqrt{1-h_{ii}})`, with the
+        leverage denominator floored internally.
     ``outliers`` : List[int]
         Zero-based positions where absolute studentized residual exceeds
         2.5.
     ``outlier_threshold`` : float
-        Fixed threshold ``2.5``.
+        Fixed dimensionless threshold ``2.5``.
     ``outlier_percentage`` : float
         Flagged observations as a percentage.
     ``residual_stats`` : TBRResidualStatistics
         Contains the following nested keys.
 
         ``mean`` : numpy.floating
-            Arithmetic mean.
+            Arithmetic mean, in response units.
         ``std`` : numpy.floating
-            Population standard deviation (``ddof=0``).
+            Population standard deviation (``ddof=0``), in response units.
         ``min`` : numpy.floating
-            Minimum.
+            Minimum, in response units.
         ``max`` : numpy.floating
-            Maximum.
+            Maximum, in response units.
         ``q25`` : numpy.floating
-            25th percentile.
+            25th percentile, in response units.
         ``median`` : numpy.floating
-            Median.
+            Median, in response units.
         ``q75`` : numpy.floating
-            75th percentile.
+            75th percentile, in response units.
     ``residual_std`` : numpy.floating
         Alias of ``residual_stats["std"]``; it is not necessarily the
-        fitted summary ``sigma``.
+        fitted summary ``sigma``. Both are in response units.
     ``n_observations`` : int
         Number of learning observations.
 
@@ -1073,40 +1208,43 @@ def assess_tbr_performance(
         ``test_observations`` : int
             Number of rows with ``period == 1``.
         ``learning_test_ratio`` : float
-            Learning count divided by ``max(test count, 1)``.
+            Dimensionless learning count divided by
+            ``max(test count, 1)``.
     ``prediction_metrics`` : Dict[str, float]
         With test rows, contains the following nested keys; it is empty
         with no test rows.
 
         ``mae`` : float
-            Mean absolute value of ``y - pred``.
+            Mean absolute value of ``y - pred``, in response units.
         ``mse`` : float
-            Mean squared value of ``y - pred``.
+            Mean squared value of ``y - pred``, in squared response units.
         ``rmse`` : float
-            Root mean squared value of ``y - pred``.
+            Root mean squared value of ``y - pred``, in response units.
         ``mape`` : float
             Mean absolute percentage error, in percent.
         ``mean_error`` : float
-            Mean of ``y - pred``.
+            Mean of ``y - pred``, in response units.
         ``std_error`` : float
-            Population standard deviation of ``y - pred`` (``ddof=0``).
+            Population standard deviation of ``y - pred`` (``ddof=0``), in
+            response units.
         ``interval_coverage`` : float
-            Proportion inside ``pred ± 1.96 * predsd``.
+            Dimensionless proportion inside ``pred ± 1.96 * predsd``.
     ``model_complexity`` : Dict[str, Union[int, float]]
         Contains the following nested keys.
 
         ``degrees_freedom`` : int
             First-row ``t_dist_df`` converted to ``int``.
         ``sigma`` : float
-            First-row residual standard deviation.
+            First-row residual standard deviation, in response units.
         ``r_squared_proxy`` : numpy.float64 or float
-            ``1 - sigma**2 / var(learning y)`` using population variance,
-            or ``0.0`` without learning rows.
+            Dimensionless ``1 - sigma**2 / var(learning y)`` using population
+            variance, or ``0.0`` without learning rows.
     ``efficiency_score`` : float
         Mean of available clipped components: ``max(0, 1 - mape/100)``,
-        closeness of coverage to 0.95, and
+        coverage component
+        ``max(0, 1 - 2 * abs(interval_coverage - 0.95))``, and
         ``min(1, learning_observations/50)``. It is ``0.0`` when no
-        component is available.
+        component is available. This dimensionless score is in ``[0, 1]``.
     ``performance_summary`` : Dict[str, str]
         Contains the following package-specific heuristic labels.
 
@@ -1315,21 +1453,91 @@ def create_tbr_diagnostic_report(
         Heuristic suggestions returned by
         :func:`diagnose_tbr_analysis`.
     ``detailed_results`` : Dict[str, Any] or None
-        When requested, contains the following exact nested schemas;
-        otherwise ``None``.
+        This key is always present. When requested, its ``Dict`` value contains
+        ``model_validation``, ``diagnostic_summary``, ``performance_metrics``,
+        and ``recommendations``; otherwise its value is ``None``.
 
         ``model_validation`` : Dict[str, Any]
-            Exact mapping documented by :func:`validate_tbr_model`.
+            Always contains ``overall_validity``, ``warnings``,
+            ``assumption_tests``, ``goodness_of_fit``, ``residual_analysis``,
+            and ``prediction_quality``.
+
+            ``assumption_tests``
+                On success contains ``linearity_valid``, ``normality_valid``,
+                ``homoscedasticity_valid``, ``independence_valid``,
+                ``all_assumptions_valid``, ``significance_level``, and
+                ``validation_summary``. On a caught calculation failure it is
+                ``{"error": str}``.
+
+                ``normality_valid``
+                    Boolean Shapiro-Wilk threshold status.
+            ``goodness_of_fit``
+                On success contains ``r_squared``, ``adj_r_squared``,
+                ``f_statistic``, ``f_p_value``, ``mse``, and ``rmse``. On a
+                caught calculation failure it is ``{"error": str}``.
+            ``residual_analysis``
+                On success contains ``residuals``,
+                ``standardized_residuals``, ``studentized_residuals``,
+                ``outliers``, ``outlier_threshold``, and
+                ``outlier_percentage``. On a caught calculation failure it is
+                ``{"error": str}``.
+            ``prediction_quality``
+                With test rows, contains ``mae``, ``mse``, ``rmse``, ``mape``,
+                ``prediction_interval_coverage``, and ``n_predictions``. With
+                no test rows or after a caught calculation failure, it is
+                ``{"error": str}``.
         ``diagnostic_summary`` : Dict[str, Any]
-            Exact mapping documented by :func:`diagnose_tbr_analysis`.
+            On success contains ``goodness_of_fit``,
+            ``information_criteria``, ``normality_test``,
+            ``homoscedasticity_test``, ``independence_test``,
+            ``overall_validity``, and ``warnings``.
+
+            ``goodness_of_fit``
+                Contains ``r_squared``, ``adj_r_squared``, ``f_statistic``,
+                ``f_p_value``, ``mse``, and ``rmse``.
+            ``information_criteria``
+                ``aic``, ``bic``, and ``log_likelihood``.
+            ``normality_test``
+                Contains ``statistic``, ``p_value``, ``is_normal``, and
+                ``test_name``.
+
+                ``p_value``
+                    Frequentist Shapiro-Wilk p-value.
+            ``homoscedasticity_test``
+                Contains ``statistic``, ``p_value``,
+                ``is_homoscedastic``, and ``test_name``.
+            ``independence_test``
+                Contains ``statistic``, ``interpretation``,
+                ``is_independent``, and ``test_name``.
+
+            After a caught calculation failure, the entire mapping contains
+            only ``error``, ``overall_validity=False``, and one-element
+            ``warnings``.
         ``performance_metrics`` : Dict[str, Any]
-            Exact mapping documented by :func:`assess_tbr_performance`.
+            Contains ``data_metrics``, ``prediction_metrics``,
+            ``model_complexity``, ``efficiency_score``, and
+            ``performance_summary``.
+
+            ``prediction_metrics``
+                With test rows, contains ``mae``, ``mse``, ``rmse``, ``mape``,
+                ``mean_error``, ``std_error``, and ``interval_coverage`` when
+                test rows exist. It is an empty mapping with no test rows.
+
+                ``mape``
+                    Mean absolute percentage error.
+
+            ``data_metrics`` contains ``total_observations``,
+            ``learning_observations``, ``test_observations``, and
+            ``learning_test_ratio``. ``model_complexity`` contains
+            ``degrees_freedom``, ``sigma``, and ``r_squared_proxy``.
+            ``performance_summary`` contains ``data_quality``,
+            ``prediction_quality``, and ``overall_performance``.
         ``recommendations`` : List[str]
             Same recommendation list exposed at the report top level.
 
-        Otherwise ``None``.
     ``report_timestamp`` : str
-        ISO-formatted local timestamp from ``pd.Timestamp.now()``.
+        ISO-formatted local timestamp from ``pd.Timestamp.now()``. The value is
+        timezone-naive with no offset information.
 
     The report is intended for review and communication. Its statuses,
     recommendations, and categorical wording are heuristic. In particular,

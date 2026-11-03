@@ -232,7 +232,8 @@ class TBRPredictionResult:
             ``pretest_sum_x_squared_deviations`` : float
                 Sum of squared pretest control deviations.
         ``control_values`` : np.ndarray
-            Prediction inputs.
+            One-dimensional control inputs aligned row-for-row with the
+            prediction rows in ``predictions``.
 
         The contained mutable objects are returned by reference; this method
         does not deep-copy them. This class has no ``to_dataframe()`` method.
@@ -606,11 +607,14 @@ class TBRSubintervalResult:
     ci_level : float
         Credibility level used for interval
     start_day : int
-        Starting day of subinterval (1-indexed)
+        Legacy name for the inclusive, one-based start position among ordered
+        test rows or time points.
     end_day : int
-        Ending day of subinterval (1-indexed)
+        Legacy name for the inclusive, one-based end position among ordered
+        test rows or time points.
     n_days : int
-        Inclusive subinterval length, ``end_day - start_day + 1``.
+        Legacy name for the inclusive selected test-row/time-point count
+        between both endpoints, ``end_day - start_day + 1``.
 
     Examples
     --------
@@ -680,11 +684,14 @@ class TBRSubintervalResult:
         ``ci_level`` : float
             Credibility level.
         ``start_day`` : int
-            One-based inclusive start day.
+            Legacy name for the inclusive, one-based start position among
+            ordered test rows or time points.
         ``end_day`` : int
-            One-based inclusive end day.
+            Legacy name for the inclusive, one-based end position among
+            ordered test rows or time points.
         ``n_days`` : int
-            Inclusive subinterval length.
+            Legacy name for the inclusive count of selected test rows or time
+            points between both endpoints.
         """
         return {
             "estimate": self.estimate,
@@ -781,7 +788,7 @@ class TBRSubintervalResult:
 
 
 class TBRResults:
-    """
+    r"""
     Comprehensive results from Time-Based Regression analysis.
 
     All computed outputs are accessible via properties and methods, with
@@ -807,7 +814,8 @@ class TBRResults:
     effects : pd.Series
         Test-period treatment effects, defined as observed minus predicted values.
     cumulative_effect : pd.Series
-        Cumulative treatment effects over the test period.
+        Running cumulative sum :math:`\Delta(T)` through the first :math:`T`
+        ordered test rows or time points, where :math:`T` is one-based.
     prediction_se : pd.Series
         Counterfactual prediction standard deviations for the test period.
     cumulative_se : pd.Series
@@ -827,7 +835,7 @@ class TBRResults:
     n_test : int
         Number of test observations.
     n_test_days : int
-        Number of days in the test period.
+        Legacy name for the test-row/time-point count in existing order.
     alpha : float
         Regression intercept.
     beta : float
@@ -1246,9 +1254,12 @@ class TBRResults:
         -------
         pd.Series
             Floating-point running cumulative effects :math:`\Delta(T)` for
-            the test period. The index is derived from test input time-column
-            values and retains their dtype where pandas permits. The stored
-            Series is returned by reference; call ``.copy()`` before mutation.
+            the test period, where :math:`T` is the one-based count of ordered
+            entries in the test-row/time-point sequence and each value is the
+            cumulative sum through the first :math:`T` entries. The index is
+            derived from test input time-column values and retains their dtype
+            where pandas permits. The stored Series is returned by reference;
+            call ``.copy()`` before mutation.
         """
         return self._cumulative_effect
 
@@ -1365,12 +1376,13 @@ class TBRResults:
     @property
     def n_test_days(self) -> int:
         """
-        Number of days (time points) in test period.
+        Legacy test-row/time-point count in existing order.
 
         Returns
         -------
         int
-            Length of test period.
+            Number of test rows, identical to ``n_test``; this is not
+            necessarily a calendar-day duration.
         """
         return len(self._test_data)
 
@@ -1455,16 +1467,16 @@ class TBRResults:
     # =========================================================================
 
     def summary(self) -> pd.DataFrame:
-        """
-        Generate daily incremental summary statistics.
+        r"""
+        Generate incremental summary statistics over ordered test rows.
 
-        Creates a DataFrame with one row per test day, showing cumulative
-        effects and credible intervals as they accumulate over time.
+        Creates a DataFrame with one row per test row, showing cumulative
+        effects and credible intervals as they accumulate in existing order.
 
         Returns
         -------
         pd.DataFrame
-            Copy with one row per cumulative test day. See Notes for the stable
+            Copy with one row per cumulative test row. See Notes for the stable
             columns.
 
         Notes
@@ -1472,7 +1484,8 @@ class TBRResults:
         The returned DataFrame has these stable columns:
 
         ``test_day`` : int64
-            One-based cumulative test-day number.
+            Legacy name for the one-based cumulative test-row or time-point
+            position.
         ``estimate`` : float64
             Cumulative-effect estimate.
         ``precision`` : float64
@@ -1486,15 +1499,21 @@ class TBRResults:
         ``level`` : float64
             Credibility level.
         ``thres`` : float64
-            Legacy column name for ``threshold``.
+            Legacy column name for ``threshold``; stores the effect threshold
+            theta used by the posterior exceedance probability.
         ``prob`` : float64
-            Posterior threshold-exceedance probability.
+            Posterior threshold-exceedance probability. Here :math:`T` is the
+            one-based count of the ordered test-row/time-point sequence, and
+            :math:`\Delta(T)` is the running cumulative sum through the first
+            :math:`T` entries.
         ``alpha`` : float64
             Regression intercept.
         ``beta`` : float64
             Regression slope.
         ``alpha_beta_cov`` : float64
-            Legacy column name for ``cov_alpha_beta``.
+            Legacy column name mapped one way from ``cov_alpha_beta``; stores
+            the covariance between the estimated regression intercept and
+            slope.
         ``var_alpha`` : float64
             Intercept-estimate variance.
         ``var_beta`` : float64
@@ -1502,7 +1521,8 @@ class TBRResults:
         ``sigma`` : float64
             Residual standard deviation.
         ``t_dist_df`` : float64
-            Legacy column name for ``degrees_freedom``.
+            Legacy column name mapped one way from ``degrees_freedom``; stores
+            the residual/pretest-regression Student-t degrees of freedom.
 
         This incremental DataFrame is distinct from the structured object
         returned by :meth:`tbr.TBRAnalysis.summarize`.

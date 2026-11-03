@@ -661,8 +661,8 @@ class TBRAnalysis:
         Fit model and immediately return predictions (convenience method).
 
         Combines fit() and predict() into a single method call for streamlined
-        workflows. This is particularly useful for quick analysis without needing
-        to store the model state.
+        workflows. The estimator remains fitted and will retain its model
+        state just as after an explicit call to :meth:`fit`.
 
         Parameters
         ----------
@@ -693,7 +693,7 @@ class TBRAnalysis:
 
         Examples
         --------
-        One-line prediction without storing model:
+        One-line prediction while retaining fitted model state:
 
         >>> import numpy as np
         >>> import pandas as pd
@@ -718,7 +718,7 @@ class TBRAnalysis:
         Notes
         -----
         This is equivalent to calling :meth:`fit` followed by :meth:`predict`,
-        but more concise for workflows where only predictions are needed.
+        but more concise for workflows where predictions are needed immediately.
         """
         self.fit(
             data, time_col, control_col, test_col, pretest_start, test_start, test_end
@@ -1072,16 +1072,17 @@ class TBRAnalysis:
         )
 
     def summarize_incremental(self) -> pd.DataFrame:
-        """
-        Get day-by-day incremental summaries for the test period.
+        r"""
+        Get incremental summaries for the ordered test rows.
 
         Returns incremental summaries showing the progression of cumulative
-        treatment effects as each day of the test period is added.
+        treatment effects as each test row or time point is added in its
+        existing order.
 
         Returns
         -------
         pd.DataFrame
-            Copy with one row per cumulative test day. See Notes for the
+            Copy with one row per cumulative test row. See Notes for the
             stable columns.
 
         Notes
@@ -1089,7 +1090,8 @@ class TBRAnalysis:
         The returned DataFrame has these stable columns:
 
         ``test_day`` : int64
-            One-based cumulative test-day number.
+            Legacy name for the one-based cumulative test-row or time-point
+            position.
         ``estimate`` : float64
             Cumulative-effect estimate.
         ``precision`` : float64
@@ -1103,15 +1105,21 @@ class TBRAnalysis:
         ``level`` : float64
             Credibility level.
         ``thres`` : float64
-            Legacy column name for ``threshold``.
+            Legacy column name for ``threshold``; stores the effect threshold
+            theta used by the posterior exceedance probability.
         ``prob`` : float64
-            Posterior threshold-exceedance probability.
+            Posterior threshold-exceedance probability. Here :math:`T` is the
+            one-based count of the ordered test-row/time-point sequence, and
+            :math:`\Delta(T)` is the running cumulative sum through the first
+            :math:`T` entries.
         ``alpha`` : float64
             Regression intercept.
         ``beta`` : float64
             Regression slope.
         ``alpha_beta_cov`` : float64
-            Legacy column name for ``cov_alpha_beta``.
+            Legacy column name mapped one way from ``cov_alpha_beta``; stores
+            the covariance between the estimated regression intercept and
+            slope.
         ``var_alpha`` : float64
             Intercept-estimate variance.
         ``var_beta`` : float64
@@ -1119,7 +1127,8 @@ class TBRAnalysis:
         ``sigma`` : float64
             Residual standard deviation.
         ``t_dist_df`` : float64
-            Legacy column name for ``degrees_freedom``.
+            Legacy column name mapped one way from ``degrees_freedom``; stores
+            the residual/pretest-regression Student-t degrees of freedom.
 
         Raises
         ------
@@ -1165,9 +1174,7 @@ class TBRAnalysis:
 
         Notes
         -----
-        Each row represents the cumulative effect from the start of the test
-        period through that day. The last row matches the final summary
-        returned by summarize().
+        The last row matches the final summary returned by ``summarize()``.
         """
         # Check if model is fitted
         if not self._fitted:
@@ -1190,15 +1197,17 @@ class TBRAnalysis:
         Analyze treatment effect for a custom subinterval of the test period.
 
         Computes the treatment effect estimate and credible interval for a
-        specific range of days within the test period.
+        specific range of ordered rows within the test period.
 
         Parameters
         ----------
         start_day : int
-            Starting day of the subinterval (1-indexed, inclusive).
-            Day 1 is the first day of the test period.
+            Legacy name for the inclusive, one-based start position among test
+            rows or time points in their existing order. Position 1 is the
+            first test row.
         end_day : int
-            Ending day of the subinterval (1-indexed, inclusive).
+            Legacy name for the inclusive, one-based end position among test
+            rows; it is a test-row/time-point position in existing order.
         ci_level : float, optional
             Credibility level for credible interval (must be between 0 and 1 exclusive).
             If None, uses the level specified during initialization.
@@ -1259,9 +1268,10 @@ class TBRAnalysis:
 
         Notes
         -----
-        Subinterval analysis uses the compute_interval_estimate_and_ci function
-        from the analysis module to calculate effects for specific day ranges
-        with proper variance calculations.
+        Subinterval analysis uses ``compute_interval_estimate_and_ci`` from the
+        analysis module to calculate effects for positional test-row ranges
+        with proper variance calculations. The legacy ``start_day`` and
+        ``end_day`` names do not require calendar-day input.
         """
         # Check if model is fitted
         if not self._fitted:
@@ -1461,6 +1471,10 @@ class TBRAnalysis:
         -----
         The returned DataFrame contains the original source columns plus:
 
+        Rows cover baseline, pretest, and test periods, in that period order;
+        cooldown rows are excluded. Existing row order within each included
+        period is preserved.
+
         ``period`` : int64
             ``-1`` baseline, ``0`` pretest, ``1`` test.
         ``y`` : source-dependent
@@ -1471,8 +1485,9 @@ class TBRAnalysis:
             Pretest fitted value or test counterfactual prediction; missing in
             baseline.
         ``predsd`` : float64
-            Test prediction standard deviation; ``0.0`` in pretest and missing
-            in baseline.
+            Test counterfactual prediction standard deviation that combines
+            coefficient uncertainty and residual variance; ``0.0`` in pretest
+            and missing in baseline.
         ``dif`` : float64
             Pretest residual or test pointwise effect; missing in baseline.
         ``cumdif`` : float64
@@ -1523,15 +1538,15 @@ class TBRAnalysis:
 
     @property
     def summaries_(self) -> pd.DataFrame:
-        """
-        Incremental summaries with daily progression of cumulative effects.
+        r"""
+        Incremental summaries over ordered test rows.
 
         This property returns the stored DataFrame itself, not a copy.
 
         Returns
         -------
         pd.DataFrame
-            Stored incremental DataFrame with one row per cumulative test day.
+            Stored incremental DataFrame with one row per cumulative test row.
             See Notes for the stable columns.
 
         Notes
@@ -1539,7 +1554,8 @@ class TBRAnalysis:
         The returned DataFrame has these stable columns:
 
         ``test_day`` : int64
-            One-based cumulative test-day number.
+            Legacy name for the one-based cumulative test-row or time-point
+            position.
         ``estimate`` : float64
             Cumulative-effect estimate.
         ``precision`` : float64
@@ -1553,15 +1569,21 @@ class TBRAnalysis:
         ``level`` : float64
             Credibility level.
         ``thres`` : float64
-            Legacy column name for ``threshold``.
+            Legacy column name for ``threshold``; stores the effect threshold
+            theta used by the posterior exceedance probability.
         ``prob`` : float64
-            Posterior threshold-exceedance probability.
+            Posterior threshold-exceedance probability. Here :math:`T` is the
+            one-based count of the ordered test-row/time-point sequence, and
+            :math:`\Delta(T)` is the running cumulative sum through the first
+            :math:`T` entries.
         ``alpha`` : float64
             Regression intercept.
         ``beta`` : float64
             Regression slope.
         ``alpha_beta_cov`` : float64
-            Legacy column name for ``cov_alpha_beta``.
+            Legacy column name mapped one way from ``cov_alpha_beta``; stores
+            the covariance between the estimated regression intercept and
+            slope.
         ``var_alpha`` : float64
             Intercept-estimate variance.
         ``var_beta`` : float64
@@ -1569,7 +1591,8 @@ class TBRAnalysis:
         ``sigma`` : float64
             Residual standard deviation.
         ``t_dist_df`` : float64
-            Legacy column name for ``degrees_freedom``.
+            Legacy column name mapped one way from ``degrees_freedom``; stores
+            the residual/pretest-regression Student-t degrees of freedom.
 
         Raises
         ------

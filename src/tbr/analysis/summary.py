@@ -54,9 +54,9 @@ def create_tbr_summary(
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Daily TBR output containing ``period``, ``cumdif``, and ``cumsd``.
-        Rows satisfying ``period == 1`` must be in test-day order; the last such
-        row supplies the final cumulative values.
+        TBR output containing ``period``, ``cumdif``, and ``cumsd``. Rows
+        satisfying ``period == 1`` must be in test-row/time-point order; the
+        last such row supplies the final cumulative values.
     alpha : float
         Regression intercept :math:`\beta_0`. This is unrelated to interval
         tail probability.
@@ -78,7 +78,9 @@ def create_tbr_summary(
         can produce degenerate or unbounded intervals.
     threshold : float
         Effect threshold :math:`\theta` used for
-        :math:`P(\Delta(T)>\theta\mid\mathrm{data})`.
+        :math:`P(\Delta(T)>\theta\mid\mathrm{data})`, where :math:`\Delta(T)`
+        is the running cumulative sum through the first :math:`T` entries of
+        the ordered test-row/time-point sequence and :math:`T` is one-based.
 
     Returns
     -------
@@ -90,7 +92,8 @@ def create_tbr_summary(
     ValueError
         If ``tbr_dataframe`` is empty or lacks a required column; ``level`` is
         outside ``[0, 1]``; ``degrees_freedom`` or ``sigma`` is not positive;
-        or no row has ``period == 1``.
+        no row has ``period == 1``; the final ``cumdif``, ``cumsd``, or
+        ``threshold`` is non-finite; or the final ``cumsd`` is negative.
 
     Notes
     -----
@@ -110,7 +113,9 @@ def create_tbr_summary(
     ``level`` : ``float64``
         Credibility level.
     ``thres`` : ``float64``
-        Legacy summary name for input ``threshold``.
+        Legacy summary name mapped one way from input ``threshold``; stores the
+        effect threshold :math:`\theta` used by the posterior exceedance
+        probability.
     ``prob`` : ``float64``
         Posterior threshold-exceedance probability
         :math:`P(\Delta(T)>\theta\mid\mathrm{data})`.
@@ -119,7 +124,9 @@ def create_tbr_summary(
     ``beta`` : ``float64``
         Regression slope :math:`\beta_1`.
     ``alpha_beta_cov`` : ``float64``
-        Legacy summary name for input ``cov_alpha_beta``.
+        Legacy summary name mapped one way from input ``cov_alpha_beta``;
+        stores the covariance between the estimated regression intercept and
+        slope.
     ``var_alpha`` : ``float64``
         Intercept-estimate variance.
     ``var_beta`` : ``float64``
@@ -127,7 +134,12 @@ def create_tbr_summary(
     ``sigma`` : ``float64``
         Residual standard deviation.
     ``t_dist_df`` : ``float64``
-        Summary-table representation of input ``degrees_freedom``.
+        Legacy summary name mapped one way from input ``degrees_freedom``;
+        stores the residual/pretest-regression Student-t degrees of freedom.
+
+    Here :math:`T` is the one-based count of ordered test rows or time points,
+    and :math:`\Delta(T)` is the running cumulative sum through the first
+    :math:`T` test rows.
 
     The credible interval is calculated using the t-distribution:
 
@@ -135,7 +147,9 @@ def create_tbr_summary(
         CI = estimate ± t_{α/2,df} × se
 
     where t_{α/2,df} is the critical value from t-distribution with specified
-    degrees of freedom.
+    degrees of freedom. In this equation, alpha = 1 - level is the interval
+    tail probability and is distinct from the Python parameter ``alpha``,
+    which is the regression intercept.
 
     The posterior probability uses the t-distribution CDF:
 
