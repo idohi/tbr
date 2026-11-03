@@ -873,9 +873,11 @@ def perform_tbr_analysis(
         endpoints can produce degenerate or unbounded intervals.
     threshold : float
         Effect threshold :math:`\theta` used for
-        :math:`P(\Delta(T)>\theta\mid\mathrm{data})`. The value is converted
-        to ``float`` when summaries are built; no range or finiteness check is
-        performed.
+        :math:`P(\Delta(T)>\theta\mid\mathrm{data})`, where :math:`\Delta(T)`
+        is the running cumulative sum through the first :math:`T` entries of
+        the ordered test-row/time-point sequence and :math:`T` is one-based.
+        The value is converted to ``float`` when summaries are built. It has no
+        range restriction but must be finite.
     test_end_inclusive : bool, default False
         Whether to include the ``test_end`` boundary in the test period.
         ``False`` uses ``data < test_end``; ``True`` uses
@@ -899,8 +901,8 @@ def perform_tbr_analysis(
         use reserved output names; the time dtype or boundary types are
         unsupported; boundaries are misordered; required values are null;
         metric columns are nonnumeric; pretest or test periods are empty;
-        ``level`` is outside ``[0, 1]``; or pretest data cannot support a
-        finite, nondegenerate regression.
+        ``level`` is outside ``[0, 1]``; ``threshold`` is non-finite; or
+        pretest data cannot support a finite, nondegenerate regression.
 
     Notes
     -----
@@ -926,7 +928,9 @@ def perform_tbr_analysis(
     ``effects`` : pd.Series
         Time-indexed pointwise effects.
     ``cumulative_effect`` : pd.Series
-        Time-indexed cumulative effects.
+        Time-indexed :math:`\Delta(T)`, the running cumulative sum through the
+        first :math:`T` ordered test rows or time points, with :math:`T`
+        counted from one.
     ``summary()`` : pd.DataFrame
         Incremental summary copy with the complete schema documented on
         :class:`tbr.core.results.TBRResults`.

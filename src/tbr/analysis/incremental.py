@@ -2,7 +2,7 @@
 TBR Incremental Analysis Module.
 
 This module provides specialized functionality for incremental TBR analysis,
-enabling day-by-day progression analysis of treatment effects during test periods.
+enabling test-row-by-test-row progression analysis of treatment effects.
 
 The incremental analysis approach allows researchers to:
 - Track treatment effect evolution over time
@@ -12,7 +12,7 @@ The incremental analysis approach allows researchers to:
 
 Functions
 ---------
-create_incremental_tbr_summaries : Create day-by-day incremental summaries
+create_incremental_tbr_summaries : Create test-row-by-test-row summaries
 
 Examples
 --------
@@ -26,22 +26,22 @@ Examples
 ...     var_alpha=100.5, var_beta=0.001, cov_alpha_beta=-0.05,
 ...     degrees_freedom=43, level=0.80, threshold=0.0
 ... )
->>> print(f"Day 1 effect: {incremental.iloc[0]['estimate']:.2f}")
->>> print(f"Day 3 effect: {incremental.iloc[2]['estimate']:.2f}")
+>>> print(f"Position 1 effect: {incremental.iloc[0]['estimate']:.2f}")
+>>> print(f"Position 3 effect: {incremental.iloc[2]['estimate']:.2f}")
 
 Analyze effect progression:
 
->>> for day in range(len(incremental)):
-...     row = incremental.iloc[day]
-...     print(f"Day {row['test_day']}: {row['estimate']:.2f} "
+>>> for position in range(len(incremental)):
+...     row = incremental.iloc[position]
+...     print(f"Position {row['test_day']}: {row['estimate']:.2f} "
 ...           f"(prob={row['prob']:.3f})")
 
 Find when posterior probability exceeds a declared threshold:
 
->>> days_above_threshold = incremental[incremental['prob'] > 0.8]
->>> if not days_above_threshold.empty:
-...     first_day_above_threshold = days_above_threshold.iloc[0]['test_day']
-...     print(f"Posterior probability exceeds 0.8 from day {first_day_above_threshold}")
+>>> rows_above_threshold = incremental[incremental['prob'] > 0.8]
+>>> if not rows_above_threshold.empty:
+...     first_position = rows_above_threshold.iloc[0]['test_day']
+...     print(f"Posterior probability exceeds 0.8 from position {first_position}")
 """
 
 import pandas as pd
@@ -65,17 +65,17 @@ def create_incremental_tbr_summaries(
     threshold: float,
 ) -> pd.DataFrame:
     r"""
-    Create one cumulative TBR summary per test day.
+    Create one cumulative TBR summary per ordered test row.
 
     Test rows are consumed in their input order. Row :math:`T` of the result
-    summarizes test days 1 through :math:`T`; this helper does not apply a
-    stopping rule or define statistical significance.
+    summarizes the first :math:`T` test rows or time points; this helper does
+    not apply a stopping rule or define statistical significance.
 
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Daily TBR output containing ``period``, ``cumdif``, and ``cumsd``.
-        Rows satisfying ``period == 1`` must be in test-day order.
+        TBR output containing ``period``, ``cumdif``, and ``cumsd``. Rows
+        satisfying ``period == 1`` must be in test-row/time-point order.
     alpha : float
         Regression intercept :math:`\beta_0`.
     beta : float
@@ -107,16 +107,20 @@ def create_incremental_tbr_summaries(
     ValueError
         If ``tbr_dataframe`` is empty or lacks a required column; ``level`` is
         outside ``[0, 1]``; ``degrees_freedom`` or ``sigma`` is not positive;
-        or no row has ``period == 1``.
+        no row has ``period == 1``; a consumed ``cumdif``, ``cumsd``, or
+        ``threshold`` is non-finite; or a consumed ``cumsd`` is negative.
 
     Notes
     -----
     The returned DataFrame has these stable columns in order:
 
     ``test_day`` : integer
-        One-based cumulative test-day number, normally ``int64``.
+        Legacy name for the one-based cumulative test-row or time-point
+        position, normally ``int64``.
     ``estimate`` : ``float64``
-        Cumulative-effect estimate :math:`\hat{\Delta}(T)`.
+        Cumulative-effect estimate :math:`\hat{\Delta}(T)`, the running
+        cumulative sum through the first :math:`T` entries of the ordered
+        test-row/time-point sequence, with :math:`T` one-based.
     ``precision`` : ``float64``
         Credible-interval half-width.
     ``lower`` : ``float64``
@@ -129,7 +133,9 @@ def create_incremental_tbr_summaries(
     ``level`` : ``float64``
         Credibility level.
     ``thres`` : ``float64``
-        Legacy summary name for input ``threshold``.
+        Legacy summary name mapped one way from input ``threshold``; stores the
+        effect threshold :math:`\theta` used by the posterior exceedance
+        probability.
     ``prob`` : ``float64``
         Posterior probability
         :math:`P(\Delta(T)>\theta\mid\mathrm{data})`.
@@ -138,7 +144,9 @@ def create_incremental_tbr_summaries(
     ``beta`` : ``float64``
         Regression slope :math:`\beta_1`.
     ``alpha_beta_cov`` : ``float64``
-        Legacy summary name for input ``cov_alpha_beta``.
+        Legacy summary name mapped one way from input ``cov_alpha_beta``;
+        stores the covariance between the estimated regression intercept and
+        slope.
     ``var_alpha`` : ``float64``
         Intercept-estimate variance.
     ``var_beta`` : ``float64``
@@ -146,15 +154,16 @@ def create_incremental_tbr_summaries(
     ``sigma`` : ``float64``
         Residual standard deviation.
     ``t_dist_df`` : ``float64``
-        Summary-table representation of input ``degrees_freedom``.
+        Legacy summary name mapped one way from input ``degrees_freedom``;
+        stores the residual/pretest-regression Student-t degrees of freedom.
 
-    Each row in the returned DataFrame represents the cumulative effect
-    from test day 1 through the specified test day. This allows analysis
-    of how treatment effects accumulate and stabilize over time.
+    Here :math:`T` is the one-based count of ordered test rows or time points,
+    and :math:`\Delta(T)` is the running cumulative sum through the first
+    :math:`T` test rows. The row with ``test_day == T`` reports that sum.
 
     The incremental analysis is particularly useful for:
 
-    - Identifying the first observed day meeting a declared probability or
+    - Identifying the first observed test-row position meeting a probability or
       interval criterion
     - Understanding effect stability and consistency
     - Comparing candidate durations under an explicitly chosen criterion
@@ -168,12 +177,18 @@ def create_incremental_tbr_summaries(
     .. math::
         CI_t = estimate_t ± t_{α/2,df} × se_t
 
-    where t represents the incremental test period (day 1, day 2, etc.).
+    Here the subscript :math:`t` indexes the cumulative row, while the
+    Student-t critical value is distribution notation. The equation's interval
+    tail probability is alpha = 1 - level, distinct from the Python parameter
+    ``alpha``, which is the regression intercept.
 
     The posterior probability for each incremental period uses:
 
     .. math::
         P(effect_t > threshold) = 1 - F_t((threshold - estimate_t)/se_t, df)
+
+    In this expression, :math:`F_t` is the Student-t cumulative distribution
+    function, not the ``test_day`` index.
 
     For mathematical background, see the
     :doc:`mathematical methodology guide </mathematical_methodology>`,
@@ -182,7 +197,7 @@ def create_incremental_tbr_summaries(
 
     Examples
     --------
-    Create incremental summaries for day-by-day analysis:
+    Create incremental summaries for test-row-by-test-row analysis:
 
     >>> import pandas as pd
     >>> from tbr import create_incremental_tbr_summaries
@@ -200,22 +215,22 @@ def create_incremental_tbr_summaries(
     True
     >>> incremental["estimate"].tolist() == [5.0, 8.0, 11.0]
     True
-    >>> print(f"Day 1 effect: {incremental.iloc[0]['estimate']:.2f}")
-    >>> print(f"Day 3 effect: {incremental.iloc[2]['estimate']:.2f}")
+    >>> print(f"Position 1 effect: {incremental.iloc[0]['estimate']:.2f}")
+    >>> print(f"Position 3 effect: {incremental.iloc[2]['estimate']:.2f}")
 
     Analyze effect progression:
 
-    >>> for day in range(len(incremental)):
-    ...     row = incremental.iloc[day]
-    ...     print(f"Day {row['test_day']}: {row['estimate']:.2f} "
+    >>> for position in range(len(incremental)):
+    ...     row = incremental.iloc[position]
+    ...     print(f"Position {row['test_day']}: {row['estimate']:.2f} "
     ...           f"(prob={row['prob']:.3f})")
 
     Find when posterior probability exceeds a threshold:
 
-    >>> high_prob_days = incremental[incremental['prob'] > 0.8]
-    >>> if not high_prob_days.empty:
-    ...     first_day = high_prob_days.iloc[0]['test_day']
-    ...     print(f"Posterior probability exceeds 0.8 from day {first_day}")
+    >>> high_prob_rows = incremental[incremental['prob'] > 0.8]
+    >>> if not high_prob_rows.empty:
+    ...     first_position = high_prob_rows.iloc[0]['test_day']
+    ...     print(f"Posterior probability exceeds 0.8 from position {first_position}")
 
     Track credible interval width over time:
 
@@ -224,12 +239,12 @@ def create_incremental_tbr_summaries(
 
     Apply a declared probability rule to candidate durations:
 
-    >>> # Find the first observed day meeting the declared probability rule.
+    >>> # Find the first observed position meeting the probability rule.
     >>> target_prob = 0.9
-    >>> matching_days = incremental[incremental['prob'] >= target_prob]
-    >>> if not matching_days.empty:
-    ...     first_matching_day = matching_days.iloc[0]['test_day']
-    ...     print(f"First observed day meeting the 90% probability rule: {first_matching_day}")
+    >>> matching_rows = incremental[incremental['prob'] >= target_prob]
+    >>> if not matching_rows.empty:
+    ...     first_position = matching_rows.iloc[0]['test_day']
+    ...     print(f"First observed position meeting the 90% rule: {first_position}")
     """
     return functional_create_incremental_tbr_summaries(
         tbr_dataframe=tbr_dataframe,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import inspect
 import pydoc
 import re
@@ -14,6 +15,18 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 API_REFERENCE = REPOSITORY_ROOT / "docs" / "api" / "api_reference.rst"
 METHODOLOGY = REPOSITORY_ROOT / "docs" / "mathematical_methodology.md"
+AUTOSUMMARY_CLASS_TEMPLATE = (
+    REPOSITORY_ROOT / "docs" / "_templates" / "autosummary" / "class.rst"
+)
+
+ANNOTATION_ONLY_ATTRIBUTE_PAGES = (
+    "tbr.core.results.TBRPredictionResult",
+    "tbr.core.results.TBRSummaryResult",
+    "tbr.core.results.TBRSubintervalResult",
+    "tbr.TBRResidualStatistics",
+    "tbr.TBRResidualAnalysis",
+    "tbr.TBRDiagnosticReport",
+)
 
 EXPECTED_AUTOSUMMARY_SYMBOLS = (
     "TBRAnalysis",
@@ -488,6 +501,92 @@ def _schema_entry_description(section: str, name: str) -> str:
     return " ".join(" ".join(description).split())
 
 
+def _numpy_field_description(section: str, name: str) -> str:
+    """Return normalized prose for one NumPy Parameters/Attributes field."""
+    lines = section.splitlines()
+    declaration = re.compile(r"^(?P<names>[A-Za-z_][A-Za-z0-9_, ]*)\s*:\s*\S.*$")
+    entry_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if (match := declaration.match(line))
+            and name
+            in {candidate.strip() for candidate in match.group("names").split(",")}
+        ),
+        None,
+    )
+    if entry_index is None:
+        return ""
+    description = []
+    for line in lines[entry_index + 1 :]:
+        if declaration.match(line):
+            break
+        description.append(line.strip())
+    return " ".join(" ".join(description).split())
+
+
+def _numpy_raises_description(section: str, exception: str) -> str:
+    """Return normalized prose associated with one declared exception."""
+    lines = section.splitlines()
+    entry_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if line.strip() == exception and not line[:1].isspace()
+        ),
+        None,
+    )
+    if entry_index is None:
+        return ""
+    description = []
+    for line in lines[entry_index + 1 :]:
+        if line.strip() and not line[:1].isspace():
+            break
+        description.append(line.strip())
+    return " ".join(" ".join(description).split())
+
+
+def _schema_paths(section: str) -> set[str]:
+    """Return dot-separated paths represented by an indented schema."""
+    paths = set()
+    ancestors: list[tuple[int, str]] = []
+    for line in section.splitlines():
+        entries = _schema_entries(line)
+        if not entries:
+            continue
+        indentation = len(line) - len(line.lstrip())
+        while ancestors and ancestors[-1][0] >= indentation:
+            ancestors.pop()
+        for name, _ in entries:
+            path = ".".join([ancestor for _, ancestor in ancestors] + [name])
+            paths.add(path)
+            ancestors.append((indentation, name))
+    return paths
+
+
+def _normalized_prose(text: str) -> str:
+    """Normalize prose for unordered vocabulary alternatives."""
+    return " ".join(re.sub(r"[^a-z0-9_]+", " ", text.casefold()).split())
+
+
+def _contains_any(text: str, alternatives: tuple[str, ...]) -> bool:
+    """Return whether normalized prose contains one equivalent expression."""
+    normalized = f" {_normalized_prose(text)} "
+    return any(
+        f" {_normalized_prose(alternative)} " in normalized
+        for alternative in alternatives
+    )
+
+
+def _paragraphs(text: str) -> tuple[str, ...]:
+    """Return nonempty prose paragraphs without imposing sentence shape."""
+    return tuple(
+        " ".join(paragraph.split())
+        for paragraph in re.split(r"\n\s*\n", text)
+        if paragraph.strip()
+    )
+
+
 def _markdown_table_rows(source: str) -> Sequence[Sequence[str]]:
     """Parse Markdown table rows sufficiently for mapping association checks."""
     rows = []
@@ -505,6 +604,44 @@ def test_api_reference_has_exact_public_page_inventory() -> None:
     source = API_REFERENCE.read_text(encoding="utf-8")
 
     assert _autosummary_symbols(source) == EXPECTED_AUTOSUMMARY_SYMBOLS
+
+
+def test_annotation_only_attributes_are_not_rendered_twice() -> None:
+    """Suppress declared fields without hiding documented properties."""
+    template = AUTOSUMMARY_CLASS_TEMPLATE.read_text(encoding="utf-8")
+    mapping_match = re.search(
+        r"{% set annotation_only_attributes = (?P<mapping>\{.*?\}) %}",
+        template,
+        flags=re.DOTALL,
+    )
+    result_class_directive = """.. autoclass:: {{ objname }}()
+   :members:
+   :exclude-members: {{ annotation_only_attributes[fullname] | join(", ") }}
+   :show-inheritance:
+   :class-doc-from: class"""
+    public_schema_directive = """.. autoclass:: {{ objname }}
+   :members:
+   :exclude-members: {{ annotation_only_attributes[fullname] | join(", ") }}
+   :show-inheritance:"""
+
+    assert mapping_match is not None
+    configured = ast.literal_eval(mapping_match.group("mapping"))
+    expected = {
+        page: tuple(pydoc.locate(page).__annotations__)
+        for page in ANNOTATION_ONLY_ATTRIBUTE_PAGES
+    }
+
+    assert configured == expected
+    assert result_class_directive in template
+    assert public_schema_directive in template
+    for page, excluded_fields in configured.items():
+        documented_object = pydoc.locate(page)
+        properties = {
+            name
+            for name, member in inspect.getmembers(documented_object)
+            if isinstance(member, property)
+        }
+        assert properties.isdisjoint(excluded_fields)
 
 
 @pytest.mark.parametrize("symbol", EXPECTED_AUTOSUMMARY_SYMBOLS)
@@ -552,6 +689,10 @@ def test_public_docstrings_do_not_double_escape_latex_commands() -> None:
                 r"+\bar{x}^2\mathbb{V}[\hat{\beta}_1]",
                 r"estimate=\sum_{i=start}^{end}(y_i-pred_i)",
             ),
+        ),
+        (
+            "create_subinterval_summary",
+            (r"T_s=\mathrm{end\_day}-\mathrm{start\_day}+1",),
         ),
     ),
 )
@@ -835,7 +976,7 @@ def test_incremental_docstring_avoids_unsupported_sequential_claims() -> None:
     )
 
     assert all(claim not in docstring for claim in unsupported_claims)
-    assert "first observed day meeting" in docstring
+    assert "first observed position meeting" in docstring
 
 
 def test_subinterval_docstring_defines_exclusion_flag_precisely() -> None:
@@ -895,3 +1036,582 @@ def test_methodology_keeps_stable_symbol_to_code_mapping(
     assert any(
         all(name in " | ".join(row) for name in python_names) for row in matching_rows
     ), f"{symbol} is no longer mapped to {', '.join(python_names)}"
+
+
+SUMMARY_SEMANTIC_SYMBOLS = (
+    "TBRAnalysis.summarize_incremental",
+    "TBRAnalysis.summaries_",
+    "core.results.TBRResults.summary",
+    "create_tbr_summary",
+    "create_incremental_tbr_summaries",
+)
+
+LEGACY_SCIENTIFIC_FIELDS = {
+    "alpha_beta_cov": (
+        ("cov_alpha_beta",),
+        ("covariance", "cov"),
+        ("intercept", "alpha", "beta_0"),
+        ("slope", "beta", "beta_1"),
+    ),
+    "thres": (
+        ("threshold",),
+        ("theta",),
+        ("posterior",),
+        ("probability", "exceedance"),
+    ),
+    "t_dist_df": (
+        ("degrees_freedom",),
+        ("student t", "t distribution"),
+        ("regression", "residual", "pretest"),
+    ),
+}
+
+TYPED_DICT_FIELDS = {
+    "TBRResidualStatistics": ("mean", "std", "min", "max", "q25", "median", "q75"),
+    "TBRResidualAnalysis": (
+        "residuals",
+        "standardized_residuals",
+        "studentized_residuals",
+        "outliers",
+        "outlier_threshold",
+        "outlier_percentage",
+        "residual_stats",
+        "residual_std",
+        "n_observations",
+    ),
+    "TBRDiagnosticReport": (
+        "executive_summary",
+        "overall_validity",
+        "warnings_count",
+        "key_findings",
+        "recommendations",
+        "detailed_results",
+        "report_timestamp",
+    ),
+}
+
+AGGREGATE_SCHEMA_PATHS = {
+    "diagnose_tbr_analysis": (
+        "model_validation.assumption_tests.normality_valid",
+        "model_validation.goodness_of_fit.r_squared",
+        "diagnostic_summary.normality_test.p_value",
+        "performance_metrics.prediction_metrics.mape",
+        "recommendations",
+    ),
+    "create_tbr_diagnostic_report": (
+        "detailed_results.model_validation.assumption_tests.normality_valid",
+        "detailed_results.diagnostic_summary.normality_test.p_value",
+        "detailed_results.performance_metrics.prediction_metrics.mape",
+        "detailed_results.recommendations",
+    ),
+}
+
+POSITIONAL_CASES = (
+    (
+        "core.results.TBRResults.n_test_days",
+        "",
+        "",
+        (
+            ("legacy", "historical name"),
+            ("test row", "time point"),
+            ("count", "number", "length"),
+        ),
+    ),
+    (
+        "create_incremental_tbr_summaries",
+        "Notes",
+        "test_day",
+        (
+            ("legacy", "historical name"),
+            ("test row", "time point"),
+            ("one based", "starts at one"),
+            ("cumulative",),
+        ),
+    ),
+    (
+        "TBRAnalysis.analyze_subinterval",
+        "Parameters",
+        "start_day",
+        (
+            ("legacy", "historical name"),
+            ("test row", "time point"),
+            ("position", "index"),
+            ("one based", "starts at one"),
+            ("inclusive", "includes the endpoint"),
+        ),
+    ),
+    (
+        "TBRAnalysis.analyze_subinterval",
+        "Parameters",
+        "end_day",
+        (
+            ("legacy", "historical name"),
+            ("test row", "time point"),
+            ("position", "index"),
+            ("one based", "starts at one"),
+            ("inclusive", "includes the endpoint"),
+        ),
+    ),
+    (
+        "core.results.TBRSubintervalResult",
+        "Attributes",
+        "n_days",
+        (
+            ("legacy", "historical name"),
+            ("test row", "time point"),
+            ("count", "number", "length"),
+            ("inclusive", "both endpoints"),
+        ),
+    ),
+    (
+        "create_subinterval_summary",
+        "Notes",
+        "days",
+        (
+            ("legacy", "historical name"),
+            ("test row", "time point"),
+            ("count", "number", "length"),
+            ("inclusive", "both endpoints"),
+        ),
+    ),
+)
+
+DIAGNOSTIC_UNIT_CASES = (
+    (
+        "validate_tbr_model",
+        {
+            "residuals": "response",
+            "mse": "squared",
+            "standardized_residuals": "dimensionless",
+            "prediction_interval_coverage": "dimensionless",
+        },
+    ),
+    (
+        "analyze_tbr_residuals",
+        {
+            "residuals": "response",
+            "standardized_residuals": "dimensionless",
+            "residual_std": "response",
+        },
+    ),
+    (
+        "assess_tbr_performance",
+        {
+            "mae": "response",
+            "mse": "squared",
+            "interval_coverage": "dimensionless",
+            "sigma": "response",
+            "efficiency_score": "dimensionless",
+        },
+    ),
+)
+
+UNIT_CONCEPTS = {
+    "response": (("response units", "units of y", "same units as y", "outcome units"),),
+    "squared": (
+        (
+            "squared response units",
+            "squared units of y",
+            "response units squared",
+            "outcome units squared",
+        ),
+    ),
+    "dimensionless": (
+        ("dimensionless", "unitless", "no units", "proportion", "ratio"),
+    ),
+}
+
+CUMULATIVE_SEMANTIC_SYMBOLS = (
+    "perform_tbr_analysis",
+    "core.results.TBRResults.cumulative_effect",
+    "TBRAnalysis.summarize_incremental",
+    "TBRAnalysis.summaries_",
+    "core.results.TBRResults.summary",
+    "create_tbr_summary",
+    "create_incremental_tbr_summaries",
+)
+
+
+def _assert_concepts(
+    text: str, concept_alternatives: tuple[tuple[str, ...], ...], context: str
+) -> None:
+    """Require unordered concepts while accepting equivalent vocabulary."""
+    missing = [
+        "/".join(alternatives)
+        for alternatives in concept_alternatives
+        if not _contains_any(text, alternatives)
+    ]
+    assert not missing, f"{context} missing concept(s): {', '.join(missing)}"
+
+
+def test_fit_predict_documents_retained_fitted_state() -> None:
+    """Accept equivalent positive wording for the estimator's retained state."""
+    docstring = (
+        inspect.getdoc(_public_documented_object("TBRAnalysis.fit_predict")) or ""
+    )
+    sentences = re.split(r"(?<=[.!?])\s+", docstring)
+    retained_state_sentences = [
+        sentence
+        for sentence in sentences
+        if _contains_any(sentence, ("fit", "fitted"))
+        and _contains_any(sentence, ("retain", "store", "keep", "leave", "remain"))
+        and _contains_any(sentence, ("state", "estimator", "model"))
+        and not _contains_any(sentence, ("not", "no", "without", "does not"))
+    ]
+
+    assert retained_state_sentences
+
+
+def test_perform_tbr_analysis_documents_nonfinite_threshold_value_error() -> None:
+    """Associate non-finite threshold rejection with its declared ValueError."""
+    function = _public_documented_object("perform_tbr_analysis")
+    docstring = inspect.getdoc(function) or ""
+    parameters = _numpy_doc_section(docstring, "Parameters")
+    raises = _numpy_doc_section(docstring, "Raises")
+    threshold = _numpy_field_description(parameters, "threshold")
+    value_error = _numpy_raises_description(raises, "ValueError")
+
+    assert _contains_any(threshold, ("finite", "not nan", "not infinite"))
+    assert value_error
+    assert "threshold" in value_error
+    assert _contains_any(value_error, ("non finite", "not finite", "nan", "infinite"))
+
+
+def test_multiple_subinterval_ci_level_documents_open_unit_interval() -> None:
+    """Require endpoint-excluding bounds without requiring one prose form."""
+    function = _public_documented_object("analyze_multiple_subintervals")
+    parameters = _numpy_doc_section(inspect.getdoc(function) or "", "Parameters")
+    description = _numpy_field_description(parameters, "ci_level")
+    compact = re.sub(r"\s+", "", description.casefold())
+
+    symbolic = "(0,1)" in compact or "0<ci_level<1" in compact
+    verbal = _contains_any(
+        description, ("open interval", "exclusive bounds", "endpoints excluded")
+    ) or (
+        _contains_any(
+            description, ("greater than zero", "above zero", "strictly positive")
+        )
+        and _contains_any(description, ("less than one", "below one"))
+    )
+    assert symbolic or verbal
+
+
+def test_assumption_check_schema_excludes_returned_test_statistics() -> None:
+    """Allow explicit negation while rejecting an unnegated return promise."""
+    function = _public_documented_object("check_tbr_assumptions")
+    docstring = inspect.getdoc(function) or ""
+    notes = _numpy_doc_section(docstring, "Notes")
+    schema_names = {name for name, entry_type in _schema_entries(notes) if entry_type}
+    expected = set(EXPECTED_SCHEMA_FIELDS["check_tbr_assumptions"])
+
+    assert schema_names == expected
+    assert "validation_summary" in schema_names
+    assert any(name.endswith("_valid") for name in schema_names)
+    statistic_sentences = [
+        sentence
+        for sentence in re.split(r"(?<=[.!?])\s+", docstring)
+        if "test statistics" in sentence.casefold()
+    ]
+    assert statistic_sentences
+    assert all(
+        _contains_any(
+            sentence,
+            (
+                "not return",
+                "not include",
+                "no test statistics",
+                "statistics are not returned",
+                "omits",
+                "excludes",
+            ),
+        )
+        for sentence in statistic_sentences
+    )
+
+
+@pytest.mark.parametrize("symbol", SUMMARY_SEMANTIC_SYMBOLS)
+def test_summary_legacy_scientific_fields_define_meaning_and_mapping(
+    symbol: str,
+) -> None:
+    """Protect compact, local meanings for legacy scientific output names."""
+    documented_object = _public_documented_object(symbol)
+    notes = _numpy_doc_section(inspect.getdoc(documented_object) or "", "Notes")
+
+    for field, concepts in LEGACY_SCIENTIFIC_FIELDS.items():
+        description = _schema_entry_description(notes, field)
+        _assert_concepts(description, concepts, f"{symbol}.{field}")
+
+
+@pytest.mark.parametrize(
+    "symbol",
+    (
+        "compute_interval_estimate_and_ci",
+        "analyze_multiple_subintervals",
+        "create_subinterval_summary",
+    ),
+)
+def test_subinterval_inputs_define_legacy_scientific_columns(symbol: str) -> None:
+    """Define consumed covariance and degrees-of-freedom legacy columns."""
+    documented_object = _public_documented_object(symbol)
+    parameters = _numpy_doc_section(
+        inspect.getdoc(documented_object) or "", "Parameters"
+    )
+    description = _numpy_field_description(parameters, "tbr_summary")
+
+    _assert_concepts(
+        description,
+        (
+            ("alpha_beta_cov",),
+            ("cov_alpha_beta",),
+            ("covariance", "cov"),
+            ("intercept", "alpha", "beta_0"),
+            ("slope", "beta", "beta_1"),
+            ("t_dist_df",),
+            ("degrees_freedom",),
+            ("student t", "t distribution"),
+            ("regression", "residual", "pretest"),
+        ),
+        f"{symbol}.tbr_summary",
+    )
+
+
+@pytest.mark.parametrize(
+    ("symbol", "level_name", "has_alpha_parameter"),
+    (
+        ("create_tbr_summary", "level", True),
+        ("create_incremental_tbr_summaries", "level", True),
+        ("compute_interval_estimate_and_ci", "ci_level", False),
+    ),
+)
+def test_interval_tail_alpha_defines_level_complement(
+    symbol: str, level_name: str, has_alpha_parameter: bool
+) -> None:
+    """Require the objective tail-probability identity and disambiguation."""
+    documented_object = _public_documented_object(symbol)
+    docstring = inspect.getdoc(documented_object) or ""
+    compact = re.sub(r"\s+", "", docstring.casefold())
+
+    alpha_forms = ("alpha", "α")
+    assert any(
+        f"{alpha}=1-{level_name}" in compact or f"1-{level_name}={alpha}" in compact
+        for alpha in alpha_forms
+    )
+    if has_alpha_parameter:
+        assert _contains_any(docstring, ("regression intercept", "beta_0"))
+
+
+@pytest.mark.parametrize(
+    ("symbol", "legacy_name", "section_name", "field"),
+    (
+        ("compute_interval_estimate_and_ci", "n_days", "", ""),
+        ("create_subinterval_summary", "days", "Notes", "days"),
+    ),
+)
+def test_subinterval_t_s_is_associated_with_local_legacy_count(
+    symbol: str, legacy_name: str, section_name: str, field: str
+) -> None:
+    """Associate T_s with n_days on compute and days on summary."""
+    documented_object = _public_documented_object(symbol)
+    docstring = inspect.getdoc(documented_object) or ""
+    if section_name and field:
+        section = _numpy_doc_section(docstring, section_name)
+        association_scope = _schema_entry_description(section, field)
+    else:
+        association_scope = next(
+            (
+                paragraph
+                for paragraph in _paragraphs(docstring)
+                if "T_s" in paragraph and legacy_name in paragraph
+            ),
+            "",
+        )
+
+    assert association_scope
+    assert "T_s" in association_scope
+    assert legacy_name in association_scope
+    compact = association_scope.casefold().replace(r"\mathrm", "").replace(r"\_", "_")
+    compact = re.sub(r"[\s{}`:]", "", compact)
+    assert "t_s=b-a+1" in compact or "t_s=end_day-start_day+1" in compact
+    _assert_concepts(
+        association_scope,
+        (
+            ("inclusive", "both endpoints", "including the endpoints"),
+            ("test row", "time point", "test observation"),
+            ("count", "number", "length"),
+        ),
+        f"{symbol}.{legacy_name}",
+    )
+
+
+@pytest.mark.parametrize(
+    ("symbol", "field", "concepts"),
+    (
+        (
+            "TBRAnalysis.results_",
+            "predsd",
+            (
+                (
+                    "coefficient uncertainty",
+                    "parameter estimation uncertainty",
+                    "coefficient variance",
+                ),
+                ("residual uncertainty", "residual variance", "residual noise"),
+                ("standard deviation", "uncertainty", "variance"),
+                ("combines", "includes", "incorporates", "accounts for", "from both"),
+            ),
+        ),
+        (
+            "core.results.TBRPredictionResult.to_dict",
+            "control_values",
+            (
+                ("control", "input"),
+                ("prediction",),
+                ("aligned", "row for row", "same rows"),
+            ),
+        ),
+    ),
+)
+def test_high_risk_quantity_descriptions_define_components_and_alignment(
+    symbol: str, field: str, concepts: tuple[tuple[str, ...], ...]
+) -> None:
+    """Protect uncertainty composition and prediction-input alignment."""
+    documented_object = _public_documented_object(symbol)
+    notes = _numpy_doc_section(inspect.getdoc(documented_object) or "", "Notes")
+    description = _schema_entry_description(notes, field)
+
+    _assert_concepts(description, concepts, f"{symbol}.{field}")
+
+
+@pytest.mark.parametrize(
+    ("symbol", "section_name", "field", "concepts"), POSITIONAL_CASES
+)
+def test_representative_legacy_positions_define_test_row_semantics(
+    symbol: str, section_name: str, field: str, concepts: tuple[tuple[str, ...], ...]
+) -> None:
+    documented_object = _public_documented_object(symbol)
+    docstring = inspect.getdoc(documented_object) or ""
+    if not section_name:
+        description = docstring
+    else:
+        section = _numpy_doc_section(docstring, section_name)
+        description = (
+            _numpy_field_description(section, field)
+            if section_name in {"Parameters", "Attributes"}
+            else _schema_entry_description(section, field)
+        )
+    _assert_concepts(description, concepts, f"{symbol}.{field}")
+
+
+@pytest.mark.parametrize("symbol", CUMULATIVE_SEMANTIC_SYMBOLS)
+def test_cumulative_notation_locally_defines_delta_t_and_t(symbol: str) -> None:
+    docstring = inspect.getdoc(_public_documented_object(symbol)) or ""
+    scope = next(
+        (
+            paragraph
+            for paragraph in _paragraphs(docstring)
+            if _contains_any(paragraph, ("delta t",))
+        ),
+        "",
+    )
+    assert scope
+    _assert_concepts(
+        scope,
+        (
+            ("running sum", "cumulative sum"),
+            ("test row", "time point", "test observation"),
+            ("one based", "starts at one", "first t"),
+        ),
+        symbol,
+    )
+
+
+@pytest.mark.parametrize(("symbol", "contracts"), DIAGNOSTIC_UNIT_CASES)
+def test_representative_diagnostic_quantities_define_units_and_scales(
+    symbol: str, contracts: dict[str, str]
+) -> None:
+    documented_object = _public_documented_object(symbol)
+    notes = _numpy_doc_section(inspect.getdoc(documented_object) or "", "Notes")
+    for field, unit_kind in contracts.items():
+        description = _schema_entry_description(notes, field)
+        _assert_concepts(description, UNIT_CONCEPTS[unit_kind], f"{symbol}.{field}")
+
+
+def test_report_timestamp_documents_timezone_naive_no_offset_value() -> None:
+    function = _public_documented_object("create_tbr_diagnostic_report")
+    notes = _numpy_doc_section(inspect.getdoc(function) or "", "Notes")
+    timestamp = _schema_entry_description(notes, "report_timestamp")
+    _assert_concepts(
+        timestamp,
+        (
+            (
+                "timezone naive",
+                "without timezone",
+                "no timezone",
+                "timezone information absent",
+            ),
+            (
+                "no offset",
+                "without offset",
+                "offset absent",
+                "does not include an offset",
+            ),
+        ),
+        "create_tbr_diagnostic_report.report_timestamp",
+    )
+
+
+def test_validate_tbr_model_documents_mape_zero_value_limitation() -> None:
+    """Keep the zero and near-zero response limitation local to validation."""
+    documented_object = _public_documented_object("validate_tbr_model")
+    paragraphs = _paragraphs(inspect.getdoc(documented_object) or "")
+    mape_scope = next(
+        (paragraph for paragraph in paragraphs if "MAPE" in paragraph), ""
+    )
+
+    assert mape_scope
+    _assert_concepts(
+        mape_scope,
+        (
+            ("zero",),
+            ("near zero", "close to zero", "small denominator"),
+            ("undefined", "unstable", "not defined", "unreliable"),
+        ),
+        "validate_tbr_model MAPE limitation",
+    )
+
+
+def test_efficiency_score_documents_exact_coverage_component_and_range() -> None:
+    """Protect the exact coverage component and its objective scale."""
+    documented_object = _public_documented_object("assess_tbr_performance")
+    compact = re.sub(r"\s+", "", (inspect.getdoc(documented_object) or "").casefold())
+
+    assert "max(0,1-2*abs(interval_coverage-0.95))" in compact
+    assert "[0,1]" in compact or "0<=efficiency_score<=1" in compact
+
+
+@pytest.mark.parametrize(("symbol", "fields"), TYPED_DICT_FIELDS.items())
+def test_standalone_typed_dict_fields_have_local_descriptions(
+    symbol: str, fields: tuple[str, ...]
+) -> None:
+    """Require every standalone TypedDict page to explain each public field."""
+    documented_object = _public_documented_object(symbol)
+    attributes = _numpy_doc_section(
+        inspect.getdoc(documented_object) or "", "Attributes"
+    )
+    missing = [
+        field for field in fields if not _numpy_field_description(attributes, field)
+    ]
+
+    assert not missing, f"{symbol} missing field descriptions: {', '.join(missing)}"
+
+
+@pytest.mark.parametrize(("symbol", "required_paths"), AGGREGATE_SCHEMA_PATHS.items())
+def test_aggregate_diagnostics_document_local_stable_nested_paths(
+    symbol: str, required_paths: tuple[str, ...]
+) -> None:
+    """Keep representative stable nested schemas local to aggregate pages."""
+    documented_object = _public_documented_object(symbol)
+    notes = _numpy_doc_section(inspect.getdoc(documented_object) or "", "Notes")
+    missing = set(required_paths) - _schema_paths(notes)
+
+    assert not missing, f"{symbol} missing nested paths: {sorted(missing)}"
