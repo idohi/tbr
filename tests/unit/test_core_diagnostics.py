@@ -9,6 +9,8 @@ The tests verify mathematical accuracy, statistical validity, and proper
 handling of edge cases for all diagnostic functions.
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -277,6 +279,16 @@ class TestAssumptionTesting:
         # Uniform data should often fail normality test
         assert isinstance(result["is_normal"], bool)
 
+    def test_normality_p_value_equal_to_decision_level_does_not_pass(self):
+        """Treat a Shapiro-Wilk p-value equal to 0.05 as not passing."""
+        residuals = np.array([-1.0, 0.0, 1.0])
+
+        with patch("scipy.stats.shapiro", return_value=(0.9, 0.05)):
+            result = check_normality(residuals)
+
+        assert result["p_value"] == 0.05
+        assert result["is_normal"] is False
+
     def test_homoscedasticity_test(self):
         """Test homoscedasticity (Breusch-Pagan) test."""
         np.random.seed(606)
@@ -296,6 +308,17 @@ class TestAssumptionTesting:
         assert result["test_name"] == "Breusch-Pagan"
         assert 0 <= result["p_value"] <= 1
         assert isinstance(result["is_homoscedastic"], bool)
+
+    def test_homoscedasticity_p_value_equal_to_decision_level_does_not_pass(self):
+        """Treat a Breusch-Pagan p-value equal to 0.05 as not passing."""
+        data = pd.DataFrame({"control": [1.0, 2.0, 3.0], "test": [2.0, 4.1, 5.9]})
+        model_params = fit_regression_model(data, "control", "test")
+
+        with patch("scipy.stats.chi2.sf", return_value=0.05):
+            result = check_homoscedasticity(data, model_params, "control", "test")
+
+        assert result["p_value"] == 0.05
+        assert result["is_homoscedastic"] is False
 
     def test_independence_test(self):
         """Test independence (Durbin-Watson) test."""
@@ -372,6 +395,28 @@ class TestDiagnosticSummary:
         assert "aic" in ic
         assert "bic" in ic
 
+    def test_diagnostic_warnings_include_equality_at_decision_level(self):
+        """Report failed checks accurately when p-values equal 0.05."""
+        data = pd.DataFrame({"control": [1.0, 2.0, 3.0], "test": [2.0, 4.0, 6.1]})
+        model_params = fit_regression_model(data, "control", "test")
+
+        with patch(
+            "tbr.core.diagnostics.check_normality",
+            return_value={"is_normal": False, "p_value": 0.05},
+        ), patch(
+            "tbr.core.diagnostics.check_homoscedasticity",
+            return_value={"is_homoscedastic": False, "p_value": 0.05},
+        ), patch(
+            "tbr.core.diagnostics.check_independence",
+            return_value={"is_independent": True},
+        ):
+            summary = create_diagnostic_summary(data, model_params, "control", "test")
+
+        assert summary["warnings"] == [
+            "Normality check did not pass (Shapiro-Wilk p <= 0.05)",
+            "Homoscedasticity check did not pass (Breusch-Pagan p <= 0.05)",
+        ]
+
     def test_model_assumption_validation(self):
         """Test comprehensive model assumption validation."""
         np.random.seed(1010)
@@ -404,6 +449,34 @@ class TestDiagnosticSummary:
 
         # Verify significance level
         assert validation["significance_level"] == 0.05  # Default value
+
+    def test_assumption_validation_success_summary_is_calibrated(self):
+        """Describe successful configured checks without claiming proof."""
+        data = pd.DataFrame({"control": [1.0, 2.0, 3.0], "test": [2.0, 4.0, 6.1]})
+        model_params = fit_regression_model(data, "control", "test")
+
+        with patch(
+            "tbr.core.diagnostics.check_normality",
+            return_value={"p_value": 0.5},
+        ), patch(
+            "tbr.core.diagnostics.check_homoscedasticity",
+            return_value={"p_value": 0.5},
+        ):
+            with patch(
+                "tbr.core.diagnostics.check_independence",
+                return_value={"is_independent": True},
+            ), patch(
+                "tbr.core.diagnostics.calculate_goodness_of_fit",
+                return_value={"f_p_value": 0.01, "r_squared": 0.9},
+            ):
+                validation = validate_model_assumptions(
+                    data, model_params, "control", "test"
+                )
+
+        assert (
+            validation["validation_summary"]
+            == "All configured regression-assumption checks passed"
+        )
 
     def test_assumption_validation_custom_alpha(self):
         """Test assumption validation with custom significance level."""

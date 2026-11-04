@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API.
 
 ### Fixed
+- Calibrated diagnostic success messages to report that configured checks
+  passed or produced no warnings, rather than claiming that statistical
+  assumptions were proven or advising confidence in the analysis results.
+- Diagnostic warnings now state that normality or homoscedasticity checks did
+  not pass at `p <= 0.05`, matching the implemented decision rule at equality.
+- `assess_tbr_performance` now reports prediction quality as `"Not assessed"`
+  when no test-period prediction metrics exist, instead of labeling absent
+  evidence as `"Poor"`.
 - Corrected the public return annotations for `analyze_tbr_residuals` and
   `create_tbr_diagnostic_report` to describe their actual mapping schemas.
 - Diagnostic reports now name linearity when it is the only failed assumption,
