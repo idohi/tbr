@@ -775,6 +775,36 @@ class TestAssessTbrPerformance:
         assert isinstance(result, dict)
         assert result["data_metrics"]["test_observations"] == 0
         assert result["prediction_metrics"] == {}
+        assert result["performance_summary"]["prediction_quality"] == "Not assessed"
+
+    @pytest.mark.parametrize(
+        ("mape", "expected_quality"),
+        [
+            (5.0, "Good"),
+            (10.0, "Moderate"),
+            (24.0, "Moderate"),
+            (25.0, "Poor"),
+            (30.0, "Poor"),
+        ],
+    )
+    def test_prediction_quality_uses_documented_mape_boundaries(
+        self, mape, expected_quality
+    ):
+        """Classify available prediction metrics at the documented boundaries."""
+        tbr_df = pd.DataFrame(
+            {
+                "period": [1, 1],
+                "y": [100.0, 100.0],
+                "pred": [100.0 - mape, 100.0 - mape],
+                "predsd": [50.0, 50.0],
+            }
+        )
+        tbr_summary = pd.DataFrame({"t_dist_df": [10], "sigma": [1.0]})
+
+        result = assess_tbr_performance(tbr_df, tbr_summary)
+
+        assert result["prediction_metrics"]["mape"] == pytest.approx(mape)
+        assert result["performance_summary"]["prediction_quality"] == expected_quality
 
     def test_assess_tbr_performance_metrics_calculation(self, sample_data):
         """Test specific metrics calculations."""
@@ -936,13 +966,11 @@ class TestGenerateDiagnosticRecommendations:
 
         recommendations = _generate_diagnostic_recommendations(model_validation, {})
 
-        assert isinstance(recommendations, list)
-        assert len(recommendations) > 0
-        # Should have positive recommendation for valid model
-        assert any(
-            "good" in rec.lower() or "confidence" in rec.lower()
-            for rec in recommendations
-        )
+        assert recommendations == [
+            "No diagnostic issues triggering a specific recommendation were "
+            "identified. Interpret TBR results in light of the study design, "
+            "model assumptions, and application context."
+        ]
 
     def test_generate_recommendations_invalid_assumptions(self):
         """Test recommendations for invalid assumptions."""
@@ -1575,8 +1603,10 @@ class TestComprehensiveCoverageScenarios:
             }
 
             report = create_tbr_diagnostic_report(tbr_df, tbr_summary)
-            assert "PASSED" in report["executive_summary"]
-            assert "meets statistical requirements" in report["executive_summary"]
+            assert report["executive_summary"] == (
+                "TBR model validation produced no warnings under the configured "
+                "diagnostic checks."
+            )
 
         # Test invalid model executive summary (line 683)
         with patch("tbr.analysis.diagnostics.validate_tbr_model") as mock_validate:
@@ -1627,9 +1657,9 @@ class TestComprehensiveCoverageScenarios:
             }
 
             report = create_tbr_diagnostic_report(tbr_df, tbr_summary)
-            assert any(
-                "all statistical assumptions are satisfied" in finding.lower()
-                for finding in report["key_findings"]
+            assert (
+                "All configured regression-assumption checks passed"
+                in report["key_findings"]
             )
 
         # Test assumption violations (lines 701-717)

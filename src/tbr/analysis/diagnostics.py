@@ -1252,8 +1252,9 @@ def assess_tbr_performance(
             ``"Good"`` for at least 20 learning rows; otherwise
             ``"Limited"``.
         ``prediction_quality`` : str
-            ``"Good"`` for MAPE below 10, ``"Moderate"`` below 25, and
-            ``"Poor"`` otherwise.
+            ``"Not assessed"`` when no test-period prediction metrics are
+            available; otherwise ``"Good"`` for MAPE below 10,
+            ``"Moderate"`` below 25, and ``"Poor"``.
         ``overall_performance`` : str
             ``"Excellent"`` above 0.8, ``"Good"`` above 0.6,
             ``"Moderate"`` above 0.4, and ``"Poor"`` otherwise.
@@ -1366,6 +1367,15 @@ def assess_tbr_performance(
 
     efficiency_score = np.mean(efficiency_components) if efficiency_components else 0.0
 
+    if not prediction_metrics:
+        prediction_quality = "Not assessed"
+    elif prediction_metrics["mape"] < 10:
+        prediction_quality = "Good"
+    elif prediction_metrics["mape"] < 25:
+        prediction_quality = "Moderate"
+    else:
+        prediction_quality = "Poor"
+
     return {
         "data_metrics": {
             "total_observations": total_observations,
@@ -1378,11 +1388,7 @@ def assess_tbr_performance(
         "efficiency_score": float(efficiency_score),
         "performance_summary": {
             "data_quality": "Good" if learning_observations >= 20 else "Limited",
-            "prediction_quality": (
-                "Good"
-                if prediction_metrics.get("mape", 100) < 10
-                else "Moderate" if prediction_metrics.get("mape", 100) < 25 else "Poor"
-            ),
+            "prediction_quality": prediction_quality,
             "overall_performance": (
                 "Excellent"
                 if efficiency_score > 0.8
@@ -1541,9 +1547,10 @@ def create_tbr_diagnostic_report(
 
     The report is intended for review and communication. Its statuses,
     recommendations, and categorical wording are heuristic. In particular,
-    the generated ``"PASSED"`` sentence reflects absence of emitted warnings;
-    it does not establish that every modeling assumption holds, validate a
-    causal interpretation, or quantify certainty about the treatment effect.
+    the positive executive-summary sentence reflects absence of emitted
+    warnings; it does not establish that every modeling assumption holds,
+    validate a causal interpretation, or quantify certainty about the
+    treatment effect.
 
     See the :doc:`model-diagnostics methodology </mathematical_methodology>` for
     the assumptions and formal inferential quantities underlying TBR.
@@ -1603,7 +1610,10 @@ def create_tbr_diagnostic_report(
 
     # Generate executive summary
     if model_valid:
-        executive_summary = "TBR model validation PASSED. The analysis meets statistical requirements and assumptions."
+        executive_summary = (
+            "TBR model validation produced no warnings under the configured "
+            "diagnostic checks."
+        )
     else:
         executive_summary = f"TBR model validation identified {warnings_count} issue(s) requiring attention."
 
@@ -1622,7 +1632,9 @@ def create_tbr_diagnostic_report(
         assumptions = model_validation.get("assumption_tests", {})
         if isinstance(assumptions, dict) and "all_assumptions_valid" in assumptions:
             if assumptions["all_assumptions_valid"]:
-                key_findings.append("All statistical assumptions are satisfied")
+                key_findings.append(
+                    "All configured regression-assumption checks passed"
+                )
             else:
                 failed_assumptions = []
                 if not assumptions.get("linearity_valid", True):
@@ -1769,7 +1781,9 @@ def _generate_diagnostic_recommendations(
     # Default recommendation if no issues found
     if not recommendations:
         recommendations.append(
-            "Model diagnostics look good - proceed with confidence in TBR analysis results"
+            "No diagnostic issues triggering a specific recommendation were "
+            "identified. Interpret TBR results in light of the study design, "
+            "model assumptions, and application context."
         )
 
     return recommendations

@@ -1,10 +1,10 @@
 """
 Model Diagnostics and Assumption Testing for TBR Regression.
 
-This module provides comprehensive diagnostic tools for validating TBR regression
+This module provides comprehensive diagnostic tools for assessing TBR regression
 models, including goodness-of-fit metrics, residual analysis, and statistical
-assumption testing. These diagnostics ensure model validity and help identify
-potential violations of regression assumptions.
+assumption testing. These diagnostics apply configured checks and help identify
+potential issues with regression assumptions; they do not prove model validity.
 
 Key Features
 ------------
@@ -520,7 +520,7 @@ def check_normality(residuals: np.ndarray) -> NormalityTestResult:
         Dictionary containing test results:
         - 'statistic': Shapiro-Wilk test statistic
         - 'p_value': P-value of the test
-        - 'is_normal': Boolean indicating normality at α = 0.05
+        - 'is_normal': Whether the p-value exceeds 0.05
         - 'test_name': Name of the statistical test used
 
     Examples
@@ -580,7 +580,7 @@ def check_homoscedasticity(
         Dictionary containing test results:
         - 'statistic': Breusch-Pagan test statistic
         - 'p_value': P-value of the test
-        - 'is_homoscedastic': Boolean indicating homoscedasticity at α = 0.05
+        - 'is_homoscedastic': Whether the p-value exceeds 0.05
         - 'test_name': Name of the statistical test used
 
     Examples
@@ -728,8 +728,8 @@ def create_diagnostic_summary(
         - 'normality_test': Normality test results
         - 'homoscedasticity_test': Homoscedasticity test results
         - 'independence_test': Independence test results
-        - 'overall_validity': Boolean indicating overall model validity
-        - 'warnings': List of assumption violations
+        - 'overall_validity': Whether no diagnostic warnings were emitted
+        - 'warnings': List of diagnostic warning messages
 
     Examples
     --------
@@ -771,10 +771,10 @@ def create_diagnostic_summary(
     warnings = []
 
     if not normality_test["is_normal"]:
-        warnings.append("Normality assumption violated (Shapiro-Wilk p < 0.05)")
+        warnings.append("Normality check did not pass (Shapiro-Wilk p <= 0.05)")
 
     if not homoscedasticity_test["is_homoscedastic"]:
-        warnings.append("Homoscedasticity assumption violated (Breusch-Pagan p < 0.05)")
+        warnings.append("Homoscedasticity check did not pass (Breusch-Pagan p <= 0.05)")
 
     if not independence_test["is_independent"]:
         warnings.append(
@@ -847,7 +847,7 @@ def validate_model_assumptions(
     >>> model_params = fit_regression_model(data, 'control', 'test')
     >>> validation = validate_model_assumptions(data, model_params, 'control', 'test')
     >>> if validation['all_assumptions_valid']:
-    ...     print("All regression assumptions satisfied")
+    ...     print("All configured regression-assumption checks passed")
     ... else:
     ...     print("Some assumptions violated:", validation['validation_summary'])
     """
@@ -895,7 +895,7 @@ def validate_model_assumptions(
     if failed_assumptions:
         validation_summary = f"Failed assumptions: {', '.join(failed_assumptions)}"
     else:
-        validation_summary = "All regression assumptions satisfied"
+        validation_summary = "All configured regression-assumption checks passed"
 
     return {
         "linearity_valid": linearity_valid,
