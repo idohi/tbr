@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API.
 
 ### Fixed
+- Default Tox Python test environments now install the declared `examples`
+  extra, allowing the complete suite to collect and execute the Matplotlib
+  example tests without manual dependency installation.
 - Calibrated diagnostic success messages to report that configured checks
   passed or produced no warnings, rather than claiming that statistical
   assumptions were proven or advising confidence in the analysis results.
