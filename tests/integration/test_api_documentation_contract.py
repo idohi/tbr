@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import os
 import pydoc
 import re
 from collections import Counter
@@ -17,6 +18,15 @@ API_REFERENCE = REPOSITORY_ROOT / "docs" / "api" / "api_reference.rst"
 METHODOLOGY = REPOSITORY_ROOT / "docs" / "mathematical_methodology.md"
 AUTOSUMMARY_CLASS_TEMPLATE = (
     REPOSITORY_ROOT / "docs" / "_templates" / "autosummary" / "class.rst"
+)
+BUILT_SUBINTERVAL_RESULT_PAGE = (
+    REPOSITORY_ROOT
+    / "docs"
+    / "_build"
+    / "html"
+    / "api"
+    / "generated"
+    / "tbr.core.results.TBRSubintervalResult.html"
 )
 
 ANNOTATION_ONLY_ATTRIBUTE_PAGES = (
@@ -642,6 +652,44 @@ def test_annotation_only_attributes_are_not_rendered_twice() -> None:
             if isinstance(member, property)
         }
         assert properties.isdisjoint(excluded_fields)
+
+
+def test_subinterval_runtime_and_help_signatures_are_exact() -> None:
+    """Freeze the complete runtime and ``help()`` constructor signatures."""
+    result_class = pydoc.locate("tbr.core.results.TBRSubintervalResult")
+    assert result_class is not None
+    runtime_signature = (
+        "(estimate: float, lower: float, upper: float, se: float, "
+        "precision: float, ci_level: float, start_day: int, end_day: int, "
+        "n_days: int) -> None"
+    )
+
+    assert str(inspect.signature(result_class)) == runtime_signature
+    help_text = pydoc.render_doc(result_class, renderer=pydoc.plaintext)
+    assert f"TBRSubintervalResult{runtime_signature}" in help_text
+
+
+@pytest.mark.skipif(
+    os.environ.get("TBR_VALIDATE_BUILT_DOCS") != "1",
+    reason="generated HTML contract runs after the Sphinx build",
+)
+def test_generated_sphinx_hides_subinterval_constructor_signature() -> None:
+    """Verify the generated class signature contains no constructor parameters."""
+    assert BUILT_SUBINTERVAL_RESULT_PAGE.is_file()
+    html = BUILT_SUBINTERVAL_RESULT_PAGE.read_text(encoding="utf-8")
+    signature_match = re.search(
+        r'<dt[^>]+id="tbr\.core\.results\.TBRSubintervalResult"[^>]*>'
+        r"(?P<signature>.*?)</dt>",
+        html,
+        flags=re.DOTALL,
+    )
+
+    assert signature_match is not None
+    signature_html = signature_match.group("signature")
+    assert "TBRSubintervalResult" in signature_html
+    assert "sig-param" not in signature_html
+    assert "sig-paren" not in signature_html
+    assert "start_day" not in signature_html
 
 
 @pytest.mark.parametrize("symbol", EXPECTED_AUTOSUMMARY_SYMBOLS)
