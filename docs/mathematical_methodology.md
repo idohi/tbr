@@ -63,6 +63,12 @@ TBR is particularly valuable when randomized controlled trials are impractical o
 - Supports subinterval analysis for custom time windows
 - Handles various data types and domains
 
+Throughout this guide, an **observation** is one row in the ordered time
+series, corresponding to one sampling time step at the dataset's established
+cadence. Within the test period, an observation **position** is its one-based
+ordinal. A position is neither an elapsed duration nor necessarily the value
+stored in the time column.
+
 **Transparency**
 - All assumptions are explicit and testable
 - Diagnostic tools help validate model appropriateness
@@ -256,7 +262,7 @@ Both quantities increase as the control group value $x_t$ moves further from $\b
 
 ## Treatment Effect Estimation
 
-With counterfactual predictions in hand, TBR estimates the causal effect of the treatment by comparing observed outcomes to their counterfactual values. The methodology provides both pointwise (daily) and cumulative effect estimates, along with rigorous uncertainty quantification.
+With counterfactual predictions in hand, TBR estimates the causal effect of the treatment by comparing observed outcomes to their counterfactual values. The methodology provides both pointwise and cumulative effect estimates, along with rigorous uncertainty quantification.
 
 ### Pointwise Treatment Effect
 
@@ -276,7 +282,7 @@ During the pretest period, $\phi_t$ reduces to the model residuals and can be us
 
 ### Cumulative Treatment Effect
 
-The primary quantity of interest in TBR is the cumulative causal effect over the test period, defined as the sum of the pointwise effects from the first day of the test period up to time $T$:
+The primary quantity of interest in TBR is the cumulative causal effect over the test period, defined as the sum of the pointwise effects from the first test observation up to observation position $T$:
 
 $$
 \Delta(T) = \sum_{t=1}^{T} \phi_t = \sum_{t=1}^{T} (y_t - \hat{y}_t^*)
@@ -417,11 +423,11 @@ When $\theta = 0$, this gives the posterior probability that the treatment had a
 
 ## Subinterval Analysis
 
-TBR supports analysis of treatment effects over arbitrary subintervals of the test period. Rather than restricting inference to the full test period, subinterval analysis allows estimation of cumulative effects for custom time windows — for example, examining only the first week of treatment, or a specific phase within a longer experiment.
+TBR supports analysis of treatment effects over arbitrary subintervals of the test period. Rather than restricting inference to the full test period, subinterval analysis allows estimation of cumulative effects for custom time windows — for example, examining the first week of explicitly daily data, or a specific phase within a longer experiment.
 
 ### Approach
 
-To analyze a subinterval from day $a$ to day $b$ within the test period, the analysis redefines the summation bounds while keeping the original pretest regression model unchanged. The regression parameters ($\hat{\beta}_0$, $\hat{\beta}_1$, $s^2$, $\nu$) remain the same, since the underlying model is always trained on the full pretest period.
+To analyze a subinterval from one-based observation position $a$ through position $b$ within the test period, the analysis redefines the summation bounds while keeping the original pretest regression model unchanged. The regression parameters ($\hat{\beta}_0$, $\hat{\beta}_1$, $s^2$, $\nu$) remain the same, since the underlying model is always trained on the full pretest period.
 
 The cumulative treatment effect for the subinterval is:
 
@@ -431,9 +437,9 @@ $$
 
 ### Posterior Variance for Subintervals
 
-The posterior variance of the subinterval effect combines the same two components as the full test period — model uncertainty and residual noise — but restricted to the days in the subinterval.
+The posterior variance of the subinterval effect combines the same two components as the full test period — model uncertainty and residual noise — but restricted to the observations in the subinterval.
 
-Let $T_s = b - a + 1$ be the number of days in the subinterval. The posterior variance is:
+Let $T_s = b - a + 1$ be the number of observations in the subinterval. The posterior variance is:
 
 $$
 \mathbb{V}[\Delta(a, b)] = \mathbb{V}\left(\sum_{t=a}^{b} \hat{y}_t^*\right) + T_s \cdot \sigma^2
@@ -609,7 +615,7 @@ The following table maps the mathematical notation used in this document to the 
 | $n$ | Number of pretest observations | `n_pretest` |
 | $\bar{x}$ | Mean of control in pretest period | `pretest_x_mean` |
 
-### Daily Output Columns
+### TBR Output Columns
 
 | Symbol | Meaning | Column Name |
 |--------|---------|-------------|

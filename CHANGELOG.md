@@ -105,6 +105,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   negative.
 
 ### Changed
+- **Breaking:** Generic runtime text no longer assumes daily input.
+  `create_subinterval_summary()["interval"]` now reports
+  `"Test-period observation N"` for a single observation or
+  `"Test-period observations A through B (inclusive)"` for a range, instead
+  of `"Days A-B"`. Subinterval errors and representations now describe
+  observation counts and positions. Consumers should use the numeric boundary
+  columns rather than parse the human-readable `interval` label.
 - Static type checking now uses a reproducibly pinned Python 3.8-targeted mypy
   environment and runs in a dedicated CI job.
 - **Breaking:** `tbr.core.calculate_posterior_variance` now takes

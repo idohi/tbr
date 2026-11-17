@@ -170,7 +170,7 @@ def create_tbr_summary(
     >>> import pandas as pd
     >>> from tbr import create_tbr_summary
     >>> tbr_dataframe = pd.DataFrame(
-    ...     # Each row is one cumulative test day; the final row defines the
+    ...     # Each row is one cumulative test observation; the final row defines the
     ...     # final summary estimate and standard error.
     ...     {"period": [1, 1], "cumdif": [5.0, 8.0], "cumsd": [2.0, 3.0]}
     ... )

@@ -154,7 +154,7 @@ def compute_interval_estimate_and_ci(
     where the standard error combines model uncertainty and residual noise:
 
     .. math::
-        se = \sqrt{n_{days} × σ^2 + n_{days}^2 × v}
+        se = \sqrt{T_s × σ^2 + T_s^2 × v}
 
     with
 
@@ -164,9 +164,10 @@ def compute_interval_estimate_and_ci(
         + \bar{x}^2\mathbb{V}[\hat{\beta}_1]
 
     where :math:`\bar{x}` is the mean control value over the subinterval. The
-    term :math:`n_{days}^2 × v` is the variance of the summed counterfactual
-    predictions, which are correlated because they share the estimated
-    coefficients; :math:`n_{days} × σ^2` is the residual noise.
+    Here :math:`T_s` is the number of selected test observations. The term
+    :math:`T_s^2 × v` is the variance of the summed counterfactual predictions,
+    which are correlated because they share the estimated coefficients;
+    :math:`T_s × σ^2` is the residual noise.
 
     In the credible-interval equation, alpha = 1 - ci_level is the interval
     tail probability.
@@ -474,9 +475,10 @@ def create_subinterval_summary(
     The returned DataFrame has these stable columns:
 
     ``interval`` : object
-        Legacy generated runtime label formatted exactly as
-        ``"Days {start_day}-{end_day}"``; the bounds are test-row positions,
-        not necessarily calendar days.
+        Generated runtime label. A single-observation interval is formatted as
+        ``"Test-period observation {start_day}"``; a range is formatted as
+        ``"Test-period observations {start_day} through {end_day} (inclusive)"``.
+        The legacy bounds are one-based observation positions.
     ``start_day`` : integer
         Legacy name for the inclusive one-based start position among ordered
         test rows or time points, normally ``int64``.
@@ -503,7 +505,8 @@ def create_subinterval_summary(
         Whether ``lower > threshold`` or ``upper < threshold``. Equality does
         not count as exclusion.
     ``avg_daily_effect`` : floating-point
-        ``estimate / days``, normally ``float64``.
+        Legacy name for ``estimate / days``, the average effect per selected
+        observation, normally ``float64``.
     ``ci_level`` : floating-point
         Credibility level, normally ``float64``.
 
@@ -512,8 +515,8 @@ def create_subinterval_summary(
     It is not a hypothesis test or a posterior-probability result.
 
     The legacy ``avg_daily_effect`` is the total interval effect divided by
-    the selected test-row/time-point count, providing a normalized comparison
-    across intervals of different lengths.
+    the selected observation count. It is an average effect per observation,
+    not necessarily a daily rate.
 
     Examples
     --------
@@ -548,8 +551,12 @@ def create_subinterval_summary(
     ...     "avg_daily_effect", "ci_level",
     ... ]
     True
-    >>> # interval preserves the exact legacy generated runtime labels.
-    >>> summary["interval"].tolist() == ["Days 1-2", "Days 2-3", "Days 1-3"]
+    >>> # interval reports inclusive test-observation positions.
+    >>> summary["interval"].tolist() == [
+    ...     "Test-period observations 1 through 2 (inclusive)",
+    ...     "Test-period observations 2 through 3 (inclusive)",
+    ...     "Test-period observations 1 through 3 (inclusive)",
+    ... ]
     True
     >>> print(summary[['interval', 'estimate', 'interval_excludes_threshold']])
 
@@ -581,6 +588,13 @@ def create_subinterval_summary(
     summary_data = []
     for _i, ((start_day, end_day), result) in enumerate(zip(intervals, results)):
         days = end_day - start_day + 1
+        if start_day == end_day:
+            interval_label = f"Test-period observation {start_day}"
+        else:
+            interval_label = (
+                f"Test-period observations {start_day} through "
+                f"{end_day} (inclusive)"
+            )
 
         interval_excludes_threshold = (
             result["lower"] > threshold or result["upper"] < threshold
@@ -588,7 +602,7 @@ def create_subinterval_summary(
 
         summary_data.append(
             {
-                "interval": f"Days {start_day}-{end_day}",
+                "interval": interval_label,
                 "start_day": start_day,
                 "end_day": end_day,
                 "days": days,
@@ -725,7 +739,7 @@ def validate_subinterval_parameters(
     if test_data.empty:
         raise ValueError("No test period data found (period == 1)")
 
-    # Validate day parameters
+    # Validate positional bounds
     if not isinstance(start_day, (int, np.integer)) or not isinstance(
         end_day, (int, np.integer)
     ):
@@ -737,10 +751,11 @@ def validate_subinterval_parameters(
     if end_day < start_day:
         raise ValueError(f"end_day ({end_day}) must be >= start_day ({start_day})")
 
-    max_test_day = len(test_data)
-    if end_day > max_test_day:
+    max_test_observations = len(test_data)
+    if end_day > max_test_observations:
         raise ValueError(
-            f"end_day ({end_day}) exceeds available test days ({max_test_day})"
+            f"end_day ({end_day}) exceeds the number of test observations "
+            f"({max_test_observations})"
         )
 
     # Validate credibility level

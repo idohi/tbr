@@ -192,30 +192,31 @@ print(
 
 ## Monitor cumulative results
 
-`summarize_incremental()` returns one row for each cumulative test day. The
-`se` column is the standard error of the estimate; `precision` is the
-credible-interval half-width.
+`summarize_incremental()` returns one row for each cumulative test
+observation. The `se` column is the standard error of the estimate;
+`precision` is the credible-interval half-width.
 
 ```python
 incremental = model.summarize_incremental()
-monitoring_days = (1, 15, 30, 45)
+monitoring_positions = (1, 15, 30, 45)
 monitoring = incremental.loc[
-    incremental["test_day"].isin(monitoring_days),
+    incremental["test_day"].isin(monitoring_positions),
     ["test_day", "estimate", "lower", "upper", "prob"],
 ]
 print(monitoring)
 ```
 
 Repeatedly examining the same evolving experiment can change operating
-characteristics. Treat retrospective stopping-day searches and multiple
-subintervals as exploratory unless the monitoring and multiplicity rules were
-specified in advance.
+characteristics. Treat retrospective searches for a stopping position and
+multiple subintervals as exploratory unless the monitoring and multiplicity
+rules were specified in advance.
 
 ## Analyze subintervals
 
-Subinterval bounds are inclusive and one-based: `start_day=1` is the first test
-row. The returned `TBRSubintervalResult` reports the standard error as `se` and
-the credible-interval half-width as `precision`.
+Subinterval bounds are inclusive, one-based observation positions:
+legacy bound `start_day=1` selects the first test observation. The returned
+`TBRSubintervalResult` reports the standard error as `se` and the
+credible-interval half-width as `precision`.
 
 ```python
 window_length = 15

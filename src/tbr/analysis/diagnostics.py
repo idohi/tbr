@@ -236,7 +236,7 @@ def validate_tbr_model(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period``, ``y``, ``x``, ``pred``,
+        TBR output containing ``period``, ``y``, ``x``, ``pred``,
         ``predsd``, ``dif``, ``cumdif``, ``cumsd``, and ``estsd``.
     tbr_summary : pd.DataFrame
         Non-empty summary containing ``alpha``, ``beta``, ``sigma``,
@@ -377,7 +377,7 @@ def validate_tbr_model(
 
     Examples
     --------
-    Basic model validation. ``tbr_df`` is the daily TBR output,
+    Basic model validation. ``tbr_df`` is the TBR output,
     ``tbr_summary`` is the summary table, and ``learning_data`` contains
     learning-period columns ``x`` and ``y``:
 
@@ -617,7 +617,7 @@ def diagnose_tbr_analysis(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output. The complete required schema is documented by
+        TBR output. The complete required schema is documented by
         :func:`validate_tbr_model`.
     tbr_summary : pd.DataFrame
         Non-empty summary with the seven model columns required by
@@ -877,7 +877,7 @@ def check_tbr_assumptions(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period`` when ``learning_data`` is
+        TBR output containing ``period`` when ``learning_data`` is
         omitted. Only rows with ``period == 0`` are then used.
     tbr_summary : pd.DataFrame
         Non-empty summary whose first row contains ``alpha``, ``beta``,
@@ -1002,7 +1002,7 @@ def analyze_tbr_residuals(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period`` when ``learning_data`` is
+        TBR output containing ``period`` when ``learning_data`` is
         omitted.
     tbr_summary : pd.DataFrame
         Non-empty summary whose first row contains ``alpha``, ``beta``,
@@ -1175,7 +1175,7 @@ def assess_tbr_performance(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output containing ``period``. Test rows additionally require
+        TBR output containing ``period``. Test rows additionally require
         ``y``, ``pred``, and ``predsd``; learning rows require ``y`` for the
         fit proxy.
     tbr_summary : pd.DataFrame
@@ -1418,7 +1418,7 @@ def create_tbr_diagnostic_report(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily TBR output required by :func:`diagnose_tbr_analysis`.
+        TBR output required by :func:`diagnose_tbr_analysis`.
     tbr_summary : pd.DataFrame
         Non-empty summary required by :func:`diagnose_tbr_analysis`.
     learning_data : pd.DataFrame, optional

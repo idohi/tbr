@@ -545,7 +545,7 @@ class TestErrorHandlingWorkflows:
     def test_workflow_with_invalid_subinterval(
         self, sample_time_series_data, sample_analysis_parameters
     ):
-        """Test subinterval workflow with invalid day ranges."""
+        """Test subinterval workflow with invalid observation-position ranges."""
         # Fit valid model
         model = TBRAnalysis()
         model.fit(
@@ -558,14 +558,17 @@ class TestErrorHandlingWorkflows:
             test_end=sample_analysis_parameters["test_end"],
         )
 
-        # Invalid day ranges
+        # Invalid observation-position ranges
         with pytest.raises(ValueError, match="must be a positive integer"):
             model.analyze_subinterval(start_day=0, end_day=7)
 
         with pytest.raises(ValueError, match="must be <= end_day"):
             model.analyze_subinterval(start_day=10, end_day=5)
 
-        with pytest.raises(ValueError, match="exceeds test period length"):
+        with pytest.raises(
+            ValueError,
+            match="exceeds the number of test observations",
+        ):
             model.analyze_subinterval(start_day=1, end_day=1000)
 
 

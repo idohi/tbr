@@ -72,12 +72,13 @@ def calculate_posterior_variance(
 
     Combines residual noise (σ²) with the variance of the summed counterfactual
     predictions. Because all predictions share the estimated coefficients, the
-    model component uses their covariance rather than per-day model variances.
+    model component uses their covariance rather than per-observation model
+    variances.
 
     Parameters
     ----------
     x_values : np.ndarray
-        Control values for the test days in the subinterval
+        Control values for the selected test observations
     sigma : float
         Residual standard deviation from the regression model
     var_alpha : float
@@ -114,8 +115,9 @@ def calculate_posterior_variance(
     --------------------
     V[Δ(a,b)] = T_s × σ² + T_s² × v
 
-    where v = Var(α̂) + 2·x̄·Cov(α̂,β̂) + x̄²·Var(β̂), T_s is the number of days
-    in the subinterval, and x̄ is the mean of the control values over it.
+    where v = Var(α̂) + 2·x̄·Cov(α̂,β̂) + x̄²·Var(β̂), T_s is the number of
+    observations in the subinterval, and x̄ is the mean of the control values
+    over it.
 
     This decomposition separates:
     - Residual noise: T_s × σ²
@@ -124,8 +126,8 @@ def calculate_posterior_variance(
     Notes
     -----
     This is the posterior variance used by compute_interval_estimate_and_ci.
-    For a subinterval starting on the first test day it equals cumsd², and for
-    a single day it equals predsd².
+    For a subinterval starting at the first test observation it equals cumsd²,
+    and for a single observation it equals predsd².
     """
     # Input validation
     if not isinstance(x_values, np.ndarray):
@@ -147,11 +149,11 @@ def calculate_posterior_variance(
         raise ValueError(f"sigma must be positive, got {sigma}")
 
     # Calculate posterior variance components
-    n_days = len(x_values)
+    n_observations = len(x_values)
     x_mean = np.mean(x_values)
     v = var_alpha + 2 * x_mean * cov_alpha_beta + x_mean**2 * var_beta
-    residual_variance = n_days * (sigma**2)
-    model_variance = n_days**2 * v
+    residual_variance = n_observations * (sigma**2)
+    model_variance = n_observations**2 * v
     posterior_variance = residual_variance + model_variance
 
     if posterior_variance < 0:
@@ -294,10 +296,10 @@ def calculate_incremental_posterior_probabilities(
     """
     Calculate incremental posterior probabilities for time-series analysis.
 
-    Computes posterior probabilities for incremental time periods (day 1,
-    days 1-2, days 1-3, etc.) to track how posterior beliefs evolve over
-    the test period. This enables analysis of when effects become detectable
-    and how confidence builds over time.
+    Computes posterior probabilities for cumulative test-observation prefixes
+    (position 1, positions 1-2, positions 1-3, etc.) to track how posterior
+    beliefs evolve over the test period. This enables analysis of when effects
+    become detectable and how confidence builds over time.
 
     Parameters
     ----------
@@ -314,11 +316,11 @@ def calculate_incremental_posterior_probabilities(
     -------
     Dict[str, np.ndarray]
         Dictionary containing:
-        - 'day': Day numbers (1, 2, 3, ...)
+        - 'day': Legacy key containing one-based positions (1, 2, 3, ...)
         - 'estimates': Cumulative estimates
         - 'standard_errors': Cumulative standard errors
         - 'probabilities': Posterior probabilities for each period
-        - 'probability_change': Change in probability from previous day
+        - 'probability_change': Change in probability from the previous position
 
     Raises
     ------
@@ -337,12 +339,12 @@ def calculate_incremental_posterior_probabilities(
     >>> incremental = calculate_incremental_posterior_probabilities(
     ...     estimates, std_errors, degrees_freedom=45
     ... )
-    >>> print(f"Day 5 probability: {incremental['probabilities'][4]:.3f}")
-    Day 5 probability: 0.977
+    >>> print(f"Position 5 probability: {incremental['probabilities'][4]:.3f}")
+    Position 5 probability: 0.977
 
     Mathematical Formula
     --------------------
-    For each day t with SE_t > 0:
+    For each cumulative position t with SE_t > 0:
     P(θₜ > threshold | data₁:ₜ) = 1 - F_t((threshold - estimate_t) / SE_t; df)
 
     When SE_t = 0, the probability is 1 if estimate_t > threshold and 0
@@ -409,15 +411,15 @@ def calculate_incremental_posterior_probabilities(
     probabilities[positive_se] = stats.t.sf(t_statistics, df=degrees_freedom)
     probabilities[~positive_se] = (estimates[~positive_se] > threshold).astype(float)
 
-    # Calculate probability changes (difference from previous day)
+    # Calculate probability changes (difference from previous position)
     probability_change = np.zeros_like(probabilities)
     probability_change[1:] = probabilities[1:] - probabilities[:-1]
 
-    # Create day numbers
-    days = np.arange(1, len(estimates) + 1)
+    # Create the position values stored under the legacy key
+    positions = np.arange(1, len(estimates) + 1)
 
     return {
-        "day": days,
+        "day": positions,
         "estimates": estimates.copy(),
         "standard_errors": standard_errors.copy(),
         "probabilities": probabilities,

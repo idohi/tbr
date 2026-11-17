@@ -731,7 +731,7 @@ def test_public_docstrings_do_not_double_escape_latex_commands() -> None:
             "compute_interval_estimate_and_ci",
             (
                 "CI=estimate±t_{α/2,df}×se",
-                r"se=\sqrt{n_{days}×σ^2+n_{days}^2×v}",
+                r"se=\sqrt{T_s×σ^2+T_s^2×v}",
                 r"v=\mathbb{V}[\hat{\beta}_0]"
                 r"+2\bar{x}\operatorname{Cov}(\hat{\beta}_0,\hat{\beta}_1)"
                 r"+\bar{x}^2\mathbb{V}[\hat{\beta}_1]",
@@ -982,6 +982,14 @@ def test_summary_helpers_describe_se_as_standard_error(
 
     assert "posterior standard deviation" not in docstring.lower()
     assert "standard error" in se_description
+
+
+def test_generic_summary_docstring_uses_observation_terminology() -> None:
+    """Describe cumulative rows without assuming a daily time unit."""
+    docstring = inspect.getdoc(pydoc.locate("tbr.create_tbr_summary")) or ""
+
+    assert "cumulative test day" not in docstring.lower()
+    assert "cumulative test observation" in docstring.lower()
 
 
 def test_methodology_uses_student_t_scale_terminology() -> None:

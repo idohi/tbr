@@ -434,7 +434,7 @@ def test_validated_wrapper_invalid_input_contract(subinterval_inputs):
         (
             (1, 4, 0.80),
             ValueError,
-            "end_day (4) exceeds available test days (3)",
+            "end_day (4) exceeds the number of test observations (3)",
         ),
         (
             (3, 2, 0.80),
@@ -480,7 +480,9 @@ def test_direct_validator_runtime_contract(subinterval_inputs):
         warnings.simplefilter("always")
         with pytest.raises(
             ValueError,
-            match=r"^end_day \(4\) exceeds available test days \(3\)$",
+            match=(
+                r"^end_day \(4\) exceeds the number of " r"test observations \(3\)$"
+            ),
         ):
             analysis.validate_subinterval_parameters(
                 tbr_df,
@@ -588,7 +590,7 @@ def test_oop_wrapper_call_forms_validation_and_warnings(fitted_analysis):
         (
             (1, 4, 0.80),
             ValueError,
-            "end_day (4) exceeds test period length (3 days)",
+            "end_day (4) exceeds the number of test observations (3)",
         ),
         ((1, 2, 0), ValueError, "ci_level must be between 0 and 1 (exclusive), got 0"),
         ((1, 2, 1), ValueError, "ci_level must be between 0 and 1 (exclusive), got 1"),

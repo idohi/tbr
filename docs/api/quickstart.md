@@ -129,8 +129,9 @@ print(results.estimate, results.conf_int_lower, results.conf_int_upper)
 print(results.pvalue)
 ```
 
-Do not confuse `results.summary()`, which is a day-by-day DataFrame, with
-`model.summarize()`, which returns one structured `TBRSummaryResult`.
+Do not confuse `results.summary()`, which is an observation-by-observation
+DataFrame, with `model.summarize()`, which returns one structured
+`TBRSummaryResult`.
 
 ## Boundary and interpretation notes
 

@@ -473,14 +473,18 @@ class TestCreateSubintervalSummary:
             == zero["interval_excludes_threshold"].tolist()
         )
 
-    def test_interval_string_formatting(self, sample_data):
-        """Test interval string formatting."""
+    def test_interval_string_uses_unit_neutral_positions(self, sample_data):
+        """Test unit-neutral inclusive interval labels."""
         tbr_df, tbr_summary = sample_data
         intervals = [(1, 1), (2, 5), (6, 10)]
 
         summary = create_subinterval_summary(tbr_df, tbr_summary, intervals)
 
-        expected_strings = ["Days 1-1", "Days 2-5", "Days 6-10"]
+        expected_strings = [
+            "Test-period observation 1",
+            "Test-period observations 2 through 5 (inclusive)",
+            "Test-period observations 6 through 10 (inclusive)",
+        ]
         for i, expected_string in enumerate(expected_strings):
             assert summary.iloc[i]["interval"] == expected_string
 
@@ -672,12 +676,15 @@ class TestValidateSubintervalParameters:
                 tbr_df, tbr_summary, start_day=5, end_day=3, ci_level=0.80
             )
 
-    def test_day_exceeds_available_data(self, valid_data):
-        """Test validation when day exceeds available test data."""
+    def test_position_exceeds_available_data(self, valid_data):
+        """Test validation when a position exceeds available test observations."""
         tbr_df, tbr_summary = valid_data
         test_days = len(tbr_df[tbr_df["period"] == 1])
 
-        with pytest.raises(ValueError, match="end_day.*exceeds available test days"):
+        with pytest.raises(
+            ValueError,
+            match="end_day.*exceeds the number of test observations",
+        ):
             validate_subinterval_parameters(
                 tbr_df, tbr_summary, start_day=1, end_day=test_days + 1, ci_level=0.80
             )
@@ -766,7 +773,10 @@ class TestSubintervalInputValidation:
         """Test that an end day beyond the test rows is rejected."""
         tbr_df, tbr_summary = valid_data
 
-        with pytest.raises(ValueError, match="exceeds available test days"):
+        with pytest.raises(
+            ValueError,
+            match="exceeds the number of test observations",
+        ):
             call(tbr_df, tbr_summary, 4)
 
     @pytest.mark.parametrize(

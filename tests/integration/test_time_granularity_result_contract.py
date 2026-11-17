@@ -119,7 +119,7 @@ def test_subinterval_result_equality_hash_pickle_and_repr(subinterval_result):
 
     assert repr(subinterval_result) == (
         "TBRSubintervalResult(\n"
-        "  days=2-7 (n=6),\n"
+        "  positions=2-7 (n_observations=6),\n"
         "  estimate=45.200,\n"
         "  CI=[30.100, 60.300] (level=0.8),\n"
         "  se=11.800\n"
@@ -173,8 +173,8 @@ def test_subinterval_result_csv_default_and_explicit_index(
     assert no_index_lines == [expected_header, expected_values]
 
 
-def test_fitted_analysis_string_uses_exact_legacy_runtime_text():
-    """Freeze fitted and unfitted string representations before migration."""
+def test_fitted_analysis_string_uses_observation_count():
+    """Use a unit-neutral observation count in the fitted representation."""
     model = tbr.TBRAnalysis(level=0.80, threshold=0.0, test_end_inclusive=True)
     assert str(model) == "TBRAnalysis (not fitted)\n  level=0.8\n  threshold=0.0"
 
@@ -204,7 +204,7 @@ def test_fitted_analysis_string_uses_exact_legacy_runtime_text():
         "    level=0.8\n"
         "    threshold=0.0\n"
         "  Results:\n"
-        "    Test period days: 3\n"
+        "    Test observations: 3\n"
         f"    Final effect estimate: {model.summaries_.iloc[-1]['estimate']:.2f}\n"
         "    80% CI: "
         f"[{model.summaries_.iloc[-1]['lower']:.2f}, "

@@ -43,7 +43,7 @@ Basic usage with functional API:
 >>> # Access time series (all indexed by time)
 >>> results.effects.head()
 >>>
->>> # Get daily summary table
+>>> # Get incremental summary table
 >>> summary_df = results.summary()
 >>>
 >>> # Get comprehensive TBR dataframe
@@ -643,7 +643,10 @@ class TBRSubintervalResult:
     >>> result = model.analyze_subinterval(1, 7)
     >>> print(f"Week 1 effect: {result.estimate:.2f}")
     >>> print(f"Credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
-    >>> print(f"Days: {result.start_day}-{result.end_day} ({result.n_days} days)")
+    >>> print(
+    ...     f"Positions: {result.start_day}-{result.end_day} "
+    ...     f"({result.n_days} observations)"
+    ... )
     >>> if result.contains_zero():
     ...     print("Credible interval includes zero")
     """
@@ -779,7 +782,8 @@ class TBRSubintervalResult:
         """Generate string representation."""
         return (
             f"TBRSubintervalResult(\n"
-            f"  days={self.start_day}-{self.end_day} (n={self.n_days}),\n"
+            f"  positions={self.start_day}-{self.end_day} "
+            f"(n_observations={self.n_days}),\n"
             f"  estimate={self.estimate:.3f},\n"
             f"  CI=[{self.lower:.3f}, {self.upper:.3f}] (level={self.ci_level}),\n"
             f"  se={self.se:.3f}\n"
@@ -904,9 +908,9 @@ class TBRResults:
     >>> results.effects.describe()
     >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')  # doctest: +SKIP
     >>>
-    >>> # Get daily summary table
-    >>> daily_summary = results.summary()
-    >>> print(daily_summary.tail())
+    >>> # Get incremental summary table
+    >>> incremental_summary = results.summary()
+    >>> print(incremental_summary.tail())
     >>>
     >>> # Get comprehensive TBR dataframe
     >>> tbr_df = results.tbr_dataframe()
@@ -1077,7 +1081,7 @@ class TBRResults:
         # This is internal and uses standard column names
         self._internal_df = self._build_internal_dataframe()
 
-        # Compute incremental daily summaries
+        # Compute incremental summaries
         self._summary_df = create_incremental_tbr_summaries(
             tbr_dataframe=self._internal_df,
             alpha=self._model_params["alpha"],
@@ -1553,7 +1557,7 @@ class TBRResults:
         ...     threshold=0.0,
         ... )
         >>> summary = results.summary()
-        >>> print(summary.tail())  # Last 5 days
+        >>> print(summary.tail())  # Last 5 observation positions
         """
         return self._summary_df.copy()
 
@@ -1639,7 +1643,7 @@ class TBRResults:
 
         See Also
         --------
-        summary : Get daily incremental summary statistics
+        summary : Get incremental summary statistics
         """
         return self._internal_df.copy()
 
