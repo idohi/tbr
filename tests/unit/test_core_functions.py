@@ -277,7 +277,11 @@ class TestIntervalEstimation:
         )
 
         result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+            tbr_df,
+            tbr_summary,
+            start_position=1,
+            end_position=2,
+            ci_level=0.80,
         )
 
         # Check structure
@@ -309,7 +313,11 @@ class TestIntervalEstimation:
         )
 
         result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day=1, end_day=1, ci_level=0.95
+            tbr_df,
+            tbr_summary,
+            start_position=1,
+            end_position=1,
+            ci_level=0.95,
         )
 
         # Check that single day works

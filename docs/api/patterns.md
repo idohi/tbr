@@ -214,20 +214,20 @@ rules were specified in advance.
 ## Analyze subintervals
 
 Subinterval bounds are inclusive, one-based observation positions:
-legacy bound `start_day=1` selects the first test observation. The returned
+`start_position=1` selects the first test observation. The returned
 `TBRSubintervalResult` reports the standard error as `se` and the
 credible-interval half-width as `precision`.
 
 ```python
 window_length = 15
 window_rows = []
-for start_day in range(1, len(model.summaries_) + 1, window_length):
-    end_day = start_day + window_length - 1
-    interval = model.analyze_subinterval(start_day, end_day)
+for start_position in range(1, len(model.summaries_) + 1, window_length):
+    end_position = start_position + window_length - 1
+    interval = model.analyze_subinterval(start_position, end_position)
     window_rows.append(
         {
-            "start_day": interval.start_day,
-            "end_day": interval.end_day,
+            "start_position": interval.start_position,
+            "end_position": interval.end_position,
             "estimate": interval.estimate,
             "lower": interval.lower,
             "upper": interval.upper,

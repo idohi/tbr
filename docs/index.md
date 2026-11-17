@@ -18,6 +18,7 @@ to Python names.
 api/quickstart
 api/patterns
 api/results
+migration_0_2
 auto_examples/index
 ```
 

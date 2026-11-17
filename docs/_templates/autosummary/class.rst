@@ -33,9 +33,9 @@
       "se",
       "precision",
       "ci_level",
-      "start_day",
-      "end_day",
-      "n_days",
+      "start_position",
+      "end_position",
+      "n_observations",
    ),
    "tbr.TBRResidualStatistics": (
       "mean",

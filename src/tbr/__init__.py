@@ -49,6 +49,15 @@ See Also
 """
 
 from importlib.metadata import version as _get_version
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from tbr.analysis.subinterval import (
+        analyze_multiple_subintervals,
+        compute_interval_estimate_and_ci,
+        create_subinterval_summary,
+    )
+    from tbr.core.model import TBRAnalysis
 
 __version__ = _get_version("tbr")
 __author__ = "Ido Hirsh"

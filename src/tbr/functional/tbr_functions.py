@@ -500,8 +500,8 @@ def calculate_cumulative_standard_deviation(
 def compute_interval_estimate_and_ci(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
-    start_day: int,
-    end_day: int,
+    start_position: int,
+    end_position: int,
     ci_level: float,
 ) -> Dict[str, float]:
     r"""
@@ -518,9 +518,9 @@ def compute_interval_estimate_and_ci(
         Non-empty summary containing ``sigma``, legacy degrees-of-freedom
         column ``t_dist_df``, ``var_alpha``, ``var_beta``, and
         ``alpha_beta_cov``; values are read from its last row.
-    start_day : int
+    start_position : int
         Requested one-based start :math:`a`; not validated by this helper.
-    end_day : int
+    end_position : int
         Requested inclusive one-based end :math:`b`; not validated by this
         helper.
     ci_level : float
@@ -571,7 +571,8 @@ def compute_interval_estimate_and_ci(
     ...     }
     ... )
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=1, end_position=2, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -583,8 +584,8 @@ def compute_interval_estimate_and_ci(
     return _compute_interval_estimate_and_ci(
         tbr_df=tbr_df,
         tbr_summary=tbr_summary,
-        start_day=start_day,
-        end_day=end_day,
+        start_position=start_position,
+        end_position=end_position,
         ci_level=ci_level,
     )
 

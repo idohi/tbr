@@ -125,7 +125,11 @@ class TestAnalysisFrameworkCoreIntegration:
         summary_result = create_tbr_summary(tbr_df, **params)
         incremental_result = create_incremental_tbr_summaries(tbr_df, **params)
         subinterval_result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day=1, end_day=5, ci_level=params["level"]
+            tbr_df,
+            tbr_summary,
+            start_position=1,
+            end_position=5,
+            ci_level=params["level"],
         )
 
         # Basic structure validation
@@ -285,16 +289,16 @@ class TestAnalysisCrossValidation:
         )
 
         # Test specific subinterval
-        start_day, end_day = 2, 5
+        start_position, end_position = 2, 5
 
         # Analysis module result
         analysis_result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day, end_day, params["level"]
+            tbr_df, tbr_summary, start_position, end_position, params["level"]
         )
 
         # Core implementation result
         core_result = core_compute_interval(
-            tbr_df, tbr_summary, start_day, end_day, params["level"]
+            tbr_df, tbr_summary, start_position, end_position, params["level"]
         )
 
         # Cross-validation with machine precision

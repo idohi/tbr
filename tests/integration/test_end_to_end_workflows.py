@@ -96,13 +96,13 @@ class TestBasicWorkflows:
         )
 
         # Analyze first week
-        result = model.analyze_subinterval(start_day=1, end_day=7)
+        result = model.analyze_subinterval(start_position=1, end_position=7)
 
         # Validate workflow
         assert isinstance(result, TBRSubintervalResult)
-        assert result.start_day == 1
-        assert result.end_day == 7
-        assert result.n_days == 7
+        assert result.start_position == 1
+        assert result.end_position == 7
+        assert result.n_observations == 7
         assert result.lower < result.upper
 
     def test_fit_and_access_all_results_workflow(
@@ -190,12 +190,12 @@ class TestAdvancedWorkflows:
         week3 = model.analyze_subinterval(15, 21)
 
         # Validate all analyses completed
-        assert week1.n_days == 7
-        assert week2.n_days == 7
-        assert week3.n_days == 7
-        assert week1.start_day == 1
-        assert week2.start_day == 8
-        assert week3.start_day == 15
+        assert week1.n_observations == 7
+        assert week2.n_observations == 7
+        assert week3.n_observations == 7
+        assert week1.start_position == 1
+        assert week2.start_position == 8
+        assert week3.start_position == 15
 
     def test_fit_compare_different_ci_levels_workflow(
         self, sample_time_series_data, sample_analysis_parameters
@@ -560,16 +560,16 @@ class TestErrorHandlingWorkflows:
 
         # Invalid observation-position ranges
         with pytest.raises(ValueError, match="must be a positive integer"):
-            model.analyze_subinterval(start_day=0, end_day=7)
+            model.analyze_subinterval(start_position=0, end_position=7)
 
-        with pytest.raises(ValueError, match="must be <= end_day"):
-            model.analyze_subinterval(start_day=10, end_day=5)
+        with pytest.raises(ValueError, match="must be <= end_position"):
+            model.analyze_subinterval(start_position=10, end_position=5)
 
         with pytest.raises(
             ValueError,
             match="exceeds the number of test observations",
         ):
-            model.analyze_subinterval(start_day=1, end_day=1000)
+            model.analyze_subinterval(start_position=1, end_position=1000)
 
 
 class TestStateManagementWorkflows:

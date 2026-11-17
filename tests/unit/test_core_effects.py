@@ -114,7 +114,11 @@ class TestComputeIntervalEstimateAndCI:
 
         # Compute interval estimate
         result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day=2, end_day=4, ci_level=0.80
+            tbr_df,
+            tbr_summary,
+            start_position=2,
+            end_position=4,
+            ci_level=0.80,
         )
 
         # Verify result structure
@@ -153,7 +157,11 @@ class TestComputeIntervalEstimateAndCI:
 
         # Test full period
         result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.95
+            tbr_df,
+            tbr_summary,
+            start_position=1,
+            end_position=3,
+            ci_level=0.95,
         )
 
         # Verify estimate is sum of differences
@@ -188,13 +196,19 @@ class TestComputeIntervalEstimateAndCI:
         )
 
         # Test parameters
-        start_day, end_day, ci_level = 2, 4, 0.90
+        start_position, end_position, ci_level = 2, 4, 0.90
 
         # Calculate using both implementations
         core_result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day, end_day, ci_level
+            tbr_df, tbr_summary, start_position, end_position, ci_level
         )
-        func_result = func_compute(tbr_df, tbr_summary, start_day, end_day, ci_level)
+        func_result = func_compute(
+            tbr_df,
+            tbr_summary,
+            start_position,
+            end_position,
+            ci_level,
+        )
 
         # Verify identical results
         for key in ["estimate", "se", "precision", "lower", "upper"]:

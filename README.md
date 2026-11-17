@@ -85,7 +85,7 @@ print(f"Posterior probability (effect > {summary.threshold:g}): {summary.prob:.3
 
 # Additional capabilities
 predictions = model.predict()
-subinterval = model.analyze_subinterval(start_day=1, end_day=10)
+subinterval = model.analyze_subinterval(start_position=1, end_position=10)
 incremental = model.summarize_incremental()
 summary.to_json("results.json")
 ```

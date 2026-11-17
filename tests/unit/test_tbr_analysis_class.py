@@ -961,7 +961,7 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         )
 
         # Analyze first week
-        result = model.analyze_subinterval(start_day=1, end_day=7)
+        result = model.analyze_subinterval(start_position=1, end_position=7)
 
         # Check structure
         assert isinstance(result, TBRSubintervalResult)
@@ -970,14 +970,14 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         assert hasattr(result, "upper")
         assert hasattr(result, "se")
         assert hasattr(result, "ci_level")
-        assert hasattr(result, "start_day")
-        assert hasattr(result, "end_day")
-        assert hasattr(result, "n_days")
+        assert hasattr(result, "start_position")
+        assert hasattr(result, "end_position")
+        assert hasattr(result, "n_observations")
 
         # Check values
-        assert result.start_day == 1
-        assert result.end_day == 7
-        assert result.n_days == 7
+        assert result.start_position == 1
+        assert result.end_position == 7
+        assert result.n_observations == 7
         assert result.ci_level == 0.80
         assert isinstance(result.estimate, float)
 
@@ -995,12 +995,20 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        result = model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.95)
+        result = model.analyze_subinterval(
+            start_position=1,
+            end_position=7,
+            ci_level=0.95,
+        )
 
         assert isinstance(result, TBRSubintervalResult)
         assert result.ci_level == 0.95
         # 95% CI should be wider than 80% CI
-        result_80 = model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.80)
+        result_80 = model.analyze_subinterval(
+            start_position=1,
+            end_position=7,
+            ci_level=0.80,
+        )
         assert (result.upper - result.lower) > (result_80.upper - result_80.lower)
 
     def test_analyze_subinterval_single_day(self, sample_data):
@@ -1017,22 +1025,22 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        result = model.analyze_subinterval(start_day=5, end_day=5)
+        result = model.analyze_subinterval(start_position=5, end_position=5)
 
         assert isinstance(result, TBRSubintervalResult)
-        assert result.n_days == 1
-        assert result.start_day == 5
-        assert result.end_day == 5
+        assert result.n_observations == 1
+        assert result.start_position == 5
+        assert result.end_position == 5
 
     def test_analyze_subinterval_not_fitted_error(self):
         """Test analyze_subinterval raises error when model not fitted."""
         model = TBRAnalysis()
 
         with pytest.raises(AttributeError, match="not fitted yet"):
-            model.analyze_subinterval(start_day=1, end_day=7)
+            model.analyze_subinterval(start_position=1, end_position=7)
 
-    def test_analyze_subinterval_invalid_start_day(self, sample_data):
-        """Test error for invalid start_day."""
+    def test_analyze_subinterval_invalid_start_position(self, sample_data):
+        """Test error for invalid start_position."""
         model = TBRAnalysis()
         data = sample_data
         model.fit(
@@ -1045,16 +1053,20 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        # Zero start_day
-        with pytest.raises(ValueError, match="start_day must be a positive integer"):
-            model.analyze_subinterval(start_day=0, end_day=7)
+        # Zero start_position
+        with pytest.raises(
+            ValueError, match="start_position must be a positive integer"
+        ):
+            model.analyze_subinterval(start_position=0, end_position=7)
 
-        # Negative start_day
-        with pytest.raises(ValueError, match="start_day must be a positive integer"):
-            model.analyze_subinterval(start_day=-1, end_day=7)
+        # Negative start_position
+        with pytest.raises(
+            ValueError, match="start_position must be a positive integer"
+        ):
+            model.analyze_subinterval(start_position=-1, end_position=7)
 
-    def test_analyze_subinterval_invalid_end_day(self, sample_data):
-        """Test error for invalid end_day."""
+    def test_analyze_subinterval_invalid_end_position(self, sample_data):
+        """Test error for invalid end_position."""
         model = TBRAnalysis()
         data = sample_data
         model.fit(
@@ -1067,11 +1079,11 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        with pytest.raises(ValueError, match="end_day must be a positive integer"):
-            model.analyze_subinterval(start_day=1, end_day=0)
+        with pytest.raises(ValueError, match="end_position must be a positive integer"):
+            model.analyze_subinterval(start_position=1, end_position=0)
 
     def test_analyze_subinterval_start_greater_than_end(self, sample_data):
-        """Test error when start_day > end_day."""
+        """Test error when start_position > end_position."""
         model = TBRAnalysis()
         data = sample_data
         model.fit(
@@ -1084,11 +1096,11 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        with pytest.raises(ValueError, match="start_day.*must be <= end_day"):
-            model.analyze_subinterval(start_day=10, end_day=5)
+        with pytest.raises(ValueError, match="start_position.*must be <= end_position"):
+            model.analyze_subinterval(start_position=10, end_position=5)
 
     def test_analyze_subinterval_exceeds_test_observations(self, sample_data):
-        """Test error when end_day exceeds the test-observation count."""
+        """Test error when end_position exceeds the test-observation count."""
         model = TBRAnalysis()
         data = sample_data
         model.fit(
@@ -1105,7 +1117,7 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             ValueError,
             match="exceeds the number of test observations",
         ):
-            model.analyze_subinterval(start_day=1, end_day=999)
+            model.analyze_subinterval(start_position=1, end_position=999)
 
     def test_analyze_subinterval_full_period(self, sample_data):
         """Test subinterval for entire test period."""
@@ -1122,7 +1134,7 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         )
 
         # Full test period is 28 days
-        result = model.analyze_subinterval(start_day=1, end_day=28)
+        result = model.analyze_subinterval(start_position=1, end_position=28)
         final_summary = model.summarize()
 
         # Should be very close to final summary estimate
@@ -1557,92 +1569,130 @@ class TestTBRAnalysisAnalyzeSubintervalValidation:
         )
         return model
 
-    def test_analyze_subinterval_start_day_not_int_error(self, fitted_model):
-        """Test analyze_subinterval() raises TypeError when start_day is not int."""
-        with pytest.raises(TypeError, match="start_day must be an integer"):
-            fitted_model.analyze_subinterval(start_day=1.5, end_day=7)
+    def test_analyze_subinterval_start_position_not_int_error(self, fitted_model):
+        """Test a TypeError when start_position is not an integer."""
+        with pytest.raises(TypeError, match="start_position must be an integer"):
+            fitted_model.analyze_subinterval(
+                start_position=1.5,
+                end_position=7,
+            )
 
-    def test_analyze_subinterval_end_day_not_int_error(self, fitted_model):
-        """Test analyze_subinterval() raises TypeError when end_day is not int."""
-        with pytest.raises(TypeError, match="end_day must be an integer"):
-            fitted_model.analyze_subinterval(start_day=1, end_day="7")
+    def test_analyze_subinterval_end_position_not_int_error(self, fitted_model):
+        """Test a TypeError when end_position is not an integer."""
+        with pytest.raises(TypeError, match="end_position must be an integer"):
+            fitted_model.analyze_subinterval(
+                start_position=1,
+                end_position="7",
+            )
 
-    def test_analyze_subinterval_start_day_zero_error(self, fitted_model):
-        """Test analyze_subinterval() raises ValueError for start_day=0."""
-        with pytest.raises(ValueError, match="start_day must be a positive integer"):
-            fitted_model.analyze_subinterval(start_day=0, end_day=7)
+    def test_analyze_subinterval_start_position_zero_error(self, fitted_model):
+        """Test a ValueError for start_position=0."""
+        with pytest.raises(
+            ValueError, match="start_position must be a positive integer"
+        ):
+            fitted_model.analyze_subinterval(start_position=0, end_position=7)
 
-    def test_analyze_subinterval_start_day_negative_error(self, fitted_model):
-        """Test analyze_subinterval() raises ValueError for negative start_day."""
-        with pytest.raises(ValueError, match="start_day must be a positive integer"):
-            fitted_model.analyze_subinterval(start_day=-5, end_day=7)
+    def test_analyze_subinterval_start_position_negative_error(self, fitted_model):
+        """Test a ValueError for negative start_position."""
+        with pytest.raises(
+            ValueError, match="start_position must be a positive integer"
+        ):
+            fitted_model.analyze_subinterval(start_position=-5, end_position=7)
 
-    def test_analyze_subinterval_end_day_zero_error(self, fitted_model):
-        """Test analyze_subinterval() raises ValueError for end_day=0."""
-        with pytest.raises(ValueError, match="end_day must be a positive integer"):
-            fitted_model.analyze_subinterval(start_day=1, end_day=0)
+    def test_analyze_subinterval_end_position_zero_error(self, fitted_model):
+        """Test a ValueError for end_position=0."""
+        with pytest.raises(ValueError, match="end_position must be a positive integer"):
+            fitted_model.analyze_subinterval(start_position=1, end_position=0)
 
-    def test_analyze_subinterval_end_day_negative_error(self, fitted_model):
-        """Test analyze_subinterval() raises ValueError for negative end_day."""
-        with pytest.raises(ValueError, match="end_day must be a positive integer"):
-            fitted_model.analyze_subinterval(start_day=1, end_day=-3)
+    def test_analyze_subinterval_end_position_negative_error(self, fitted_model):
+        """Test a ValueError for negative end_position."""
+        with pytest.raises(ValueError, match="end_position must be a positive integer"):
+            fitted_model.analyze_subinterval(start_position=1, end_position=-3)
 
     def test_analyze_subinterval_start_exceeds_period_error(self, fitted_model):
-        """Test analyze_subinterval() raises ValueError when start_day exceeds test period."""
+        """Test a ValueError when start_position exceeds the test period."""
         with pytest.raises(
             ValueError,
             match=(
-                r"^start_day \(999\) exceeds the number of "
+                r"^start_position \(999\) exceeds the number of "
                 r"test observations \(28\)$"
             ),
         ):
-            fitted_model.analyze_subinterval(start_day=999, end_day=1000)
+            fitted_model.analyze_subinterval(
+                start_position=999,
+                end_position=1000,
+            )
 
     def test_analyze_subinterval_end_exceeds_period_error(self, fitted_model):
-        """Test analyze_subinterval() raises ValueError when end_day exceeds test period."""
+        """Test a ValueError when end_position exceeds the test period."""
         with pytest.raises(
             ValueError,
             match=(
-                r"^end_day \(999\) exceeds the number of " r"test observations \(28\)$"
+                r"^end_position \(999\) exceeds the number of "
+                r"test observations \(28\)$"
             ),
         ):
-            fitted_model.analyze_subinterval(start_day=1, end_day=999)
+            fitted_model.analyze_subinterval(
+                start_position=1,
+                end_position=999,
+            )
 
     def test_analyze_subinterval_invalid_ci_level_type_error(self, fitted_model):
         """Test analyze_subinterval() raises TypeError for non-numeric ci_level."""
         with pytest.raises(TypeError, match="ci_level must be numeric"):
-            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level="0.95")
+            fitted_model.analyze_subinterval(
+                start_position=1,
+                end_position=7,
+                ci_level="0.95",
+            )
 
     def test_analyze_subinterval_ci_level_too_low_error(self, fitted_model):
         """Test analyze_subinterval() raises ValueError for ci_level <= 0."""
         with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
-            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.0)
+            fitted_model.analyze_subinterval(
+                start_position=1,
+                end_position=7,
+                ci_level=0.0,
+            )
 
     def test_analyze_subinterval_ci_level_too_high_error(self, fitted_model):
         """Test analyze_subinterval() raises ValueError for ci_level >= 1."""
         with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
-            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=1.0)
+            fitted_model.analyze_subinterval(
+                start_position=1,
+                end_position=7,
+                ci_level=1.0,
+            )
 
     def test_analyze_subinterval_ci_level_negative_error(self, fitted_model):
         """Test analyze_subinterval() raises ValueError for negative ci_level."""
         with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
-            fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=-0.5)
+            fitted_model.analyze_subinterval(
+                start_position=1,
+                end_position=7,
+                ci_level=-0.5,
+            )
 
     def test_analyze_subinterval_numpy_integers_accepted(self, fitted_model):
         """Test analyze_subinterval() accepts numpy integer types."""
         # Should not raise error
         result = fitted_model.analyze_subinterval(
-            start_day=np.int64(1), end_day=np.int64(7)
+            start_position=np.int64(1),
+            end_position=np.int64(7),
         )
 
         assert isinstance(result, TBRSubintervalResult)
-        assert result.start_day == 1
-        assert result.end_day == 7
+        assert result.start_position == 1
+        assert result.end_position == 7
 
     def test_analyze_subinterval_valid_ci_level(self, fitted_model):
         """Test analyze_subinterval() accepts valid ci_level."""
         # Should not raise error
-        result = fitted_model.analyze_subinterval(start_day=1, end_day=7, ci_level=0.95)
+        result = fitted_model.analyze_subinterval(
+            start_position=1,
+            end_position=7,
+            ci_level=0.95,
+        )
 
         assert isinstance(result, TBRSubintervalResult)
         assert result.ci_level == 0.95

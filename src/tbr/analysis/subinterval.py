@@ -41,7 +41,8 @@ Examples
 ...     }
 ... )
 >>> result = compute_interval_estimate_and_ci(
-...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+...     tbr_df, tbr_summary,
+...     start_position=1, end_position=2, ci_level=0.80
 ... )
 >>> print(f"Positions 1-2 effect: {result['estimate']:.2f}")
 >>> print(f"80% credible interval: [{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -81,17 +82,19 @@ from tbr.core.effects import compute_interval_estimate_and_ci as core_compute_in
 def compute_interval_estimate_and_ci(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
-    start_day: int,
-    end_day: int,
+    start_position: int,
+    end_position: int,
     ci_level: float,
 ) -> Dict[str, float]:
     r"""
     Compute a subinterval effect estimate and credible interval.
 
     The selected interval has inclusive one-based bounds
-    :math:`a=\mathrm{start\_day}` and :math:`b=\mathrm{end\_day}`;
-    :math:`T_s=b-a+1` is the selected test-row/time-point count retained under
-    the legacy name ``n_days``. Test rows are selected in their existing order.
+    :math:`a=\mathrm{start\_position}` and
+    :math:`b=\mathrm{end\_position}`. The value
+    :math:`T_s=b-a+1` is ``n_observations``, the number of selected rows, each
+    representing one test observation. Test rows are selected in their
+    existing order.
 
     Parameters
     ----------
@@ -105,13 +108,13 @@ def compute_interval_estimate_and_ci(
         Student-t degrees of freedom. The legacy ``alpha_beta_cov`` maps one
         way from ``cov_alpha_beta`` and stores covariance between the estimated
         intercept and slope. Values are read from the last row.
-    start_day : int
-        Legacy name for the one-based inclusive start position :math:`a` among
-        ordered test rows or time points. Must be at least 1.
-    end_day : int
-        Legacy name for the one-based inclusive end position :math:`b` among
-        ordered test rows or time points. Must be at least ``start_day`` and
-        no greater than the number of test rows.
+    start_position : int
+        One-based inclusive position :math:`a` of the first selected test
+        observation. Must be at least 1.
+    end_position : int
+        One-based inclusive position :math:`b` of the last selected test
+        observation. Must be at least ``start_position`` and no greater than
+        the number of test observations.
     ci_level : float
         Credibility level in the open interval ``(0, 1)``.
 
@@ -210,7 +213,8 @@ def compute_interval_estimate_and_ci(
     ...     }
     ... )
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=1, end_position=2, ci_level=0.80
     ... )
     >>> list(result) == ["estimate", "se", "precision", "lower", "upper"]
     True
@@ -224,28 +228,37 @@ def compute_interval_estimate_and_ci(
 
     Analyze one test-row position:
 
-    >>> day_3_result = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=3, end_day=3, ci_level=0.95
+    >>> position_3_result = compute_interval_estimate_and_ci(
+    ...     tbr_df, tbr_summary,
+    ...     start_position=3, end_position=3, ci_level=0.95
     ... )
-    >>> print(f"Position 3 effect: {day_3_result['estimate']:.2f}")
+    >>> print(f"Position 3 effect: {position_3_result['estimate']:.2f}")
 
     Compare different credibility levels:
 
     >>> result_80 = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=1, end_position=3, ci_level=0.80
     ... )
     >>> result_95 = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.95
+    ...     tbr_df, tbr_summary,
+    ...     start_position=1, end_position=3, ci_level=0.95
     ... )
     >>> print(f"80% interval width: {result_80['upper'] - result_80['lower']:.2f}")
     >>> print(f"95% interval width: {result_95['upper'] - result_95['lower']:.2f}")
     """
-    validate_subinterval_parameters(tbr_df, tbr_summary, start_day, end_day, ci_level)
+    validate_subinterval_parameters(
+        tbr_df,
+        tbr_summary,
+        start_position,
+        end_position,
+        ci_level,
+    )
     return core_compute_interval(
         tbr_df=tbr_df,
         tbr_summary=tbr_summary,
-        start_day=start_day,
-        end_day=end_day,
+        start_position=start_position,
+        end_position=end_position,
         ci_level=ci_level,
     )
 
@@ -279,10 +292,10 @@ def analyze_multiple_subintervals(
         way from ``cov_alpha_beta`` and stores covariance between the estimated
         intercept and slope.
     intervals : List[Tuple[int, int]]
-        Non-empty list of ``(start_day, end_day)`` pairs. These legacy names
-        denote inclusive one-based positions among ordered test rows or time
-        points. Each start must be at least 1 and no greater than its end, and
-        each end no greater than the number of test rows.
+        Non-empty list of ``(start_position, end_position)`` pairs denoting
+        inclusive one-based positions among ordered test observations. Each
+        start must be at least 1 and no greater than its end, and each end no
+        greater than the number of test observations.
     ci_level : float, default=0.80
         Credible interval level for all subintervals in the open interval
         ``(0, 1)``.
@@ -389,23 +402,25 @@ def analyze_multiple_subintervals(
         raise ValueError(f"ci_level must be between 0 and 1, got: {ci_level}")
 
     # Validate each interval
-    for i, (start_day, end_day) in enumerate(intervals):
-        if start_day > end_day:
+    for i, (start_position, end_position) in enumerate(intervals):
+        if start_position > end_position:
             raise ValueError(
-                f"Interval {i}: start_day ({start_day}) cannot be greater than "
-                f"end_day ({end_day})"
+                f"Interval {i}: start_position ({start_position}) cannot be "
+                f"greater than end_position ({end_position})"
             )
-        if start_day < 1:
-            raise ValueError(f"Interval {i}: start_day must be >= 1, got: {start_day}")
+        if start_position < 1:
+            raise ValueError(
+                f"Interval {i}: start_position must be >= 1, " f"got: {start_position}"
+            )
 
     # Analyze each interval
     results = []
-    for start_day, end_day in intervals:
+    for start_position, end_position in intervals:
         result = compute_interval_estimate_and_ci(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
-            start_day=start_day,
-            end_day=end_day,
+            start_position=start_position,
+            end_position=end_position,
             ci_level=ci_level,
         )
         results.append(result)
@@ -442,10 +457,10 @@ def create_subinterval_summary(
         ``cov_alpha_beta`` and stores covariance between the estimated
         intercept and slope.
     intervals : List[Tuple[int, int]]
-        Non-empty list of inclusive one-based ``(start_day, end_day)`` pairs.
-        These legacy names are positions among ordered test rows or time
-        points in their existing order. Each pair selects
-        T_s = end_day - start_day + 1 test rows or time points.
+        Non-empty list of inclusive one-based
+        ``(start_position, end_position)`` pairs among ordered test
+        observations in their existing order. Each pair selects
+        T_s = end_position - start_position + 1 test observations.
     ci_level : float, default=0.80
         Credible interval level for all analyses.
     threshold : float, default=0.0
@@ -476,47 +491,47 @@ def create_subinterval_summary(
 
     ``interval`` : object
         Generated runtime label. A single-observation interval is formatted as
-        ``"Test-period observation {start_day}"``; a range is formatted as
-        ``"Test-period observations {start_day} through {end_day} (inclusive)"``.
-        The legacy bounds are one-based observation positions.
-    ``start_day`` : integer
-        Legacy name for the inclusive one-based start position among ordered
-        test rows or time points, normally ``int64``.
-    ``end_day`` : integer
-        Legacy name for the inclusive one-based end position among ordered
-        test rows or time points, normally ``int64``.
-    ``days`` : integer
-        Legacy name for the inclusive selected test-row/time-point count
-        between both endpoints,
-        :math:`T_s=\mathrm{end\_day}-\mathrm{start\_day}+1`, normally
-        ``int64``. Structured result objects call this value ``n_days``.
+        ``"Test-period observation {start_position}"``; a range is formatted
+        as ``"Test-period observations {start_position} through
+        {end_position} (inclusive)"``. The bounds are one-based observation
+        positions.
+    ``start_position`` : integer
+        Inclusive one-based position of the first selected test observation,
+        typically ``int64``.
+    ``end_position`` : integer
+        Inclusive one-based position of the last selected test observation,
+        typically ``int64``.
+    ``n_observations`` : integer
+        ``n_observations`` is the inclusive count between both endpoints for
+        rows that each represent one test observation:
+        :math:`T_s=\mathrm{end\_position}-\mathrm{start\_position}+1`.
+        It is typically ``int64``.
     ``estimate`` : floating-point
-        :math:`\Delta(a,b)`, where :math:`a=\mathrm{start\_day}` and
-        :math:`b=\mathrm{end\_day}`, normally ``float64``.
+        :math:`\Delta(a,b)`, where
+        :math:`a=\mathrm{start\_position}` and
+        :math:`b=\mathrm{end\_position}`, typically ``float64``.
     ``se`` : floating-point
-        Standard error of the estimate, normally ``float64``.
+        Standard error of the estimate, typically ``float64``.
     ``precision`` : floating-point
-        Credible-interval half-width, normally ``float64``.
+        Credible-interval half-width, typically ``float64``.
     ``lower`` : floating-point
-        Lower credible bound, normally ``float64``.
+        Lower credible bound, typically ``float64``.
     ``upper`` : floating-point
-        Upper credible bound, normally ``float64``.
+        Upper credible bound, typically ``float64``.
     ``interval_excludes_threshold`` : Boolean
         Whether ``lower > threshold`` or ``upper < threshold``. Equality does
         not count as exclusion.
-    ``avg_daily_effect`` : floating-point
-        Legacy name for ``estimate / days``, the average effect per selected
-        observation, normally ``float64``.
+    ``average_effect_per_observation`` : floating-point
+        ``estimate / n_observations``, typically ``float64``.
     ``ci_level`` : floating-point
-        Credibility level, normally ``float64``.
+        Credibility level, typically ``float64``.
 
     The ``interval_excludes_threshold`` column records whether the credible
     interval lies entirely above or below ``threshold``.
     It is not a hypothesis test or a posterior-probability result.
 
-    The legacy ``avg_daily_effect`` is the total interval effect divided by
-    the selected observation count. It is an average effect per observation,
-    not necessarily a daily rate.
+    ``average_effect_per_observation`` is the total interval effect divided by
+    the selected observation count. It is not an elapsed-time rate.
 
     Examples
     --------
@@ -546,9 +561,10 @@ def create_subinterval_summary(
     ...     tbr_df, tbr_summary, intervals, ci_level=0.80
     ... )
     >>> list(summary.columns) == [
-    ...     "interval", "start_day", "end_day", "days", "estimate", "se",
+    ...     "interval", "start_position", "end_position", "n_observations",
+    ...     "estimate", "se",
     ...     "precision", "lower", "upper", "interval_excludes_threshold",
-    ...     "avg_daily_effect", "ci_level",
+    ...     "average_effect_per_observation", "ci_level",
     ... ]
     True
     >>> # interval reports inclusive test-observation positions.
@@ -569,12 +585,16 @@ def create_subinterval_summary(
     >>> flagged_intervals = summary[summary['interval_excludes_threshold']]
     >>> print(f"Intervals excluding threshold: {len(flagged_intervals)}")
 
-    Compare the legacy ``avg_daily_effect`` values:
+    Compare the average effect per observation:
 
     >>> summary = create_subinterval_summary(
     ...     tbr_df, tbr_summary, [(1, 1), (1, 2), (1, 3)]
     ... )
-    >>> print(summary[['interval', 'avg_daily_effect']].sort_values('avg_daily_effect'))
+    >>> print(
+    ...     summary[
+    ...         ["interval", "average_effect_per_observation"]
+    ...     ].sort_values("average_effect_per_observation")
+    ... )
     """
     # Analyze all intervals
     results = analyze_multiple_subintervals(
@@ -586,14 +606,16 @@ def create_subinterval_summary(
 
     # Create summary DataFrame
     summary_data = []
-    for _i, ((start_day, end_day), result) in enumerate(zip(intervals, results)):
-        days = end_day - start_day + 1
-        if start_day == end_day:
-            interval_label = f"Test-period observation {start_day}"
+    for _i, ((start_position, end_position), result) in enumerate(
+        zip(intervals, results)
+    ):
+        n_observations = end_position - start_position + 1
+        if start_position == end_position:
+            interval_label = f"Test-period observation {start_position}"
         else:
             interval_label = (
-                f"Test-period observations {start_day} through "
-                f"{end_day} (inclusive)"
+                f"Test-period observations {start_position} through "
+                f"{end_position} (inclusive)"
             )
 
         interval_excludes_threshold = (
@@ -603,16 +625,16 @@ def create_subinterval_summary(
         summary_data.append(
             {
                 "interval": interval_label,
-                "start_day": start_day,
-                "end_day": end_day,
-                "days": days,
+                "start_position": start_position,
+                "end_position": end_position,
+                "n_observations": n_observations,
                 "estimate": result["estimate"],
                 "se": result["se"],
                 "precision": result["precision"],
                 "lower": result["lower"],
                 "upper": result["upper"],
                 "interval_excludes_threshold": interval_excludes_threshold,
-                "avg_daily_effect": result["estimate"] / days,
+                "average_effect_per_observation": (result["estimate"] / n_observations),
                 "ci_level": ci_level,
             }
         )
@@ -623,8 +645,8 @@ def create_subinterval_summary(
 def validate_subinterval_parameters(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
-    start_day: int,
-    end_day: int,
+    start_position: int,
+    end_position: int,
     ci_level: float,
 ) -> None:
     """
@@ -641,10 +663,10 @@ def validate_subinterval_parameters(
         TBR output DataFrame to validate.
     tbr_summary : pd.DataFrame
         TBR summary DataFrame to validate.
-    start_day : int
-        Legacy name for the start test-row position to validate.
-    end_day : int
-        Legacy name for the end test-row position to validate.
+    start_position : int
+        Inclusive one-based start position to validate.
+    end_position : int
+        Inclusive one-based end position to validate.
     ci_level : float
         Credible interval level to validate.
 
@@ -691,13 +713,15 @@ def validate_subinterval_parameters(
     ...     }
     ... )
     >>> validate_subinterval_parameters(
-    ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=1, end_position=2, ci_level=0.80
     ... )  # No error
 
     An out-of-range test-row position raises ``ValueError``:
 
     >>> validate_subinterval_parameters(
-    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=5, end_position=10, ci_level=0.80
     ... )  # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
@@ -740,21 +764,24 @@ def validate_subinterval_parameters(
         raise ValueError("No test period data found (period == 1)")
 
     # Validate positional bounds
-    if not isinstance(start_day, (int, np.integer)) or not isinstance(
-        end_day, (int, np.integer)
+    if not isinstance(start_position, (int, np.integer)) or not isinstance(
+        end_position, (int, np.integer)
     ):
-        raise TypeError("start_day and end_day must be integers")
+        raise TypeError("start_position and end_position must be integers")
 
-    if start_day < 1:
-        raise ValueError(f"start_day must be >= 1, got: {start_day}")
+    if start_position < 1:
+        raise ValueError(f"start_position must be >= 1, got: {start_position}")
 
-    if end_day < start_day:
-        raise ValueError(f"end_day ({end_day}) must be >= start_day ({start_day})")
+    if end_position < start_position:
+        raise ValueError(
+            f"end_position ({end_position}) must be >= "
+            f"start_position ({start_position})"
+        )
 
     max_test_observations = len(test_data)
-    if end_day > max_test_observations:
+    if end_position > max_test_observations:
         raise ValueError(
-            f"end_day ({end_day}) exceeds the number of test observations "
+            f"end_position ({end_position}) exceeds the number of test observations "
             f"({max_test_observations})"
         )
 

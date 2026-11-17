@@ -72,8 +72,8 @@ class TestComputeIntervalEstimateAndCI:
         result = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
-            start_day=2,
-            end_day=4,
+            start_position=2,
+            end_position=4,
             ci_level=0.80,
         )
 
@@ -95,14 +95,22 @@ class TestComputeIntervalEstimateAndCI:
     ):
         """Test mathematical accuracy against core implementation."""
         # Test parameters
-        start_day, end_day, ci_level = 1, 3, 0.90
+        start_position, end_position, ci_level = 1, 3, 0.90
 
         # Get results from both implementations
         analysis_result = compute_interval_estimate_and_ci(
-            sample_tbr_dataframe, sample_tbr_summary, start_day, end_day, ci_level
+            sample_tbr_dataframe,
+            sample_tbr_summary,
+            start_position,
+            end_position,
+            ci_level,
         )
         core_result = core_compute_interval(
-            sample_tbr_dataframe, sample_tbr_summary, start_day, end_day, ci_level
+            sample_tbr_dataframe,
+            sample_tbr_summary,
+            start_position,
+            end_position,
+            ci_level,
         )
 
         # Verify identical results (exact match)
@@ -114,8 +122,8 @@ class TestComputeIntervalEstimateAndCI:
         result = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
-            start_day=3,
-            end_day=3,
+            start_position=3,
+            end_position=3,
             ci_level=0.95,
         )
 
@@ -134,8 +142,8 @@ class TestComputeIntervalEstimateAndCI:
         result = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
-            start_day=1,
-            end_day=max_day,
+            start_position=1,
+            end_position=max_day,
             ci_level=0.80,
         )
 
@@ -150,23 +158,23 @@ class TestComputeIntervalEstimateAndCI:
         # Note: The core functional implementation doesn't validate parameters,
         # so we test the validation function directly
 
-        # start_day > end_day
-        with pytest.raises(ValueError, match="end_day.*must be.*start_day"):
+        # start_position > end_position
+        with pytest.raises(ValueError, match="end_position.*must be.*start_position"):
             validate_subinterval_parameters(
                 sample_tbr_dataframe,
                 sample_tbr_summary,
-                start_day=5,
-                end_day=3,
+                start_position=5,
+                end_position=3,
                 ci_level=0.80,
             )
 
-        # start_day < 1
-        with pytest.raises(ValueError, match="start_day must be.*1"):
+        # start_position < 1
+        with pytest.raises(ValueError, match="start_position must be.*1"):
             validate_subinterval_parameters(
                 sample_tbr_dataframe,
                 sample_tbr_summary,
-                start_day=0,
-                end_day=3,
+                start_position=0,
+                end_position=3,
                 ci_level=0.80,
             )
 
@@ -182,8 +190,8 @@ class TestComputeIntervalEstimateAndCI:
             validate_subinterval_parameters(
                 sample_tbr_dataframe,
                 sample_tbr_summary,
-                start_day=1,
-                end_day=3,
+                start_position=1,
+                end_position=3,
                 ci_level=1.5,
             )
 
@@ -192,8 +200,8 @@ class TestComputeIntervalEstimateAndCI:
             validate_subinterval_parameters(
                 sample_tbr_dataframe,
                 sample_tbr_summary,
-                start_day=1,
-                end_day=3,
+                start_position=1,
+                end_position=3,
                 ci_level=0.0,
             )
 
@@ -205,8 +213,8 @@ class TestComputeIntervalEstimateAndCI:
         result_80 = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
-            start_day=1,
-            end_day=5,
+            start_position=1,
+            end_position=5,
             ci_level=0.80,
         )
 
@@ -214,8 +222,8 @@ class TestComputeIntervalEstimateAndCI:
         result_95 = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
-            start_day=1,
-            end_day=5,
+            start_position=1,
+            end_position=5,
             ci_level=0.95,
         )
 
@@ -283,9 +291,13 @@ class TestAnalyzeMultipleSubintervals:
 
         # Individual analyses
         individual_results = []
-        for start_day, end_day in intervals:
+        for start_position, end_position in intervals:
             result = compute_interval_estimate_and_ci(
-                tbr_df, tbr_summary, start_day, end_day, ci_level=0.85
+                tbr_df,
+                tbr_summary,
+                start_position,
+                end_position,
+                ci_level=0.85,
             )
             individual_results.append(result)
 
@@ -326,14 +338,15 @@ class TestAnalyzeMultipleSubintervals:
 
         # Invalid interval: start > end
         with pytest.raises(
-            ValueError, match="start_day.*cannot be greater than.*end_day"
+            ValueError,
+            match="start_position.*cannot be greater than.*end_position",
         ):
             analyze_multiple_subintervals(
                 tbr_df, tbr_summary, [(1, 3), (5, 2)], ci_level=0.80
             )
 
         # Invalid interval: start < 1
-        with pytest.raises(ValueError, match="start_day must be.*1"):
+        with pytest.raises(ValueError, match="start_position must be.*1"):
             analyze_multiple_subintervals(tbr_df, tbr_summary, [(0, 3)], ci_level=0.80)
 
     def test_different_interval_lengths(self, sample_data):
@@ -413,16 +426,16 @@ class TestCreateSubintervalSummary:
         # Verify required columns
         expected_columns = [
             "interval",
-            "start_day",
-            "end_day",
-            "days",
+            "start_position",
+            "end_position",
+            "n_observations",
             "estimate",
             "se",
             "precision",
             "lower",
             "upper",
             "interval_excludes_threshold",
-            "avg_daily_effect",
+            "average_effect_per_observation",
             "ci_level",
         ]
         assert list(summary.columns) == expected_columns
@@ -438,9 +451,11 @@ class TestCreateSubintervalSummary:
 
         for _, row in summary.iterrows():
             # Basic mathematical properties
-            assert row["days"] == row["end_day"] - row["start_day"] + 1
-            assert row["avg_daily_effect"] == pytest.approx(
-                row["estimate"] / row["days"], rel=1e-10
+            assert (
+                row["n_observations"] == row["end_position"] - row["start_position"] + 1
+            )
+            assert row["average_effect_per_observation"] == pytest.approx(
+                row["estimate"] / row["n_observations"], rel=1e-10
             )
             assert row["precision"] > 0
             assert row["lower"] < row["upper"]
@@ -551,7 +566,11 @@ class TestValidateSubintervalParameters:
 
         # Should not raise any exception
         validate_subinterval_parameters(
-            tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
+            tbr_df,
+            tbr_summary,
+            start_position=1,
+            end_position=3,
+            ci_level=0.80,
         )
 
     def test_accepts_fitted_model_output(self):
@@ -581,8 +600,8 @@ class TestValidateSubintervalParameters:
         validate_subinterval_parameters(
             model.results_,
             model.summaries_,
-            start_day=1,
-            end_day=n_test_days,
+            start_position=1,
+            end_position=n_test_days,
             ci_level=0.80,
         )
 
@@ -593,13 +612,21 @@ class TestValidateSubintervalParameters:
         # Test invalid tbr_df type
         with pytest.raises(TypeError, match="tbr_df must be a pandas DataFrame"):
             validate_subinterval_parameters(
-                "not_a_dataframe", tbr_summary, start_day=1, end_day=3, ci_level=0.80
+                "not_a_dataframe",
+                tbr_summary,
+                start_position=1,
+                end_position=3,
+                ci_level=0.80,
             )
 
         # Test invalid tbr_summary type (line 498)
         with pytest.raises(TypeError, match="tbr_summary must be a pandas DataFrame"):
             validate_subinterval_parameters(
-                tbr_df, "not_a_dataframe", start_day=1, end_day=3, ci_level=0.80
+                tbr_df,
+                "not_a_dataframe",
+                start_position=1,
+                end_position=3,
+                ci_level=0.80,
             )
 
     @pytest.mark.parametrize("column", ["y", "x", "pred", "period"])
@@ -610,7 +637,11 @@ class TestValidateSubintervalParameters:
         invalid_tbr_df = tbr_df.drop(columns=[column])
         with pytest.raises(ValueError, match="tbr_df missing required columns"):
             validate_subinterval_parameters(
-                invalid_tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
+                invalid_tbr_df,
+                tbr_summary,
+                start_position=1,
+                end_position=3,
+                ci_level=0.80,
             )
 
     @pytest.mark.parametrize(
@@ -623,7 +654,11 @@ class TestValidateSubintervalParameters:
         invalid_summary = tbr_summary.drop(columns=[column])
         with pytest.raises(ValueError, match="tbr_summary missing required columns"):
             validate_subinterval_parameters(
-                tbr_df, invalid_summary, start_day=1, end_day=3, ci_level=0.80
+                tbr_df,
+                invalid_summary,
+                start_position=1,
+                end_position=3,
+                ci_level=0.80,
             )
 
     def test_empty_summary(self, valid_data):
@@ -632,7 +667,11 @@ class TestValidateSubintervalParameters:
 
         with pytest.raises(ValueError, match="tbr_summary cannot be empty"):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary.iloc[0:0], start_day=1, end_day=3, ci_level=0.80
+                tbr_df,
+                tbr_summary.iloc[0:0],
+                start_position=1,
+                end_position=3,
+                ci_level=0.80,
             )
 
     def test_no_test_period_data(self, valid_data):
@@ -651,29 +690,48 @@ class TestValidateSubintervalParameters:
 
         with pytest.raises(ValueError, match="No test period data found"):
             validate_subinterval_parameters(
-                no_test_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
+                no_test_df,
+                tbr_summary,
+                start_position=1,
+                end_position=3,
+                ci_level=0.80,
             )
 
     def test_invalid_day_parameters(self, valid_data):
         """Test validation with invalid day parameters."""
         tbr_df, tbr_summary = valid_data
 
-        # Non-integer days
-        with pytest.raises(TypeError, match="start_day and end_day must be integers"):
+        # Non-integer positions
+        with pytest.raises(
+            TypeError,
+            match="start_position and end_position must be integers",
+        ):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary, start_day=1.5, end_day=3, ci_level=0.80
+                tbr_df,
+                tbr_summary,
+                start_position=1.5,
+                end_position=3,
+                ci_level=0.80,
             )
 
-        # start_day < 1
-        with pytest.raises(ValueError, match="start_day must be.*1"):
+        # start_position < 1
+        with pytest.raises(ValueError, match="start_position must be.*1"):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary, start_day=0, end_day=3, ci_level=0.80
+                tbr_df,
+                tbr_summary,
+                start_position=0,
+                end_position=3,
+                ci_level=0.80,
             )
 
-        # end_day < start_day
-        with pytest.raises(ValueError, match="end_day.*must be.*start_day"):
+        # end_position < start_position
+        with pytest.raises(ValueError, match="end_position.*must be.*start_position"):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary, start_day=5, end_day=3, ci_level=0.80
+                tbr_df,
+                tbr_summary,
+                start_position=5,
+                end_position=3,
+                ci_level=0.80,
             )
 
     def test_position_exceeds_available_data(self, valid_data):
@@ -683,10 +741,14 @@ class TestValidateSubintervalParameters:
 
         with pytest.raises(
             ValueError,
-            match="end_day.*exceeds the number of test observations",
+            match="end_position.*exceeds the number of test observations",
         ):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary, start_day=1, end_day=test_days + 1, ci_level=0.80
+                tbr_df,
+                tbr_summary,
+                start_position=1,
+                end_position=test_days + 1,
+                ci_level=0.80,
             )
 
     def test_invalid_confidence_level(self, valid_data):
@@ -696,13 +758,21 @@ class TestValidateSubintervalParameters:
         # Non-numeric ci_level
         with pytest.raises(TypeError, match="ci_level must be a number"):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary, start_day=1, end_day=3, ci_level="0.80"
+                tbr_df,
+                tbr_summary,
+                start_position=1,
+                end_position=3,
+                ci_level="0.80",
             )
 
         # ci_level out of bounds
         with pytest.raises(ValueError, match="ci_level must be between 0 and 1"):
             validate_subinterval_parameters(
-                tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=1.5
+                tbr_df,
+                tbr_summary,
+                start_position=1,
+                end_position=3,
+                ci_level=1.5,
             )
 
     def test_accepts_numpy_scalars(self, valid_data):
@@ -713,8 +783,8 @@ class TestValidateSubintervalParameters:
         validate_subinterval_parameters(
             tbr_df,
             tbr_summary,
-            start_day=np.int64(1),
-            end_day=np.int32(3),
+            start_position=np.int64(1),
+            end_position=np.int32(3),
             ci_level=np.float32(0.80),
         )
 
@@ -769,8 +839,8 @@ class TestSubintervalInputValidation:
         ],
         ids=["compute", "analyze_multiple", "create_summary"],
     )
-    def test_end_day_beyond_test_rows_raises(self, valid_data, call):
-        """Test that an end day beyond the test rows is rejected."""
+    def test_end_position_beyond_test_rows_raises(self, valid_data, call):
+        """Test that an end position beyond the test rows is rejected."""
         tbr_df, tbr_summary = valid_data
 
         with pytest.raises(
@@ -896,15 +966,19 @@ class TestSubintervalModuleIntegration:
 
             # Call the wrapper function
             result = compute_interval_estimate_and_ci(
-                tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+                tbr_df,
+                tbr_summary,
+                start_position=1,
+                end_position=2,
+                ci_level=0.80,
             )
 
             # Verify the core implementation was called with correct arguments
             mock_core.assert_called_once_with(
                 tbr_df=tbr_df,
                 tbr_summary=tbr_summary,
-                start_day=1,
-                end_day=2,
+                start_position=1,
+                end_position=2,
                 ci_level=0.80,
             )
 
@@ -935,7 +1009,11 @@ class TestSubintervalModuleIntegration:
         )
 
         result = compute_interval_estimate_and_ci(
-            extreme_df, extreme_summary, start_day=1, end_day=3, ci_level=0.95
+            extreme_df,
+            extreme_summary,
+            start_position=1,
+            end_position=3,
+            ci_level=0.95,
         )
 
         # Should handle extreme values without errors
