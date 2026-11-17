@@ -201,14 +201,16 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'x', 'pred', 'period'
+        TBR output with columns 'y', 'x', 'pred', 'period'
     tbr_summary : pd.DataFrame
         TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
         'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
     start_day : int
-        Start day of subinterval (1-indexed within test period)
+        Legacy name for the inclusive one-based start position among test
+        observations.
     end_day : int
-        End day of subinterval (inclusive)
+        Legacy name for the inclusive one-based end position among test
+        observations.
     ci_level : float
         Credible interval level (e.g., 0.80 for 80% interval)
 
@@ -464,16 +466,18 @@ def create_incremental_tbr_summaries(
     threshold: float,
 ) -> pd.DataFrame:
     """
-    Create incremental TBR summary statistics for each test period day.
+    Create incremental TBR summary statistics for each test observation.
 
-    This function generates summary statistics for incremental test periods:
-    - Day 1: Summary for first day only
-    - Day 2: Summary for first two days (cumulative)
-    - Day 3: Summary for first three days (cumulative)
+    This function generates statistics for cumulative test-observation
+    prefixes:
+    - Position 1: Summary for the first observation only
+    - Position 2: Summary for the first two observations
+    - Position 3: Summary for the first three observations
     - ...and so on
 
-    This enables day-by-day analysis of cumulative treatment effects during the
-    test period, providing insights into when effects become detectable and stable.
+    This enables observation-by-observation analysis of cumulative treatment
+    effects during the test period, providing insights into when effects
+    become detectable and stable.
 
     Parameters
     ----------
@@ -502,8 +506,9 @@ def create_incremental_tbr_summaries(
     -------
     pd.DataFrame
         Multi-row DataFrame with incremental TBR summary statistics.
-        Each row represents cumulative statistics up to that test day.
-        Includes an additional 'test_day' column indicating the incremental period.
+        Each row represents cumulative statistics from the first test
+        observation through the one-based position stored in the legacy
+        ``test_day`` column.
 
     Examples
     --------
@@ -517,7 +522,7 @@ def create_incremental_tbr_summaries(
     ...     var_alpha=100, var_beta=0.001, cov_alpha_beta=-0.05,
     ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
-    >>> print(f"Day 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
+    >>> print(f"Position 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
     """
     # Input validation
     if tbr_dataframe.empty:
@@ -546,13 +551,14 @@ def create_incremental_tbr_summaries(
     # Get pretest data for combining with incremental test periods
     pretest_data = tbr_dataframe[tbr_dataframe["period"] == 0].copy()
 
-    num_test_days = len(test_period_data)
+    num_test_observations = len(test_period_data)
     incremental_summaries = []
 
     # Generate summary for each incremental test period
-    for day_idx in range(num_test_days):
-        # Create subset of test data up to current day (inclusive)
-        test_subset = test_period_data.iloc[: day_idx + 1].copy()
+    for position_index in range(num_test_observations):
+        # Select all test observations up to and including the current
+        # zero-based positional index.
+        test_subset = test_period_data.iloc[: position_index + 1].copy()
 
         # Combine pretest data with current test subset
         incremental_df = pd.concat([pretest_data, test_subset], ignore_index=True)
@@ -571,8 +577,8 @@ def create_incremental_tbr_summaries(
             threshold=threshold,
         )
 
-        # Add test day identifier
-        summary["test_day"] = day_idx + 1
+        # Populate the legacy test-position identifier
+        summary["test_day"] = position_index + 1
 
         incremental_summaries.append(summary)
 

@@ -11,12 +11,12 @@ notation-to-code mapping.
 | Call | Return type | Scope |
 |---|---|---|
 | `perform_tbr_analysis()` | `TBRResults` | Complete functional analysis |
-| `TBRResults.summary()` | `pd.DataFrame` | Cumulative statistics for every test day |
+| `TBRResults.summary()` | `pd.DataFrame` | Cumulative statistics for every test observation |
 | `TBRAnalysis.summarize()` | `TBRSummaryResult` | Structured final cumulative summary |
 | `TBRAnalysis.fit_summarize()` | `TBRSummaryResult` | Fit and return the final summary |
 | `TBRAnalysis.predict()` | `TBRPredictionResult` | Counterfactual predictions |
 | `TBRAnalysis.fit_predict()` | `TBRPredictionResult` | Fit and return predictions |
-| `TBRAnalysis.analyze_subinterval()` | `TBRSubintervalResult` | One inclusive test-day interval |
+| `TBRAnalysis.analyze_subinterval()` | `TBRSubintervalResult` | One inclusive range of test-observation positions |
 
 In particular, `TBRResults.summary()` is not an alias for
 `TBRAnalysis.summarize()`: the former returns a multi-row DataFrame, while the
@@ -69,7 +69,7 @@ results = perform_tbr_analysis(
 ## `TBRResults`
 
 `TBRResults` is returned by `perform_tbr_analysis()`. It provides scalar
-statistics, time-indexed Series, model parameters, a comprehensive daily
+statistics, time-indexed Series, model parameters, a comprehensive TBR
 DataFrame, and a cumulative summary DataFrame.
 
 ### Properties
@@ -91,7 +91,7 @@ DataFrame, and a cumulative summary DataFrame.
 | `pvalue` | `float` | Legacy name for posterior threshold-exceedance probability |
 | `n_pretest` | `int` | Number of pretest observations |
 | `n_test` | `int` | Number of test observations |
-| `n_test_days` | `int` | Test-period length; currently equal to `n_test` |
+| `n_test_days` | `int` | Legacy name for the test-observation count; equal to `n_test` |
 | `alpha` | `float` | Regression intercept $\beta_0$ |
 | `beta` | `float` | Regression slope $\beta_1$ |
 | `sigma` | `float` | Residual standard deviation $\sigma$ |
@@ -116,12 +116,13 @@ $P(\Delta(T)>\theta\mid\mathrm{data})$ for the configured threshold $\theta$.
 
 ### `summary()` DataFrame
 
-`results.summary()` returns one row per cumulative test day. `test_day` is
-integer; every other column is `float64`, including `t_dist_df`.
+`results.summary()` returns one row per cumulative test observation. The
+legacy `test_day` column contains its one-based position and is integer; every
+other column is `float64`, including `t_dist_df`.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `test_day` | integer | One-based cumulative test-day number |
+| `test_day` | integer | Legacy name for the one-based cumulative test-observation position |
 | `estimate` | `float64` | Cumulative-effect estimate $\hat{\Delta}(T)$ |
 | `precision` | `float64` | Credible-interval half-width |
 | `lower` | `float64` | Lower credible bound |
@@ -276,7 +277,8 @@ assert prediction_result.n_predictions == len(prediction_result.predictions)
 
 ## `TBRSubintervalResult`
 
-This frozen dataclass describes inclusive one-based test days $a$ through $b$.
+This frozen dataclass describes inclusive one-based test-observation positions
+$a$ through $b$.
 
 | Attribute | Type | Meaning |
 |---|---|---|
@@ -286,9 +288,9 @@ This frozen dataclass describes inclusive one-based test days $a$ through $b$.
 | `se` | `float` | Standard error |
 | `precision` | `float` | Credible-interval half-width |
 | `ci_level` | `float` | Credibility level |
-| `start_day` | `int` | Inclusive one-based start $a$ |
-| `end_day` | `int` | Inclusive one-based end $b$ |
-| `n_days` | `int` | Interval length $T_s=b-a+1$ |
+| `start_day` | `int` | Legacy name for inclusive one-based start position $a$ |
+| `end_day` | `int` | Legacy name for inclusive one-based end position $b$ |
+| `n_days` | `int` | Legacy name for observation count $T_s=b-a+1$ |
 
 ```python
 assert isinstance(subinterval, TBRSubintervalResult)

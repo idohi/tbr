@@ -83,7 +83,7 @@ class TBRAnalysis:
     fitted\_ : bool
         Whether the model has been fitted.
     results\_ : pd.DataFrame
-        Comprehensive daily TBR DataFrame. It contains original source columns
+        Comprehensive TBR output DataFrame. It contains original source columns
         plus ``period``, ``y``, ``x``, ``pred``, ``predsd``, ``dif``,
         ``cumdif``, ``cumsd``, and ``estsd`` as documented on
         :attr:`results_`. Available after :meth:`fit`.
@@ -1030,7 +1030,7 @@ class TBRAnalysis:
 
         See Also
         --------
-        summarize_incremental : Get day-by-day incremental summaries
+        summarize_incremental : Get observation-by-observation incremental summaries
 
         Notes
         -----
@@ -1225,8 +1225,9 @@ class TBRAnalysis:
         TypeError
             If start_day, end_day, or ci_level have invalid types.
         ValueError
-            If start_day or end_day are invalid, start_day > end_day, days exceed
-            test period, or ci_level is not between 0 and 1 exclusive.
+            If start_day or end_day are invalid, start_day > end_day, a bound
+            exceeds the number of test observations, or ci_level is not
+            between 0 and 1 exclusive.
 
         Examples
         --------
@@ -1287,7 +1288,7 @@ class TBRAnalysis:
         assert self._results is not None
         assert self._params is not None
 
-        # Validate day parameter types
+        # Validate positional bound types
         if not isinstance(start_day, (int, np.integer)):
             raise TypeError(
                 f"start_day must be an integer, got {type(start_day).__name__}"
@@ -1300,7 +1301,7 @@ class TBRAnalysis:
         start_day = int(start_day)
         end_day = int(end_day)
 
-        # Validate day parameter values
+        # Validate positional bound values
         if start_day < 1:
             raise ValueError(
                 f"start_day must be a positive integer (>= 1), got {start_day}"
@@ -1314,17 +1315,19 @@ class TBRAnalysis:
         if start_day > end_day:
             raise ValueError(f"start_day ({start_day}) must be <= end_day ({end_day})")
 
-        # Check if days are within test period
-        n_test_days = len(self._results[self._results["period"] == 1])
+        # Check if positions are within the test observations
+        n_test_observations = len(self._results[self._results["period"] == 1])
 
-        if start_day > n_test_days:
+        if start_day > n_test_observations:
             raise ValueError(
-                f"start_day ({start_day}) exceeds test period length ({n_test_days} days)"
+                f"start_day ({start_day}) exceeds the number of test observations "
+                f"({n_test_observations})"
             )
 
-        if end_day > n_test_days:
+        if end_day > n_test_observations:
             raise ValueError(
-                f"end_day ({end_day}) exceeds test period length ({n_test_days} days)"
+                f"end_day ({end_day}) exceeds the number of test observations "
+                f"({n_test_observations})"
             )
 
         # Use model's level if not provided, otherwise validate ci_level
@@ -1733,7 +1736,7 @@ class TBRAnalysis:
             return f"TBRAnalysis (not fitted)\n  level={self.level}\n  threshold={self.threshold}"
 
         assert self._summaries is not None  # Guaranteed by _fitted check
-        n_test_days = len(self._summaries)
+        n_test_observations = len(self._summaries)
         final_effect = self._summaries.iloc[-1]["estimate"]
         final_lower = self._summaries.iloc[-1]["lower"]
         final_upper = self._summaries.iloc[-1]["upper"]
@@ -1744,7 +1747,7 @@ class TBRAnalysis:
             f"    level={self.level}\n"
             f"    threshold={self.threshold}\n"
             f"  Results:\n"
-            f"    Test period days: {n_test_days}\n"
+            f"    Test observations: {n_test_observations}\n"
             f"    Final effect estimate: {final_effect:.2f}\n"
             f"    {int(self.level*100)}% CI: "
             f"[{final_lower:.2f}, {final_upper:.2f}]"

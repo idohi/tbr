@@ -279,7 +279,7 @@ class TestTBRAnalysisFittedState:
         assert "level=0.8" in str_rep
         assert "threshold=0.0" in str_rep
         assert "Results:" in str_rep
-        assert "Test period days: 3" in str_rep
+        assert "Test observations: 3" in str_rep
         assert "Final effect estimate: 15.00" in str_rep
         assert "80% CI: [10.00, 20.00]" in str_rep
 
@@ -1087,8 +1087,8 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
         with pytest.raises(ValueError, match="start_day.*must be <= end_day"):
             model.analyze_subinterval(start_day=10, end_day=5)
 
-    def test_analyze_subinterval_exceeds_test_period(self, sample_data):
-        """Test error when end_day exceeds test period length."""
+    def test_analyze_subinterval_exceeds_test_observations(self, sample_data):
+        """Test error when end_day exceeds the test-observation count."""
         model = TBRAnalysis()
         data = sample_data
         model.fit(
@@ -1101,7 +1101,10 @@ class TestTBRAnalysisAnalyzeSubintervalMethod:
             test_end=pd.Timestamp("2023-03-01"),
         )
 
-        with pytest.raises(ValueError, match="exceeds test period length"):
+        with pytest.raises(
+            ValueError,
+            match="exceeds the number of test observations",
+        ):
             model.analyze_subinterval(start_day=1, end_day=999)
 
     def test_analyze_subinterval_full_period(self, sample_data):
@@ -1586,12 +1589,23 @@ class TestTBRAnalysisAnalyzeSubintervalValidation:
 
     def test_analyze_subinterval_start_exceeds_period_error(self, fitted_model):
         """Test analyze_subinterval() raises ValueError when start_day exceeds test period."""
-        with pytest.raises(ValueError, match="start_day.*exceeds test period length"):
+        with pytest.raises(
+            ValueError,
+            match=(
+                r"^start_day \(999\) exceeds the number of "
+                r"test observations \(28\)$"
+            ),
+        ):
             fitted_model.analyze_subinterval(start_day=999, end_day=1000)
 
     def test_analyze_subinterval_end_exceeds_period_error(self, fitted_model):
         """Test analyze_subinterval() raises ValueError when end_day exceeds test period."""
-        with pytest.raises(ValueError, match="end_day.*exceeds test period length"):
+        with pytest.raises(
+            ValueError,
+            match=(
+                r"^end_day \(999\) exceeds the number of " r"test observations \(28\)$"
+            ),
+        ):
             fitted_model.analyze_subinterval(start_day=1, end_day=999)
 
     def test_analyze_subinterval_invalid_ci_level_type_error(self, fitted_model):

@@ -512,8 +512,8 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        Daily output containing ``period``, ``y``, ``x``, and ``pred``.
-        Test rows must be in test-day order.
+        TBR output containing ``period``, ``y``, ``x``, and ``pred``.
+        Test rows must already be in the intended observation order.
     tbr_summary : pd.DataFrame
         Non-empty summary containing ``sigma``, legacy degrees-of-freedom
         column ``t_dist_df``, ``var_alpha``, ``var_beta``, and
@@ -607,7 +607,7 @@ def create_tbr_summary(
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Daily output containing ``period``, ``cumdif``, and ``cumsd``. The last
+        TBR output containing ``period``, ``cumdif``, and ``cumsd``. The last
         row with ``period == 1`` supplies the cumulative estimate and its
         standard error (Student-t scale).
     alpha : float
@@ -718,7 +718,7 @@ def create_incremental_tbr_summaries(
     threshold: float,
 ) -> pd.DataFrame:
     r"""
-    Create one cumulative TBR summary per test day.
+    Create one cumulative TBR summary per test observation.
 
     Test rows are consumed in input order. The helper reports cumulative
     estimates, intervals, and posterior probabilities; it does not define a
@@ -727,7 +727,7 @@ def create_incremental_tbr_summaries(
     Parameters
     ----------
     tbr_dataframe : pd.DataFrame
-        Daily output containing ``period``, ``cumdif``, and ``cumsd``.
+        TBR output containing ``period``, ``cumdif``, and ``cumsd``.
     alpha : float
         Regression intercept :math:`\beta_0`.
     beta : float
@@ -750,10 +750,12 @@ def create_incremental_tbr_summaries(
     Returns
     -------
     pd.DataFrame
-        One row per cumulative test day, with columns in the order below.
+        One row per cumulative test observation, with columns in the order
+        below.
 
         ``test_day`` : integer
-            One-based cumulative test-day number, normally ``int64``.
+            Legacy name for the one-based cumulative test-observation
+            position, normally ``int64``.
         ``estimate`` : ``float64``
             Cumulative-effect estimate :math:`\hat{\Delta}(T)`.
         ``precision`` : ``float64``
@@ -805,7 +807,7 @@ def create_incremental_tbr_summaries(
     ...     var_alpha=100, var_beta=0.001, cov_alpha_beta=-0.05,
     ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
-    >>> print(f"Day 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
+    >>> print(f"Position 1 effect: {incremental_summaries.iloc[0]['estimate']:.2f}")
     """
     from tbr.core.effects import (
         create_incremental_tbr_summaries as _create_incremental_tbr_summaries,
@@ -881,9 +883,10 @@ def perform_tbr_analysis(
     test_end_inclusive : bool, default False
         Whether to include the ``test_end`` boundary in the test period.
         ``False`` uses ``data < test_end``; ``True`` uses
-        ``data <= test_end``. Use ``True`` for same-day analysis and ``False``
-        for an exclusive end boundary. The behavior is consistent for
-        ``datetime64[ns]``, ``int64``, and ``float64`` time columns.
+        ``data <= test_end``. Use ``True`` when equal start and end boundary
+        values should include that observation, and ``False`` for an exclusive
+        end boundary. The behavior is consistent for ``datetime64[ns]``,
+        ``int64``, and ``float64`` time columns.
 
     Returns
     -------
@@ -935,7 +938,7 @@ def perform_tbr_analysis(
         Incremental summary copy with the complete schema documented on
         :class:`tbr.core.results.TBRResults`.
     ``tbr_dataframe()`` : pd.DataFrame
-        Comprehensive daily-output copy.
+        Comprehensive TBR-output copy.
     ``conf_int()`` : pd.DataFrame
         Single-row credible-interval copy.
 
@@ -986,9 +989,9 @@ def perform_tbr_analysis(
     >>> results.cumulative_effect.plot(title='Cumulative Treatment Effect')  # doctest: +SKIP
     >>> print(results.effects.describe())
     >>>
-    >>> # Get daily summary table
-    >>> daily_summary = results.summary()
-    >>> print(daily_summary.tail())
+    >>> # Get incremental summary table
+    >>> incremental_summary = results.summary()
+    >>> print(incremental_summary.tail())
     >>>
     >>> # Get comprehensive TBR dataframe
     >>> tbr_df = results.tbr_dataframe()

@@ -377,8 +377,8 @@ class TestTBRSubintervalResult:
         """Test TBRSubintervalResult.__repr__() method."""
         repr_str = repr(subinterval_result)
         assert "TBRSubintervalResult" in repr_str
-        assert "days=1-7" in repr_str
-        assert "n=7" in repr_str
+        assert "positions=1-7" in repr_str
+        assert "n_observations=7" in repr_str
         assert "estimate=" in repr_str
         assert "CI=" in repr_str
         assert "se=11.800" in repr_str

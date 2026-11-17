@@ -66,8 +66,18 @@ def test_subinterval_summary_schema_values_dtypes_and_inputs(legacy_frames):
         "ci_level",
     ]
     assert result[["interval", "start_day", "end_day", "days"]].to_dict("records") == [
-        {"interval": "Days 1-1", "start_day": 1, "end_day": 1, "days": 1},
-        {"interval": "Days 2-3", "start_day": 2, "end_day": 3, "days": 2},
+        {
+            "interval": "Test-period observation 1",
+            "start_day": 1,
+            "end_day": 1,
+            "days": 1,
+        },
+        {
+            "interval": "Test-period observations 2 through 3 (inclusive)",
+            "start_day": 2,
+            "end_day": 3,
+            "days": 2,
+        },
     ]
     assert result["estimate"].tolist() == pytest.approx([1.0, 5.0])
     assert result["se"].tolist() == pytest.approx(
@@ -88,7 +98,7 @@ def test_subinterval_summary_schema_values_dtypes_and_inputs(legacy_frames):
     assert result.dtypes.astype(str).to_dict() == {
         # pandas 3 uses its default ``str`` dtype here; earlier supported
         # pandas versions infer ``object`` for the same string-only input.
-        "interval": str(pd.Series(["Days 1-1"]).dtype),
+        "interval": str(pd.Series(["Test-period observation 1"]).dtype),
         "start_day": "int64",
         "end_day": "int64",
         "days": "int64",

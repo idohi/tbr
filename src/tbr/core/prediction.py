@@ -196,7 +196,7 @@ def calculate_cumulative_standard_deviation(
     Returns
     -------
     np.ndarray
-        Array of cumulative standard deviations for each day in test period
+        Array of cumulative standard deviations for each test observation
 
     Examples
     --------
@@ -264,14 +264,16 @@ def compute_interval_estimate_and_ci(
     Parameters
     ----------
     tbr_df : pd.DataFrame
-        TBR daily output with columns 'y', 'x', 'pred', 'period'
+        TBR output with columns 'y', 'x', 'pred', 'period'
     tbr_summary : pd.DataFrame
         TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
         'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
     start_day : int
-        Start day of subinterval (1-indexed within test period)
+        Legacy name for the inclusive one-based start position among test
+        observations.
     end_day : int
-        End day of subinterval (inclusive)
+        Legacy name for the inclusive one-based end position among test
+        observations.
     ci_level : float
         Credible interval level (e.g., 0.80 for 80% interval)
 
@@ -326,7 +328,7 @@ def compute_interval_estimate_and_ci(
     # Filter for test period
     test_df = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
 
-    # Slice the subinterval (remember start_day is 1-indexed)
+    # Slice the subinterval (the legacy start_day bound is one-based)
     interval_df = test_df.iloc[start_day - 1 : end_day]
 
     # Estimate of cumulative effect (sum of differences)

@@ -12,7 +12,7 @@ with the existing validation and core module infrastructure.
 Modules
 -------
 summary : TBR summary statistics generation
-incremental : Day-by-day incremental analysis
+incremental : Observation-by-observation incremental analysis
 subinterval : Custom time window analysis
 diagnostics : Model validation and assumption checking
 performance : Performance diagnostics and computational efficiency metrics
@@ -20,7 +20,7 @@ performance : Performance diagnostics and computational efficiency metrics
 Functions
 ---------
 create_tbr_summary : Create single-row TBR summary with credible intervals
-create_incremental_tbr_summaries : Create day-by-day incremental summaries
+create_incremental_tbr_summaries : Create observation-by-observation summaries
 compute_interval_estimate_and_ci : Compute subinterval effect estimate and credible interval
 analyze_multiple_subintervals : Analyze multiple time windows simultaneously
 create_subinterval_summary : Create comprehensive subinterval analysis summary
@@ -54,7 +54,7 @@ Examples
 
 >>> from tbr.analysis import create_incremental_tbr_summaries
 >>> incremental = create_incremental_tbr_summaries(tbr_dataframe, **model_terms)
->>> print(f"Day 1 effect: {incremental.iloc[0]['estimate']:.2f}")
+>>> print(f"Test observation 1 effect: {incremental.iloc[0]['estimate']:.2f}")
 
 >>> from tbr.analysis import compute_interval_estimate_and_ci
 >>> tbr_df = pd.DataFrame(
@@ -77,7 +77,7 @@ Examples
 >>> result = compute_interval_estimate_and_ci(
 ...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
 ... )
->>> print(f"Days 1-2 effect: {result['estimate']:.2f}")
+>>> print(f"Effect for test observations 1 through 2: {result['estimate']:.2f}")
 """
 
 # Lazy imports for performance
