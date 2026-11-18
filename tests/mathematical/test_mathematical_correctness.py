@@ -494,7 +494,11 @@ class TestStatisticalInferenceValidation:
 
         # Test interval estimation
         result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day=1, end_day=3, ci_level=0.80
+            tbr_df,
+            tbr_summary,
+            start_position=1,
+            end_position=3,
+            ci_level=0.80,
         )
 
         # Mathematical consistency tests

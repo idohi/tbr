@@ -125,7 +125,7 @@ def test_compute_interval_public_import_route_inventory():
 
 
 def test_subinterval_public_signatures_are_exact():
-    """Freeze legacy parameter names, order, defaults, kinds, and annotations."""
+    """Freeze canonical parameter names, order, defaults, kinds, and annotations."""
     required_compute_parameters = [
         (
             "tbr_df",
@@ -140,13 +140,13 @@ def test_subinterval_public_signatures_are_exact():
             pd.DataFrame,
         ),
         (
-            "start_day",
+            "start_position",
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             inspect.Parameter.empty,
             int,
         ),
         (
-            "end_day",
+            "end_position",
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             inspect.Parameter.empty,
             int,
@@ -241,13 +241,13 @@ def test_subinterval_public_signatures_are_exact():
             inspect.Parameter.empty,
         ),
         (
-            "start_day",
+            "start_position",
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             inspect.Parameter.empty,
             int,
         ),
         (
-            "end_day",
+            "end_position",
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             inspect.Parameter.empty,
             int,
@@ -359,10 +359,10 @@ def test_incremental_public_routes_and_signatures_are_exact():
         functional_functions.compute_interval_estimate_and_ci,
     ],
 )
-def test_legacy_and_canonical_keyword_behavior_before_migration(
+def test_canonical_keywords_are_accepted_and_legacy_keywords_are_rejected(
     route, subinterval_inputs
 ):
-    """Freeze accepted legacy calls and rejected candidate canonical calls."""
+    """Accept canonical calls and reject removed names without warnings."""
     tbr_df, tbr_summary = subinterval_inputs
 
     with warnings.catch_warnings(record=True) as caught:
@@ -370,32 +370,23 @@ def test_legacy_and_canonical_keyword_behavior_before_migration(
         result = route(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
-            start_day=np.int64(1),
-            end_day=np.int64(2),
+            start_position=np.int64(1),
+            end_position=np.int64(2),
             ci_level=0.80,
         )
     assert result["estimate"] == pytest.approx(3.0)
     assert caught == []
 
-    with pytest.raises(TypeError, match="unexpected keyword argument 'start_position'"):
-        route(
-            tbr_df=tbr_df,
-            tbr_summary=tbr_summary,
-            start_position=1,
-            end_position=2,
-            ci_level=0.80,
-        )
-
-    with pytest.raises(TypeError, match="unexpected keyword argument 'end_position'"):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'start_day'"):
         route(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
             start_day=1,
-            end_position=2,
+            end_day=2,
             ci_level=0.80,
         )
 
-    with pytest.raises(TypeError, match="unexpected keyword argument 'start_position'"):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'end_day'"):
         route(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
@@ -404,20 +395,34 @@ def test_legacy_and_canonical_keyword_behavior_before_migration(
             ci_level=0.80,
         )
 
-    with pytest.raises(TypeError, match="unexpected keyword argument 'start_position'"):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'start_day'"):
         route(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
             start_day=1,
+            end_position=2,
+            ci_level=0.80,
+        )
+
+    with pytest.raises(TypeError, match="unexpected keyword argument 'start_day'"):
+        route(
+            tbr_df=tbr_df,
+            tbr_summary=tbr_summary,
             start_position=1,
-            end_day=2,
+            start_day=1,
+            end_position=2,
             ci_level=0.80,
         )
 
     with pytest.raises(
-        TypeError, match="missing 1 required positional argument: 'end_day'"
+        TypeError, match="missing 1 required positional argument: 'end_position'"
     ):
-        route(tbr_df=tbr_df, tbr_summary=tbr_summary, start_day=1, ci_level=0.80)
+        route(
+            tbr_df=tbr_df,
+            tbr_summary=tbr_summary,
+            start_position=1,
+            ci_level=0.80,
+        )
 
 
 def test_validated_wrapper_invalid_input_contract(subinterval_inputs):
@@ -425,23 +430,27 @@ def test_validated_wrapper_invalid_input_contract(subinterval_inputs):
     tbr_df, tbr_summary = subinterval_inputs
     route = tbr.compute_interval_estimate_and_ci
 
-    for start_day in (True, np.int64(1)):
-        result = route(tbr_df, tbr_summary, start_day, 2, 0.80)
+    for start_position in (True, np.int64(1)):
+        result = route(tbr_df, tbr_summary, start_position, 2, 0.80)
         assert result["estimate"] == pytest.approx(3.0)
 
     invalid_calls = [
-        ((0, 2, 0.80), ValueError, "start_day must be >= 1, got: 0"),
+        ((0, 2, 0.80), ValueError, "start_position must be >= 1, got: 0"),
         (
             (1, 4, 0.80),
             ValueError,
-            "end_day (4) exceeds the number of test observations (3)",
+            "end_position (4) exceeds the number of test observations (3)",
         ),
         (
             (3, 2, 0.80),
             ValueError,
-            "end_day (2) must be >= start_day (3)",
+            "end_position (2) must be >= start_position (3)",
         ),
-        ((None, 2, 0.80), TypeError, "start_day and end_day must be integers"),
+        (
+            (None, 2, 0.80),
+            TypeError,
+            "start_position and end_position must be integers",
+        ),
         (
             (1, True, 0.80),
             TypeError,
@@ -481,7 +490,8 @@ def test_direct_validator_runtime_contract(subinterval_inputs):
         with pytest.raises(
             ValueError,
             match=(
-                r"^end_day \(4\) exceeds the number of " r"test observations \(3\)$"
+                r"^end_position \(4\) exceeds the number of "
+                r"test observations \(3\)$"
             ),
         ):
             analysis.validate_subinterval_parameters(
@@ -550,47 +560,59 @@ def test_oop_wrapper_call_forms_validation_and_warnings(fitted_analysis):
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         python_result = fitted_analysis.analyze_subinterval(
-            start_day=1,
-            end_day=2,
-            ci_level=0.80,
-        )
-        numpy_result = fitted_analysis.analyze_subinterval(
-            start_day=np.int64(1),
-            end_day=np.int64(2),
-        )
-        boolean_result = fitted_analysis.analyze_subinterval(True, 2, 0.80)
-
-    assert python_result.start_day == 1
-    assert python_result.end_day == 2
-    assert python_result.n_days == 2
-    assert numpy_result == python_result
-    assert boolean_result == python_result
-    assert caught == []
-
-    with pytest.raises(TypeError, match="unexpected keyword argument 'start_position'"):
-        fitted_analysis.analyze_subinterval(
             start_position=1,
             end_position=2,
             ci_level=0.80,
         )
+        numpy_result = fitted_analysis.analyze_subinterval(
+            start_position=np.int64(1),
+            end_position=np.int64(2),
+        )
+        boolean_result = fitted_analysis.analyze_subinterval(True, 2, 0.80)
+
+    assert python_result.start_position == 1
+    assert python_result.end_position == 2
+    assert python_result.n_observations == 2
+    assert numpy_result == python_result
+    assert boolean_result == python_result
+    assert caught == []
+
+    with pytest.raises(TypeError, match="unexpected keyword argument 'start_day'"):
+        fitted_analysis.analyze_subinterval(
+            start_day=1,
+            end_day=2,
+            ci_level=0.80,
+        )
     with pytest.raises(
-        TypeError, match="missing 1 required positional argument: 'end_day'"
+        TypeError, match="missing 1 required positional argument: 'end_position'"
     ):
-        fitted_analysis.analyze_subinterval(start_day=1)
+        fitted_analysis.analyze_subinterval(start_position=1)
 
     invalid_calls = [
-        ((None, 2, 0.80), TypeError, "start_day must be an integer, got NoneType"),
-        ((1, None, 0.80), TypeError, "end_day must be an integer, got NoneType"),
+        (
+            (None, 2, 0.80),
+            TypeError,
+            "start_position must be an integer, got NoneType",
+        ),
+        (
+            (1, None, 0.80),
+            TypeError,
+            "end_position must be an integer, got NoneType",
+        ),
         (
             (0, 2, 0.80),
             ValueError,
-            "start_day must be a positive integer (>= 1), got 0",
+            "start_position must be a positive integer (>= 1), got 0",
         ),
-        ((3, 2, 0.80), ValueError, "start_day (3) must be <= end_day (2)"),
+        (
+            (3, 2, 0.80),
+            ValueError,
+            "start_position (3) must be <= end_position (2)",
+        ),
         (
             (1, 4, 0.80),
             ValueError,
-            "end_day (4) exceeds the number of test observations (3)",
+            "end_position (4) exceeds the number of test observations (3)",
         ),
         ((1, 2, 0), ValueError, "ci_level must be between 0 and 1 (exclusive), got 0"),
         ((1, 2, 1), ValueError, "ci_level must be between 0 and 1 (exclusive), got 1"),

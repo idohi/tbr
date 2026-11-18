@@ -16,16 +16,16 @@ from tbr.core import results as result_objects
 
 pytestmark = pytest.mark.integration
 
-LEGACY_FIELDS = (
+CANONICAL_FIELDS = (
     "estimate",
     "lower",
     "upper",
     "se",
     "precision",
     "ci_level",
-    "start_day",
-    "end_day",
-    "n_days",
+    "start_position",
+    "end_position",
+    "n_observations",
 )
 
 # Trusted repository fixture created from the pre-migration result class with
@@ -42,7 +42,7 @@ PRE_MIGRATION_SUBINTERVAL_PICKLE = base64.b64decode(
 
 @pytest.fixture
 def subinterval_result():
-    """Return a deterministic legacy subinterval result."""
+    """Return a deterministic canonical subinterval result."""
     return result_objects.TBRSubintervalResult(
         estimate=45.2,
         lower=30.1,
@@ -50,9 +50,9 @@ def subinterval_result():
         se=11.8,
         precision=15.1,
         ci_level=0.80,
-        start_day=2,
-        end_day=7,
-        n_days=6,
+        start_position=2,
+        end_position=7,
+        n_observations=6,
     )
 
 
@@ -76,20 +76,25 @@ def test_subinterval_result_routes_constructor_and_reflection(subinterval_result
         return_annotation=None,
     )
     assert (
-        tuple(field.name for field in dataclasses.fields(result_class)) == LEGACY_FIELDS
+        tuple(field.name for field in dataclasses.fields(result_class))
+        == CANONICAL_FIELDS
     )
-    assert tuple(result_class.__annotations__) == LEGACY_FIELDS
+    assert tuple(result_class.__annotations__) == CANONICAL_FIELDS
     if hasattr(result_class, "__match_args__"):
-        assert result_class.__match_args__ == LEGACY_FIELDS
+        assert result_class.__match_args__ == CANONICAL_FIELDS
     assert dataclasses.asdict(subinterval_result) == subinterval_result.to_dict()
 
-    replaced = dataclasses.replace(subinterval_result, start_day=3, n_days=5)
-    assert replaced.start_day == 3
-    assert replaced.end_day == 7
-    assert replaced.n_days == 5
-    assert subinterval_result.start_day == 2
+    replaced = dataclasses.replace(
+        subinterval_result,
+        start_position=3,
+        n_observations=5,
+    )
+    assert replaced.start_position == 3
+    assert replaced.end_position == 7
+    assert replaced.n_observations == 5
+    assert subinterval_result.start_position == 2
 
-    with pytest.raises(TypeError, match="unexpected keyword argument 'start_position'"):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'start_day'"):
         result_class(
             estimate=45.2,
             lower=30.1,
@@ -97,16 +102,16 @@ def test_subinterval_result_routes_constructor_and_reflection(subinterval_result
             se=11.8,
             precision=15.1,
             ci_level=0.80,
-            start_position=2,
-            end_position=7,
-            n_observations=6,
+            start_day=2,
+            end_day=7,
+            n_days=6,
         )
 
 
 def test_subinterval_result_equality_hash_pickle_and_repr(subinterval_result):
     """Freeze value semantics, pickle compatibility, and exact representation."""
     same = dataclasses.replace(subinterval_result)
-    different = dataclasses.replace(subinterval_result, end_day=8)
+    different = dataclasses.replace(subinterval_result, end_position=8)
 
     assert same == subinterval_result
     assert hash(same) == hash(subinterval_result)
@@ -128,16 +133,43 @@ def test_subinterval_result_equality_hash_pickle_and_repr(subinterval_result):
 
 
 def test_subinterval_result_loads_pre_migration_pickle(subinterval_result):
-    """Freeze loading of an artifact written before the field migration."""
+    """Migrate an artifact written before the field migration on load."""
     restored = pickle.loads(PRE_MIGRATION_SUBINTERVAL_PICKLE)
 
     assert type(restored) is result_objects.TBRSubintervalResult
     assert restored == subinterval_result
     assert dataclasses.asdict(restored) == subinterval_result.to_dict()
+    assert tuple(vars(restored)) == CANONICAL_FIELDS
+    assert not hasattr(restored, "start_day")
+    assert not hasattr(restored, "end_day")
+    assert not hasattr(restored, "n_days")
+
+
+@pytest.mark.parametrize("invalid_state_kind", ["mixed", "incomplete", "unknown"])
+def test_subinterval_result_rejects_malformed_pickle_state(
+    subinterval_result, invalid_state_kind
+):
+    """Reject ambiguous or structurally invalid serialized instance state."""
+    invalid_state = subinterval_result.to_dict()
+    if invalid_state_kind == "mixed":
+        invalid_state["start_day"] = 2
+    elif invalid_state_kind == "incomplete":
+        invalid_state.pop("end_position")
+    else:
+        invalid_state["unknown"] = 1
+
+    uninitialized = result_objects.TBRSubintervalResult.__new__(
+        result_objects.TBRSubintervalResult
+    )
+    with pytest.raises(
+        ValueError,
+        match="Cannot restore TBRSubintervalResult",
+    ):
+        uninitialized.__setstate__(invalid_state)
 
 
 def test_subinterval_result_json_contract(tmp_path, subinterval_result):
-    """Freeze JSON envelopes, key order, and legacy serialized names."""
+    """Freeze JSON envelopes, key order, and canonical serialized names."""
     with_metadata = tmp_path / "with-metadata.json"
     without_metadata = tmp_path / "without-metadata.json"
 
@@ -148,9 +180,9 @@ def test_subinterval_result_json_contract(tmp_path, subinterval_result):
     plain_payload = json.loads(without_metadata.read_text(encoding="utf-8"))
     assert list(metadata_payload) == ["type", "data"]
     assert metadata_payload["type"] == "TBRSubintervalResult"
-    assert list(metadata_payload["data"]) == list(LEGACY_FIELDS)
+    assert list(metadata_payload["data"]) == list(CANONICAL_FIELDS)
     assert metadata_payload["data"] == subinterval_result.to_dict()
-    assert list(plain_payload) == list(LEGACY_FIELDS)
+    assert list(plain_payload) == list(CANONICAL_FIELDS)
     assert plain_payload == subinterval_result.to_dict()
 
 
@@ -166,7 +198,7 @@ def test_subinterval_result_csv_default_and_explicit_index(
 
     default_lines = default_path.read_text(encoding="utf-8").splitlines()
     no_index_lines = no_index_path.read_text(encoding="utf-8").splitlines()
-    expected_header = ",".join(LEGACY_FIELDS)
+    expected_header = ",".join(CANONICAL_FIELDS)
     expected_values = "45.2,30.1,60.3,11.8,15.1,0.8,2,7,6"
 
     assert default_lines == [f",{expected_header}", f"0,{expected_values}"]

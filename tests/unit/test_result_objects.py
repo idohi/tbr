@@ -267,9 +267,9 @@ class TestTBRSubintervalResult:
             se=11.8,
             precision=15.1,
             ci_level=0.80,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
 
     def test_subinterval_result_creation(self, subinterval_result):
@@ -285,9 +285,9 @@ class TestTBRSubintervalResult:
         assert subinterval_result.se == 11.8
         assert subinterval_result.precision == 15.1
         assert subinterval_result.ci_level == 0.80
-        assert subinterval_result.start_day == 1
-        assert subinterval_result.end_day == 7
-        assert subinterval_result.n_days == 7
+        assert subinterval_result.start_position == 1
+        assert subinterval_result.end_position == 7
+        assert subinterval_result.n_observations == 7
 
     def test_subinterval_result_immutability(self, subinterval_result):
         """Test that TBRSubintervalResult is immutable (frozen)."""
@@ -301,9 +301,9 @@ class TestTBRSubintervalResult:
         assert result_dict["estimate"] == 45.2
         assert result_dict["se"] == 11.8
         assert result_dict["precision"] == 15.1
-        assert result_dict["start_day"] == 1
-        assert result_dict["end_day"] == 7
-        assert result_dict["n_days"] == 7
+        assert result_dict["start_position"] == 1
+        assert result_dict["end_position"] == 7
+        assert result_dict["n_observations"] == 7
         assert list(result_dict) == [
             "estimate",
             "lower",
@@ -311,9 +311,9 @@ class TestTBRSubintervalResult:
             "se",
             "precision",
             "ci_level",
-            "start_day",
-            "end_day",
-            "n_days",
+            "start_position",
+            "end_position",
+            "n_observations",
         ]
 
     def test_subinterval_result_contains_zero_false(self, subinterval_result):
@@ -329,9 +329,9 @@ class TestTBRSubintervalResult:
             se=9.0,
             precision=15.0,
             ci_level=0.80,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
         assert result.contains_zero() is True
 
@@ -348,9 +348,9 @@ class TestTBRSubintervalResult:
             se=6.0,
             precision=10.0,
             ci_level=0.80,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
         assert result.is_positive() is False
 
@@ -367,9 +367,9 @@ class TestTBRSubintervalResult:
             se=9.0,
             precision=15.0,
             ci_level=0.80,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
         assert result.is_negative() is True
 
@@ -383,8 +383,40 @@ class TestTBRSubintervalResult:
         assert "CI=" in repr_str
         assert "se=11.800" in repr_str
 
-    def test_subinterval_result_single_day(self):
-        """Test TBRSubintervalResult for single day interval."""
+    @pytest.mark.parametrize("state_format", ["canonical", "legacy"])
+    def test_subinterval_result_restores_pickle_state(
+        self, subinterval_result, state_format
+    ):
+        """Restore canonical and trusted pre-0.2 serialized field names."""
+        state = subinterval_result.to_dict()
+        if state_format == "legacy":
+            state["start_day"] = state.pop("start_position")
+            state["end_day"] = state.pop("end_position")
+            state["n_days"] = state.pop("n_observations")
+
+        restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
+        restored.__setstate__(state)
+
+        assert restored == subinterval_result
+        assert tuple(vars(restored)) == tuple(subinterval_result.to_dict())
+
+    @pytest.mark.parametrize("invalid_state_kind", ["mixed", "incomplete"])
+    def test_subinterval_result_rejects_invalid_pickle_state(
+        self, subinterval_result, invalid_state_kind
+    ):
+        """Reject ambiguous or structurally incomplete serialized state."""
+        state = subinterval_result.to_dict()
+        if invalid_state_kind == "mixed":
+            state["start_day"] = state["start_position"]
+        else:
+            state.pop("end_position")
+
+        restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
+        with pytest.raises(ValueError, match="Cannot restore TBRSubintervalResult"):
+            restored.__setstate__(state)
+
+    def test_subinterval_result_single_observation(self):
+        """Test TBRSubintervalResult for a single-observation interval."""
         result = TBRSubintervalResult(
             estimate=10.0,
             lower=5.0,
@@ -392,12 +424,12 @@ class TestTBRSubintervalResult:
             se=3.0,
             precision=5.0,
             ci_level=0.80,
-            start_day=5,
-            end_day=5,
-            n_days=1,
+            start_position=5,
+            end_position=5,
+            n_observations=1,
         )
-        assert result.start_day == result.end_day
-        assert result.n_days == 1
+        assert result.start_position == result.end_position
+        assert result.n_observations == 1
 
     def test_subinterval_result_long_interval(self):
         """Test TBRSubintervalResult for long interval."""
@@ -408,11 +440,11 @@ class TestTBRSubintervalResult:
             se=30.0,
             precision=50.0,
             ci_level=0.95,
-            start_day=1,
-            end_day=30,
-            n_days=30,
+            start_position=1,
+            end_position=30,
+            n_observations=30,
         )
-        assert result.n_days == 30
+        assert result.n_observations == 30
         assert result.ci_level == 0.95
 
 
@@ -454,9 +486,9 @@ class TestResultObjectsIntegration:
             se=8,
             precision=10,
             ci_level=0.80,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
 
         # Try to modify (should fail)
@@ -467,7 +499,7 @@ class TestResultObjectsIntegration:
             summary_result.estimate = 200
 
         with pytest.raises(AttributeError):
-            subinterval_result.n_days = 10
+            subinterval_result.n_observations = 10
 
     def test_result_objects_with_numpy_types(self):
         """Test result objects work with numpy scalar types."""
@@ -478,10 +510,10 @@ class TestResultObjectsIntegration:
             se=np.float64(11.8),
             precision=np.float64(15.1),
             ci_level=0.80,
-            start_day=np.int64(1),
-            end_day=np.int64(7),
-            n_days=np.int64(7),
+            start_position=np.int64(1),
+            end_position=np.int64(7),
+            n_observations=np.int64(7),
         )
         assert result.estimate == 45.2
-        assert result.start_day == 1
-        assert result.n_days == 7
+        assert result.start_position == 1
+        assert result.n_observations == 7

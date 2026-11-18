@@ -606,15 +606,13 @@ class TBRSubintervalResult:
         Precision (half-width of credible interval)
     ci_level : float
         Credibility level used for interval
-    start_day : int
-        Legacy name for the inclusive, one-based start position among ordered
-        test rows or time points.
-    end_day : int
-        Legacy name for the inclusive, one-based end position among ordered
-        test rows or time points.
-    n_days : int
-        Legacy name for the inclusive selected test-row/time-point count
-        between both endpoints, ``end_day - start_day + 1``.
+    start_position : int
+        Inclusive one-based position of the first selected test observation.
+    end_position : int
+        Inclusive one-based position of the last selected test observation.
+    n_observations : int
+        Inclusive count between both endpoints for rows that each represent
+        one test observation, ``end_position - start_position + 1``.
 
     Examples
     --------
@@ -644,8 +642,8 @@ class TBRSubintervalResult:
     >>> print(f"Week 1 effect: {result.estimate:.2f}")
     >>> print(f"Credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
     >>> print(
-    ...     f"Positions: {result.start_day}-{result.end_day} "
-    ...     f"({result.n_days} observations)"
+    ...     f"Positions: {result.start_position}-{result.end_position} "
+    ...     f"({result.n_observations} observations)"
     ... )
     >>> if result.contains_zero():
     ...     print("Credible interval includes zero")
@@ -657,9 +655,38 @@ class TBRSubintervalResult:
     se: float
     precision: float
     ci_level: float
-    start_day: int
-    end_day: int
-    n_days: int
+    start_position: int
+    end_position: int
+    n_observations: int
+
+    def __setstate__(self, state: Dict[str, Union[float, int]]) -> None:
+        """Restore canonical state, migrating trusted pre-0.2 pickle fields."""
+        legacy_to_canonical = {
+            "start_day": "start_position",
+            "end_day": "end_position",
+            "n_days": "n_observations",
+        }
+        canonical_position_fields = set(legacy_to_canonical.values())
+        if set(state).intersection(legacy_to_canonical) and set(state).intersection(
+            canonical_position_fields
+        ):
+            raise ValueError(
+                "Cannot restore TBRSubintervalResult with mixed legacy and "
+                "canonical position fields"
+            )
+
+        canonical_state = {
+            legacy_to_canonical.get(name, name): value for name, value in state.items()
+        }
+        expected_fields = tuple(self.__dataclass_fields__)
+        if set(canonical_state) != set(expected_fields):
+            raise ValueError(
+                "Cannot restore TBRSubintervalResult with incomplete or "
+                "unknown fields"
+            )
+
+        for name in expected_fields:
+            object.__setattr__(self, name, canonical_state[name])
 
     def to_dict(self) -> Dict[str, Union[float, int]]:
         """
@@ -686,15 +713,15 @@ class TBRSubintervalResult:
             Precision (half-width of credible interval).
         ``ci_level`` : float
             Credibility level.
-        ``start_day`` : int
-            Legacy name for the inclusive, one-based start position among
-            ordered test rows or time points.
-        ``end_day`` : int
-            Legacy name for the inclusive, one-based end position among
-            ordered test rows or time points.
-        ``n_days`` : int
-            Legacy name for the inclusive count of selected test rows or time
-            points between both endpoints.
+        ``start_position`` : int
+            Inclusive one-based position of the first selected test
+            observation.
+        ``end_position`` : int
+            Inclusive one-based position of the last selected test
+            observation.
+        ``n_observations`` : int
+            Inclusive count of selected test observations between both
+            endpoints.
         """
         return {
             "estimate": self.estimate,
@@ -703,9 +730,9 @@ class TBRSubintervalResult:
             "se": self.se,
             "precision": self.precision,
             "ci_level": self.ci_level,
-            "start_day": self.start_day,
-            "end_day": self.end_day,
-            "n_days": self.n_days,
+            "start_position": self.start_position,
+            "end_position": self.end_position,
+            "n_observations": self.n_observations,
         }
 
     def to_json(self, filepath: str, **kwargs: Any) -> None:
@@ -782,8 +809,8 @@ class TBRSubintervalResult:
         """Generate string representation."""
         return (
             f"TBRSubintervalResult(\n"
-            f"  positions={self.start_day}-{self.end_day} "
-            f"(n_observations={self.n_days}),\n"
+            f"  positions={self.start_position}-{self.end_position} "
+            f"(n_observations={self.n_observations}),\n"
             f"  estimate={self.estimate:.3f},\n"
             f"  CI=[{self.lower:.3f}, {self.upper:.3f}] (level={self.ci_level}),\n"
             f"  se={self.se:.3f}\n"

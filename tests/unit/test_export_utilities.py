@@ -499,9 +499,9 @@ class TestResultObjectExportMethods:
             se=5.0,
             precision=10.0,
             ci_level=0.90,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
         filepath = tmp_path / "subinterval.json"
 
@@ -523,9 +523,9 @@ class TestResultObjectExportMethods:
             se=5.0,
             precision=10.0,
             ci_level=0.90,
-            start_day=1,
-            end_day=7,
-            n_days=7,
+            start_position=1,
+            end_position=7,
+            n_observations=7,
         )
         filepath = tmp_path / "subinterval.csv"
 
@@ -537,7 +537,7 @@ class TestResultObjectExportMethods:
         assert loaded["estimate"].iloc[0] == 50.0
         assert loaded["se"].iloc[0] == 5.0
         assert loaded["precision"].iloc[0] == 10.0
-        assert loaded["start_day"].iloc[0] == 1
+        assert loaded["start_position"].iloc[0] == 1
 
 
 class TestEndToEndExport:

@@ -1189,8 +1189,8 @@ class TBRAnalysis:
 
     def analyze_subinterval(
         self,
-        start_day: int,
-        end_day: int,
+        start_position: int,
+        end_position: int,
         ci_level: Optional[float] = None,
     ) -> TBRSubintervalResult:
         """
@@ -1201,13 +1201,12 @@ class TBRAnalysis:
 
         Parameters
         ----------
-        start_day : int
-            Legacy name for the inclusive, one-based start position among test
-            rows or time points in their existing order. Position 1 is the
-            first test row.
-        end_day : int
-            Legacy name for the inclusive, one-based end position among test
-            rows; it is a test-row/time-point position in existing order.
+        start_position : int
+            Inclusive one-based position of the first selected test
+            observation in the existing order.
+        end_position : int
+            Inclusive one-based position of the last selected test observation
+            in the existing order.
         ci_level : float, optional
             Credibility level for credible interval (must be between 0 and 1 exclusive).
             If None, uses the level specified during initialization.
@@ -1223,11 +1222,12 @@ class TBRAnalysis:
         AttributeError
             If the model has not been fitted yet.
         TypeError
-            If start_day, end_day, or ci_level have invalid types.
+            If ``start_position``, ``end_position``, or ``ci_level`` has an
+            invalid type.
         ValueError
-            If start_day or end_day are invalid, start_day > end_day, a bound
-            exceeds the number of test observations, or ci_level is not
-            between 0 and 1 exclusive.
+            If either position is invalid, ``start_position > end_position``,
+            a bound exceeds the number of test observations, or ``ci_level``
+            is not between 0 and 1 exclusive.
 
         Examples
         --------
@@ -1252,14 +1252,18 @@ class TBRAnalysis:
         ... )
         >>> model = TBRAnalysis(level=0.80)
         >>> model.fit(data, "date", "control", "test", **b)
-        >>> result = model.analyze_subinterval(start_day=1, end_day=7)
+        >>> result = model.analyze_subinterval(
+        ...     start_position=1, end_position=7
+        ... )
         >>> print(f"Week 1 effect: {result.estimate:.2f}")
         >>> print(f"Week 1 credible interval: [{result.lower:.2f}, {result.upper:.2f}]")
         >>> print(f"Interval entirely positive: {result.is_positive()}")
 
         Analyze with custom credibility level:
 
-        >>> result = model.analyze_subinterval(start_day=8, end_day=14, ci_level=0.95)
+        >>> result = model.analyze_subinterval(
+        ...     start_position=8, end_position=14, ci_level=0.95
+        ... )
         >>> if result.contains_zero():
         ...     print("Credible interval includes zero")
 
@@ -1271,8 +1275,7 @@ class TBRAnalysis:
         -----
         Subinterval analysis uses ``compute_interval_estimate_and_ci`` from the
         analysis module to calculate effects for positional test-row ranges
-        with proper variance calculations. The legacy ``start_day`` and
-        ``end_day`` names do not require calendar-day input.
+        with proper variance calculations.
         """
         # Check if model is fitted
         if not self._fitted:
@@ -1289,44 +1292,53 @@ class TBRAnalysis:
         assert self._params is not None
 
         # Validate positional bound types
-        if not isinstance(start_day, (int, np.integer)):
+        if not isinstance(start_position, (int, np.integer)):
             raise TypeError(
-                f"start_day must be an integer, got {type(start_day).__name__}"
+                "start_position must be an integer, got "
+                f"{type(start_position).__name__}"
             )
 
-        if not isinstance(end_day, (int, np.integer)):
-            raise TypeError(f"end_day must be an integer, got {type(end_day).__name__}")
+        if not isinstance(end_position, (int, np.integer)):
+            raise TypeError(
+                "end_position must be an integer, got " f"{type(end_position).__name__}"
+            )
 
         # Convert numpy integers to Python int
-        start_day = int(start_day)
-        end_day = int(end_day)
+        start_position = int(start_position)
+        end_position = int(end_position)
 
         # Validate positional bound values
-        if start_day < 1:
+        if start_position < 1:
             raise ValueError(
-                f"start_day must be a positive integer (>= 1), got {start_day}"
+                "start_position must be a positive integer (>= 1), "
+                f"got {start_position}"
             )
 
-        if end_day < 1:
+        if end_position < 1:
             raise ValueError(
-                f"end_day must be a positive integer (>= 1), got {end_day}"
+                "end_position must be a positive integer (>= 1), " f"got {end_position}"
             )
 
-        if start_day > end_day:
-            raise ValueError(f"start_day ({start_day}) must be <= end_day ({end_day})")
+        if start_position > end_position:
+            raise ValueError(
+                f"start_position ({start_position}) must be <= "
+                f"end_position ({end_position})"
+            )
 
         # Check if positions are within the test observations
         n_test_observations = len(self._results[self._results["period"] == 1])
 
-        if start_day > n_test_observations:
+        if start_position > n_test_observations:
             raise ValueError(
-                f"start_day ({start_day}) exceeds the number of test observations "
+                f"start_position ({start_position}) exceeds the number of "
+                "test observations "
                 f"({n_test_observations})"
             )
 
-        if end_day > n_test_observations:
+        if end_position > n_test_observations:
             raise ValueError(
-                f"end_day ({end_day}) exceeds the number of test observations "
+                f"end_position ({end_position}) exceeds the number of "
+                "test observations "
                 f"({n_test_observations})"
             )
 
@@ -1344,8 +1356,8 @@ class TBRAnalysis:
         result = compute_interval_estimate_and_ci(
             tbr_df=self._results,
             tbr_summary=self._summaries,
-            start_day=start_day,
-            end_day=end_day,
+            start_position=start_position,
+            end_position=end_position,
             ci_level=ci_level,
         )
 
@@ -1357,9 +1369,9 @@ class TBRAnalysis:
             se=result["se"],
             precision=result["precision"],
             ci_level=ci_level,
-            start_day=start_day,
-            end_day=end_day,
-            n_days=end_day - start_day + 1,
+            start_position=start_position,
+            end_position=end_position,
+            n_observations=end_position - start_position + 1,
         )
 
     @property

@@ -186,8 +186,8 @@ def calculate_cumulative_variance(
 def compute_interval_estimate_and_ci(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
-    start_day: int,
-    end_day: int,
+    start_position: int,
+    end_position: int,
     ci_level: float,
 ) -> Dict[str, float]:
     """
@@ -205,12 +205,10 @@ def compute_interval_estimate_and_ci(
     tbr_summary : pd.DataFrame
         TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
         'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
-    start_day : int
-        Legacy name for the inclusive one-based start position among test
-        observations.
-    end_day : int
-        Legacy name for the inclusive one-based end position among test
-        observations.
+    start_position : int
+        Inclusive one-based position of the first selected test observation.
+    end_position : int
+        Inclusive one-based position of the last selected test observation.
     ci_level : float
         Credible interval level (e.g., 0.80 for 80% interval)
 
@@ -249,7 +247,8 @@ def compute_interval_estimate_and_ci(
     >>> tbr_df = results.tbr_dataframe()
     >>> tbr_summary = results.summary()
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=5, end_position=10, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -261,8 +260,8 @@ def compute_interval_estimate_and_ci(
     return _compute_interval_estimate_and_ci(
         tbr_df=tbr_df,
         tbr_summary=tbr_summary,
-        start_day=start_day,
-        end_day=end_day,
+        start_position=start_position,
+        end_position=end_position,
         ci_level=ci_level,
     )
 

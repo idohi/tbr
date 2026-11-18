@@ -288,13 +288,16 @@ $a$ through $b$.
 | `se` | `float` | Standard error |
 | `precision` | `float` | Credible-interval half-width |
 | `ci_level` | `float` | Credibility level |
-| `start_day` | `int` | Legacy name for inclusive one-based start position $a$ |
-| `end_day` | `int` | Legacy name for inclusive one-based end position $b$ |
-| `n_days` | `int` | Legacy name for observation count $T_s=b-a+1$ |
+| `start_position` | `int` | Inclusive one-based start position $a$ |
+| `end_position` | `int` | Inclusive one-based end position $b$ |
+| `n_observations` | `int` | Selected-observation count $T_s=b-a+1$ |
 
 ```python
 assert isinstance(subinterval, TBRSubintervalResult)
-assert subinterval.n_days == subinterval.end_day - subinterval.start_day + 1
+assert (
+    subinterval.n_observations
+    == subinterval.end_position - subinterval.start_position + 1
+)
 assert np.isclose(
     subinterval.precision, (subinterval.upper - subinterval.lower) / 2
 )

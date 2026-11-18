@@ -136,7 +136,10 @@ print("=" * 80)
 window_length = 15
 for start_day in range(1, n_test_days + 1, window_length):
     end_day = start_day + window_length - 1
-    window = model.analyze_subinterval(start_day=start_day, end_day=end_day)
+    window = model.analyze_subinterval(
+        start_position=start_day,
+        end_position=end_day,
+    )
     print(f"Test days {start_day}-{end_day}:")
     print(f"  Effect: {window.estimate:.2f}")
     print(

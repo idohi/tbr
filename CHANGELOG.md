@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TBRDiagnosticReport` schemas for the mappings returned by the diagnostic
   API.
 
+### Changed
+- Subinterval APIs now use unit-neutral `start_position` and `end_position`
+  keywords. `TBRSubintervalResult` exposes `start_position`, `end_position`,
+  and `n_observations`; subinterval summaries expose `start_position`,
+  `end_position`, `n_observations`, and `average_effect_per_observation`.
+  Removed day-specific names have no runtime aliases. Trusted 0.1.x
+  `TBRSubintervalResult` pickle files are migrated to canonical fields when
+  loaded.
+
 ### Fixed
 - Default Tox Python test environments now install the declared `examples`
   extra, allowing the complete suite to collect and execute the Matplotlib
@@ -53,9 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/mathematical_methodology.md` and in the subinterval docstrings.
 - `compute_interval_estimate_and_ci`, `analyze_multiple_subintervals`, and
   `create_subinterval_summary` now validate their inputs with
-  `validate_subinterval_parameters`. An `end_day` beyond the last test day
-  raises `ValueError` instead of silently using fewer days, and an empty
-  `tbr_summary` raises a descriptive `ValueError` instead of `IndexError`.
+  `validate_subinterval_parameters`. An `end_position` beyond the last test
+  observation raises `ValueError` instead of silently using fewer observations,
+  and an empty `tbr_summary` raises a descriptive `ValueError` instead of
+  `IndexError`.
 - The scripts in `examples/` failed because they passed time boundaries as
   strings, where `pd.Timestamp` values are required, and
   `plot_incremental_analysis.py` analyzed a 60th test day that its 59-day test

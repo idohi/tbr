@@ -11,8 +11,8 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def legacy_frames():
-    """Return deterministic inputs shared by legacy schema contracts."""
+def contract_frames():
+    """Return deterministic inputs shared by schema contracts."""
     tbr_df = pd.DataFrame(
         {
             "period": [0, 1, 1, 1],
@@ -36,9 +36,9 @@ def legacy_frames():
     return tbr_df, tbr_summary
 
 
-def test_subinterval_summary_schema_values_dtypes_and_inputs(legacy_frames):
-    """Freeze legacy summary columns, labels, values, dtypes, and non-mutation."""
-    tbr_df, tbr_summary = legacy_frames
+def test_subinterval_summary_schema_values_dtypes_and_inputs(contract_frames):
+    """Freeze canonical columns, labels, values, dtypes, and non-mutation."""
+    tbr_df, tbr_summary = contract_frames
     original_df = tbr_df.copy(deep=True)
     original_summary = tbr_summary.copy(deep=True)
     intervals = [(1, 1), (2, 3)]
@@ -53,30 +53,32 @@ def test_subinterval_summary_schema_values_dtypes_and_inputs(legacy_frames):
 
     assert list(result.columns) == [
         "interval",
-        "start_day",
-        "end_day",
-        "days",
+        "start_position",
+        "end_position",
+        "n_observations",
         "estimate",
         "se",
         "precision",
         "lower",
         "upper",
         "interval_excludes_threshold",
-        "avg_daily_effect",
+        "average_effect_per_observation",
         "ci_level",
     ]
-    assert result[["interval", "start_day", "end_day", "days"]].to_dict("records") == [
+    assert result[
+        ["interval", "start_position", "end_position", "n_observations"]
+    ].to_dict("records") == [
         {
             "interval": "Test-period observation 1",
-            "start_day": 1,
-            "end_day": 1,
-            "days": 1,
+            "start_position": 1,
+            "end_position": 1,
+            "n_observations": 1,
         },
         {
             "interval": "Test-period observations 2 through 3 (inclusive)",
-            "start_day": 2,
-            "end_day": 3,
-            "days": 2,
+            "start_position": 2,
+            "end_position": 3,
+            "n_observations": 2,
         },
     ]
     assert result["estimate"].tolist() == pytest.approx([1.0, 5.0])
@@ -92,23 +94,25 @@ def test_subinterval_summary_schema_values_dtypes_and_inputs(legacy_frames):
     assert result["upper"].tolist() == pytest.approx(
         [2.445685172806672, 7.233753131853722]
     )
-    assert result["avg_daily_effect"].tolist() == pytest.approx([1.0, 2.5])
+    assert result["average_effect_per_observation"].tolist() == pytest.approx(
+        [1.0, 2.5]
+    )
     assert result["interval_excludes_threshold"].tolist() == [False, True]
     assert result["ci_level"].tolist() == pytest.approx([0.80, 0.80])
     assert result.dtypes.astype(str).to_dict() == {
         # pandas 3 uses its default ``str`` dtype here; earlier supported
         # pandas versions infer ``object`` for the same string-only input.
         "interval": str(pd.Series(["Test-period observation 1"]).dtype),
-        "start_day": "int64",
-        "end_day": "int64",
-        "days": "int64",
+        "start_position": "int64",
+        "end_position": "int64",
+        "n_observations": "int64",
         "estimate": "float64",
         "se": "float64",
         "precision": "float64",
         "lower": "float64",
         "upper": "float64",
         "interval_excludes_threshold": "bool",
-        "avg_daily_effect": "float64",
+        "average_effect_per_observation": "float64",
         "ci_level": "float64",
     }
     assert intervals == [(1, 1), (2, 3)]
@@ -116,9 +120,9 @@ def test_subinterval_summary_schema_values_dtypes_and_inputs(legacy_frames):
     pd.testing.assert_frame_equal(tbr_summary, original_summary)
 
 
-def test_incremental_summary_schema_values_dtypes_and_inputs(legacy_frames):
+def test_incremental_summary_schema_values_dtypes_and_inputs(contract_frames):
     """Freeze incremental columns, values, dtypes, order, and non-mutation."""
-    tbr_df, _ = legacy_frames
+    tbr_df, _ = contract_frames
     original_df = tbr_df.copy(deep=True)
 
     result = tbr.create_incremental_tbr_summaries(

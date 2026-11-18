@@ -549,17 +549,17 @@ class TestIntervalEstimationMathematical:
             }
         )
 
-        start_day = 2  # Index 1 (0-based)
-        end_day = 4  # Index 3 (0-based)
+        start_position = 2  # Index 1 (0-based)
+        end_position = 4  # Index 3 (0-based)
         ci_level = 0.90
 
         # Calculate with both implementations
         core_result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day, end_day, ci_level
+            tbr_df, tbr_summary, start_position, end_position, ci_level
         )
 
         func_result = func_compute_interval(
-            tbr_df, tbr_summary, start_day, end_day, ci_level
+            tbr_df, tbr_summary, start_position, end_position, ci_level
         )
 
         # Compare all numerical values
@@ -596,13 +596,13 @@ class TestIntervalEstimationMathematical:
             }
         )
 
-        # Test subinterval from day 2 to day 3 (indices 1 to 2)
-        start_day = 2
-        end_day = 3
+        # Test subinterval from positions 2 through 3 (indices 1 to 2)
+        start_position = 2
+        end_position = 3
         ci_level = 0.95
 
         result = compute_interval_estimate_and_ci(
-            tbr_df, tbr_summary, start_day, end_day, ci_level
+            tbr_df, tbr_summary, start_position, end_position, ci_level
         )
 
         # Mathematical property: subinterval effect should be sum of (y - pred) for the interval

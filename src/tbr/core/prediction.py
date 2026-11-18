@@ -246,8 +246,8 @@ def calculate_cumulative_standard_deviation(
 def compute_interval_estimate_and_ci(
     tbr_df: pd.DataFrame,
     tbr_summary: pd.DataFrame,
-    start_day: int,
-    end_day: int,
+    start_position: int,
+    end_position: int,
     ci_level: float,
 ) -> Dict[str, float]:
     """
@@ -268,12 +268,10 @@ def compute_interval_estimate_and_ci(
     tbr_summary : pd.DataFrame
         TBR summary containing 'sigma', 't_dist_df' (degrees of freedom),
         'var_alpha', 'var_beta', and 'alpha_beta_cov' parameters
-    start_day : int
-        Legacy name for the inclusive one-based start position among test
-        observations.
-    end_day : int
-        Legacy name for the inclusive one-based end position among test
-        observations.
+    start_position : int
+        Inclusive one-based position of the first selected test observation.
+    end_position : int
+        Inclusive one-based position of the last selected test observation.
     ci_level : float
         Credible interval level (e.g., 0.80 for 80% interval)
 
@@ -312,7 +310,8 @@ def compute_interval_estimate_and_ci(
     >>> tbr_df = results.tbr_dataframe()
     >>> tbr_summary = results.summary()
     >>> result = compute_interval_estimate_and_ci(
-    ...     tbr_df, tbr_summary, start_day=5, end_day=10, ci_level=0.80
+    ...     tbr_df, tbr_summary,
+    ...     start_position=5, end_position=10, ci_level=0.80
     ... )
     >>> print(f"Effect estimate: {result['estimate']:.2f}")
     >>> print(f"80% CI: [{result['lower']:.2f}, {result['upper']:.2f}]")
@@ -328,8 +327,8 @@ def compute_interval_estimate_and_ci(
     # Filter for test period
     test_df = tbr_df[tbr_df["period"] == 1].reset_index(drop=True)
 
-    # Slice the subinterval (the legacy start_day bound is one-based)
-    interval_df = test_df.iloc[start_day - 1 : end_day]
+    # Slice the inclusive interval using one-based observation positions.
+    interval_df = test_df.iloc[start_position - 1 : end_position]
 
     # Estimate of cumulative effect (sum of differences)
     estimate = (interval_df["y"] - interval_df["pred"]).sum()

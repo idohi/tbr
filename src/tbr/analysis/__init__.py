@@ -75,10 +75,21 @@ Examples
 ...     }
 ... )
 >>> result = compute_interval_estimate_and_ci(
-...     tbr_df, tbr_summary, start_day=1, end_day=2, ci_level=0.80
+...     tbr_df, tbr_summary,
+...     start_position=1, end_position=2, ci_level=0.80
 ... )
 >>> print(f"Effect for test observations 1 through 2: {result['estimate']:.2f}")
 """
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from tbr.analysis.subinterval import (
+        analyze_multiple_subintervals,
+        compute_interval_estimate_and_ci,
+        create_subinterval_summary,
+        validate_subinterval_parameters,
+    )
 
 # Lazy imports for performance
 import lazy_loader as lazy

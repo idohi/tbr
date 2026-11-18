@@ -101,9 +101,9 @@ class TestSubintervalConsistency:
         test_rows = fitted_model.results_[fitted_model.results_["period"] == 1]
         cumsd = test_rows["cumsd"].to_numpy()
 
-        for end_day in range(1, len(test_rows) + 1):
-            result = fitted_model.analyze_subinterval(1, end_day)
-            assert result.se == pytest.approx(cumsd[end_day - 1], rel=1e-10)
+        for end_position in range(1, len(test_rows) + 1):
+            result = fitted_model.analyze_subinterval(1, end_position)
+            assert result.se == pytest.approx(cumsd[end_position - 1], rel=1e-10)
 
     @pytest.mark.parametrize("ci_level", [0.50, 0.80, 0.95])
     def test_standard_error_is_distinct_from_half_width(self, fitted_model, ci_level):
@@ -132,10 +132,11 @@ class TestSubintervalStatsmodelsCrossValidation:
     """Cross-validate subinterval variance against statsmodels directly."""
 
     @pytest.mark.parametrize(
-        ("start_day", "end_day"), [(2, 2), (4, 9), (6, 14), (3, 12), (10, 11)]
+        ("start_position", "end_position"),
+        [(2, 2), (4, 9), (6, 14), (3, 12), (10, 11)],
     )
     def test_variance_matches_ols_coefficient_covariance(
-        self, fitted_model, start_day, end_day
+        self, fitted_model, start_position, end_position
     ):
         """Test V[Δ(a,b)] against an OLS fit on the same pretest rows."""
         results_df = fitted_model.results_
@@ -147,18 +148,22 @@ class TestSubintervalStatsmodelsCrossValidation:
             sm.add_constant(pretest["x"].to_numpy(dtype=float)),
         ).fit()
 
-        x_interval = test_rows["x"].to_numpy(dtype=float)[start_day - 1 : end_day]
-        n_days = len(x_interval)
-        a = np.array([n_days, np.sum(x_interval)])
-        expected_variance = n_days * ols.scale + a @ ols.cov_params() @ a
+        x_interval = test_rows["x"].to_numpy(dtype=float)[
+            start_position - 1 : end_position
+        ]
+        n_observations = len(x_interval)
+        a = np.array([n_observations, np.sum(x_interval)])
+        expected_variance = n_observations * ols.scale + a @ ols.cov_params() @ a
 
-        result = fitted_model.analyze_subinterval(start_day, end_day)
+        result = fitted_model.analyze_subinterval(start_position, end_position)
 
         assert result.se**2 == pytest.approx(expected_variance, rel=1e-10)
 
-    @pytest.mark.parametrize(("start_day", "end_day"), [(2, 2), (4, 9), (1, 14)])
+    @pytest.mark.parametrize(
+        ("start_position", "end_position"), [(2, 2), (4, 9), (1, 14)]
+    )
     def test_returned_standard_error_matches_ols_coefficient_covariance(
-        self, fitted_model, start_day, end_day
+        self, fitted_model, start_position, end_position
     ):
         """Test the returned se against OLS and its relation to the half-width."""
         results_df = fitted_model.results_
@@ -170,13 +175,19 @@ class TestSubintervalStatsmodelsCrossValidation:
             sm.add_constant(pretest["x"].to_numpy(dtype=float)),
         ).fit()
 
-        x_interval = test_rows["x"].to_numpy(dtype=float)[start_day - 1 : end_day]
-        n_days = len(x_interval)
-        a = np.array([n_days, np.sum(x_interval)])
-        expected_se = np.sqrt(n_days * ols.scale + a @ ols.cov_params() @ a)
+        x_interval = test_rows["x"].to_numpy(dtype=float)[
+            start_position - 1 : end_position
+        ]
+        n_observations = len(x_interval)
+        a = np.array([n_observations, np.sum(x_interval)])
+        expected_se = np.sqrt(n_observations * ols.scale + a @ ols.cov_params() @ a)
 
         result = compute_interval_estimate_and_ci(
-            results_df, fitted_model.summaries_, start_day, end_day, ci_level=LEVEL
+            results_df,
+            fitted_model.summaries_,
+            start_position,
+            end_position,
+            ci_level=LEVEL,
         )
 
         assert result["se"] == pytest.approx(expected_se, rel=1e-10)
@@ -200,8 +211,8 @@ class TestSubintervalBatchHelpers:
             ci_level=LEVEL,
         )
 
-        for (start_day, end_day), batch in zip(self.INTERVALS, results):
-            single = fitted_model.analyze_subinterval(start_day, end_day)
+        for (start_position, end_position), batch in zip(self.INTERVALS, results):
+            single = fitted_model.analyze_subinterval(start_position, end_position)
             assert batch["estimate"] == pytest.approx(single.estimate, rel=1e-12)
             assert batch["se"] == pytest.approx(single.se, rel=1e-12)
             assert batch["precision"] == pytest.approx(single.precision, rel=1e-12)
@@ -218,10 +229,10 @@ class TestSubintervalBatchHelpers:
         )
 
         assert len(summary) == len(self.INTERVALS)
-        for row, (start_day, end_day) in zip(
+        for row, (start_position, end_position) in zip(
             summary.itertuples(index=False), self.INTERVALS
         ):
-            single = fitted_model.analyze_subinterval(start_day, end_day)
+            single = fitted_model.analyze_subinterval(start_position, end_position)
             assert row.estimate == pytest.approx(single.estimate, rel=1e-12)
             assert row.se == pytest.approx(single.se, rel=1e-12)
             assert row.precision == pytest.approx(single.precision, rel=1e-12)
@@ -237,7 +248,7 @@ class TestSubintervalCoverage:
         """Test that 90% subinterval intervals cover the true zero effect ~90%."""
         rng = np.random.default_rng(20261006)
         n_pretest, n_test, n_sims = 12, 20, 1000
-        start_day, end_day = 5, 20
+        start_position, end_position = 5, 20
         dates = pd.date_range("2024-01-01", periods=n_pretest + n_test)
 
         covered = np.zeros(n_sims, dtype=bool)
@@ -261,13 +272,13 @@ class TestSubintervalCoverage:
                 test_start=dates[n_pretest],
                 test_end=dates[-1],
             )
-            result = model.analyze_subinterval(start_day, end_day)
+            result = model.analyze_subinterval(start_position, end_position)
             covered[i] = result.lower <= 0.0 <= result.upper
 
             summary = model.summarize()
             t_mult = stats.t.ppf(1 - (1 - LEVEL) / 2, summary.degrees_freedom)
             residual_only_half_width = (
-                t_mult * np.sqrt(end_day - start_day + 1) * summary.sigma
+                t_mult * np.sqrt(end_position - start_position + 1) * summary.sigma
             )
             covered_residual_only[i] = abs(result.estimate) <= residual_only_half_width
 

@@ -20,7 +20,14 @@ providing significant performance benefits
 for users who don't need all functionality.
 """
 
+from typing import TYPE_CHECKING
+
 import lazy_loader as lazy
+
+if TYPE_CHECKING:  # pragma: no cover
+    from tbr.core.model import TBRAnalysis
+    from tbr.core.prediction import compute_interval_estimate_and_ci
+    from tbr.core.results import TBRSubintervalResult
 
 __getattr__, __dir__, __all__ = lazy.attach(
     __name__,

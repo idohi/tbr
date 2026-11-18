@@ -16,6 +16,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 API_REFERENCE = REPOSITORY_ROOT / "docs" / "api" / "api_reference.rst"
 METHODOLOGY = REPOSITORY_ROOT / "docs" / "mathematical_methodology.md"
+MIGRATION_GUIDE = REPOSITORY_ROOT / "docs" / "migration_0_2.md"
 AUTOSUMMARY_CLASS_TEMPLATE = (
     REPOSITORY_ROOT / "docs" / "_templates" / "autosummary" / "class.rst"
 )
@@ -177,9 +178,9 @@ EXPECTED_SCHEMA_FIELDS = {
         "se",
         "precision",
         "ci_level",
-        "start_day",
-        "end_day",
-        "n_days",
+        "start_position",
+        "end_position",
+        "n_observations",
     ),
     "create_tbr_summary": SUMMARY_FIELDS,
     "create_incremental_tbr_summaries": INCREMENTAL_SUMMARY_FIELDS,
@@ -199,16 +200,16 @@ EXPECTED_SCHEMA_FIELDS = {
     ),
     "create_subinterval_summary": (
         "interval",
-        "start_day",
-        "end_day",
-        "days",
+        "start_position",
+        "end_position",
+        "n_observations",
         "estimate",
         "se",
         "precision",
         "lower",
         "upper",
         "interval_excludes_threshold",
-        "avg_daily_effect",
+        "average_effect_per_observation",
         "ci_level",
     ),
     "validate_tbr_model": (
@@ -660,13 +661,56 @@ def test_subinterval_runtime_and_help_signatures_are_exact() -> None:
     assert result_class is not None
     runtime_signature = (
         "(estimate: float, lower: float, upper: float, se: float, "
-        "precision: float, ci_level: float, start_day: int, end_day: int, "
-        "n_days: int) -> None"
+        "precision: float, ci_level: float, start_position: int, "
+        "end_position: int, n_observations: int) -> None"
     )
 
     assert str(inspect.signature(result_class)) == runtime_signature
     help_text = pydoc.render_doc(result_class, renderer=pydoc.plaintext)
     assert f"TBRSubintervalResult{runtime_signature}" in help_text
+
+
+def test_migration_guide_documents_exact_subinterval_callable_changes() -> None:
+    """Publish exact before/after signatures and every supported compute route."""
+    guide = MIGRATION_GUIDE.read_text(encoding="utf-8")
+    required_signatures = (
+        """compute_interval_estimate_and_ci(
+    tbr_df: pd.DataFrame,
+    tbr_summary: pd.DataFrame,
+    start_day: int,
+    end_day: int,
+    ci_level: float,
+) -> Dict[str, float]""",
+        """compute_interval_estimate_and_ci(
+    tbr_df: pd.DataFrame,
+    tbr_summary: pd.DataFrame,
+    start_position: int,
+    end_position: int,
+    ci_level: float,
+) -> Dict[str, float]""",
+        """TBRAnalysis.analyze_subinterval(
+    start_day: int,
+    end_day: int,
+    ci_level: Optional[float] = None,
+) -> TBRSubintervalResult""",
+        """TBRAnalysis.analyze_subinterval(
+    start_position: int,
+    end_position: int,
+    ci_level: Optional[float] = None,
+) -> TBRSubintervalResult""",
+    )
+    compute_routes = (
+        "tbr.compute_interval_estimate_and_ci",
+        "tbr.analysis.compute_interval_estimate_and_ci",
+        "tbr.analysis.subinterval.compute_interval_estimate_and_ci",
+        "tbr.core.compute_interval_estimate_and_ci",
+        "tbr.core.prediction.compute_interval_estimate_and_ci",
+        "tbr.core.effects.compute_interval_estimate_and_ci",
+        "tbr.functional.tbr_functions.compute_interval_estimate_and_ci",
+    )
+
+    assert all(signature in guide for signature in required_signatures)
+    assert all(f"`{route}`" in guide for route in compute_routes)
 
 
 @pytest.mark.skipif(
@@ -689,7 +733,7 @@ def test_generated_sphinx_hides_subinterval_constructor_signature() -> None:
     assert "TBRSubintervalResult" in signature_html
     assert "sig-param" not in signature_html
     assert "sig-paren" not in signature_html
-    assert "start_day" not in signature_html
+    assert "start_position" not in signature_html
 
 
 @pytest.mark.parametrize("symbol", EXPECTED_AUTOSUMMARY_SYMBOLS)
@@ -740,7 +784,7 @@ def test_public_docstrings_do_not_double_escape_latex_commands() -> None:
         ),
         (
             "create_subinterval_summary",
-            (r"T_s=\mathrm{end\_day}-\mathrm{start\_day}+1",),
+            (r"T_s=\mathrm{end\_position}-\mathrm{start\_position}+1",),
         ),
     ),
 )
@@ -1187,11 +1231,10 @@ POSITIONAL_CASES = (
     (
         "TBRAnalysis.analyze_subinterval",
         "Parameters",
-        "start_day",
+        "start_position",
         (
-            ("legacy", "historical name"),
-            ("test row", "time point"),
-            ("position", "index"),
+            ("test observation", "test row", "time point"),
+            ("position",),
             ("one based", "starts at one"),
             ("inclusive", "includes the endpoint"),
         ),
@@ -1199,11 +1242,10 @@ POSITIONAL_CASES = (
     (
         "TBRAnalysis.analyze_subinterval",
         "Parameters",
-        "end_day",
+        "end_position",
         (
-            ("legacy", "historical name"),
-            ("test row", "time point"),
-            ("position", "index"),
+            ("test observation", "test row", "time point"),
+            ("position",),
             ("one based", "starts at one"),
             ("inclusive", "includes the endpoint"),
         ),
@@ -1211,10 +1253,9 @@ POSITIONAL_CASES = (
     (
         "core.results.TBRSubintervalResult",
         "Attributes",
-        "n_days",
+        "n_observations",
         (
-            ("legacy", "historical name"),
-            ("test row", "time point"),
+            ("test observation", "test row", "time point"),
             ("count", "number", "length"),
             ("inclusive", "both endpoints"),
         ),
@@ -1222,10 +1263,9 @@ POSITIONAL_CASES = (
     (
         "create_subinterval_summary",
         "Notes",
-        "days",
+        "n_observations",
         (
-            ("legacy", "historical name"),
-            ("test row", "time point"),
+            ("test observation", "test row", "time point"),
             ("count", "number", "length"),
             ("inclusive", "both endpoints"),
         ),
@@ -1457,16 +1497,21 @@ def test_interval_tail_alpha_defines_level_complement(
 
 
 @pytest.mark.parametrize(
-    ("symbol", "legacy_name", "section_name", "field"),
+    ("symbol", "canonical_name", "section_name", "field"),
     (
-        ("compute_interval_estimate_and_ci", "n_days", "", ""),
-        ("create_subinterval_summary", "days", "Notes", "days"),
+        ("compute_interval_estimate_and_ci", "n_observations", "", ""),
+        (
+            "create_subinterval_summary",
+            "n_observations",
+            "Notes",
+            "n_observations",
+        ),
     ),
 )
-def test_subinterval_t_s_is_associated_with_local_legacy_count(
-    symbol: str, legacy_name: str, section_name: str, field: str
+def test_subinterval_t_s_is_associated_with_observation_count(
+    symbol: str, canonical_name: str, section_name: str, field: str
 ) -> None:
-    """Associate T_s with n_days on compute and days on summary."""
+    """Associate T_s with the canonical selected-observation count."""
     documented_object = _public_documented_object(symbol)
     docstring = inspect.getdoc(documented_object) or ""
     if section_name and field:
@@ -1477,17 +1522,17 @@ def test_subinterval_t_s_is_associated_with_local_legacy_count(
             (
                 paragraph
                 for paragraph in _paragraphs(docstring)
-                if "T_s" in paragraph and legacy_name in paragraph
+                if "T_s" in paragraph and canonical_name in paragraph
             ),
             "",
         )
 
     assert association_scope
     assert "T_s" in association_scope
-    assert legacy_name in association_scope
+    assert canonical_name in association_scope
     compact = association_scope.casefold().replace(r"\mathrm", "").replace(r"\_", "_")
     compact = re.sub(r"[\s{}`:]", "", compact)
-    assert "t_s=b-a+1" in compact or "t_s=end_day-start_day+1" in compact
+    assert "t_s=b-a+1" in compact or "t_s=end_position-start_position+1" in compact
     _assert_concepts(
         association_scope,
         (
@@ -1495,7 +1540,7 @@ def test_subinterval_t_s_is_associated_with_local_legacy_count(
             ("test row", "time point", "test observation"),
             ("count", "number", "length"),
         ),
-        f"{symbol}.{legacy_name}",
+        f"{symbol}.{canonical_name}",
     )
 
 
@@ -1541,7 +1586,7 @@ def test_high_risk_quantity_descriptions_define_components_and_alignment(
 @pytest.mark.parametrize(
     ("symbol", "section_name", "field", "concepts"), POSITIONAL_CASES
 )
-def test_representative_legacy_positions_define_test_row_semantics(
+def test_representative_positions_define_test_row_semantics(
     symbol: str, section_name: str, field: str, concepts: tuple[tuple[str, ...], ...]
 ) -> None:
     documented_object = _public_documented_object(symbol)

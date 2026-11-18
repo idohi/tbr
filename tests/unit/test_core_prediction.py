@@ -218,8 +218,8 @@ class TestComputeIntervalEstimateAndCI:
         result = compute_interval_estimate_and_ci(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
-            start_day=1,
-            end_day=2,
+            start_position=1,
+            end_position=2,
             ci_level=0.80,
         )
 
@@ -263,8 +263,8 @@ class TestComputeIntervalEstimateAndCI:
         result = compute_interval_estimate_and_ci(
             tbr_df=tbr_df,
             tbr_summary=tbr_summary,
-            start_day=1,
-            end_day=3,
+            start_position=1,
+            end_position=3,
             ci_level=0.90,
         )
 
@@ -300,8 +300,8 @@ class TestComputeIntervalEstimateAndCI:
         params = {
             "tbr_df": tbr_df,
             "tbr_summary": tbr_summary,
-            "start_day": 2,
-            "end_day": 3,
+            "start_position": 2,
+            "end_position": 3,
             "ci_level": 0.85,
         }
 
@@ -334,8 +334,8 @@ class TestComputeIntervalEstimateAndCI:
         )
         params = {
             "tbr_summary": tbr_summary,
-            "start_day": 1,
-            "end_day": 3,
+            "start_position": 1,
+            "end_position": 3,
             "ci_level": 0.85,
         }
 

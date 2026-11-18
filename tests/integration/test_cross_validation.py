@@ -192,18 +192,18 @@ class TestCoreEffectsFunctionalCrossValidation:
         )
 
         test_cases = [
-            (2, 4, 0.90),  # start_day, end_day, ci_level
+            (2, 4, 0.90),  # start_position, end_position, ci_level
             (1, 3, 0.95),
             (3, 5, 0.80),
         ]
 
-        for start_day, end_day, ci_level in test_cases:
+        for start_position, end_position, ci_level in test_cases:
             # Calculate using core effects module
             core_result = core_interval(
                 tbr_df=tbr_df,
                 tbr_summary=tbr_summary,
-                start_day=start_day,
-                end_day=end_day,
+                start_position=start_position,
+                end_position=end_position,
                 ci_level=ci_level,
             )
 
@@ -211,8 +211,8 @@ class TestCoreEffectsFunctionalCrossValidation:
             func_result = func_interval(
                 tbr_df=tbr_df,
                 tbr_summary=tbr_summary,
-                start_day=start_day,
-                end_day=end_day,
+                start_position=start_position,
+                end_position=end_position,
                 ci_level=ci_level,
             )
 
@@ -223,7 +223,10 @@ class TestCoreEffectsFunctionalCrossValidation:
                     core_result[key],
                     func_result[key],
                     rtol=1e-14,
-                    err_msg=f"Core and functional {key} should match for interval ({start_day}, {end_day})",
+                    err_msg=(
+                        f"Core and functional {key} should match for interval "
+                        f"({start_position}, {end_position})"
+                    ),
                 )
 
     def test_tbr_summary_cross_validation(self):
