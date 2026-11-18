@@ -170,13 +170,11 @@ class TestTBRResultsScalarProperties:
         assert isinstance(n_test, int)
         assert n_test > 0
 
-    def test_n_test_days_property(self, tbr_results):
-        """Test n_test_days property returns count."""
-        n_test_days = tbr_results.n_test_days
-        assert isinstance(n_test_days, int)
-        assert n_test_days > 0
-        # Should match n_test for daily data
-        assert n_test_days == tbr_results.n_test
+    def test_n_test_days_property_is_removed(self, tbr_results):
+        """Test that the removed day-specific count property is unavailable."""
+        assert not hasattr(tbr_results, "n_test_days")
+        with pytest.raises(AttributeError):
+            _ = tbr_results.n_test_days
 
 
 class TestTBRResultsModelParameters:

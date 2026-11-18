@@ -436,15 +436,15 @@ class TestCreateIncrementalTbrSummaries:
 
         # Verify result structure
         assert isinstance(summaries, pd.DataFrame)
-        assert len(summaries) == 4  # Four test period days
-        assert "test_day" in summaries.columns
+        assert len(summaries) == 4  # Four test observations.
+        assert "test_position" in summaries.columns
 
         # Verify incremental property
         estimates = summaries["estimate"].values
         assert np.array_equal(estimates, [2, 5, 8, 12])  # Should match cumdif values
 
-        # Verify test_day column
-        assert np.array_equal(summaries["test_day"].values, [1, 2, 3, 4])
+        # Verify test-observation positions.
+        assert np.array_equal(summaries["test_position"].values, [1, 2, 3, 4])
 
     def test_incremental_summaries_mathematical_properties(self):
         """Test mathematical properties of incremental summaries."""
@@ -532,7 +532,14 @@ class TestCreateIncrementalTbrSummaries:
         )
 
         # Verify identical results
-        key_cols = ["estimate", "precision", "lower", "upper", "prob", "test_day"]
+        key_cols = [
+            "estimate",
+            "precision",
+            "lower",
+            "upper",
+            "prob",
+            "test_position",
+        ]
         for col in key_cols:
             core_vals = core_summaries[col].values
             func_vals = func_summaries[col].values

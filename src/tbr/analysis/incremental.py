@@ -31,16 +31,16 @@ Examples
 
 Analyze effect progression:
 
->>> for position in range(len(incremental)):
-...     row = incremental.iloc[position]
-...     print(f"Position {row['test_day']}: {row['estimate']:.2f} "
+>>> for position_index in range(len(incremental)):
+...     row = incremental.iloc[position_index]
+...     print(f"Position {row['test_position']}: {row['estimate']:.2f} "
 ...           f"(prob={row['prob']:.3f})")
 
 Find when posterior probability exceeds a declared threshold:
 
 >>> rows_above_threshold = incremental[incremental['prob'] > 0.8]
 >>> if not rows_above_threshold.empty:
-...     first_position = rows_above_threshold.iloc[0]['test_day']
+...     first_position = rows_above_threshold.iloc[0]['test_position']
 ...     print(f"Posterior probability exceeds 0.8 from position {first_position}")
 """
 
@@ -99,8 +99,8 @@ def create_incremental_tbr_summaries(
     Returns
     -------
     pd.DataFrame
-        Incremental summary ordered by ``test_day``. See Notes for the stable
-        columns and their order.
+        Incremental summary ordered by ``test_position``. See Notes for the
+        complete column schema and order.
 
     Raises
     ------
@@ -112,11 +112,10 @@ def create_incremental_tbr_summaries(
 
     Notes
     -----
-    The returned DataFrame has these stable columns in order:
+    The returned DataFrame has the following columns, in order:
 
-    ``test_day`` : integer
-        Legacy name for the one-based cumulative test-row or time-point
-        position, normally ``int64``.
+    ``test_position`` : integer
+        One-based cumulative test-observation position, typically ``int64``.
     ``estimate`` : ``float64``
         Cumulative-effect estimate :math:`\hat{\Delta}(T)`, the running
         cumulative sum through the first :math:`T` entries of the ordered
@@ -159,7 +158,7 @@ def create_incremental_tbr_summaries(
 
     Here :math:`T` is the one-based count of ordered test rows or time points,
     and :math:`\Delta(T)` is the running cumulative sum through the first
-    :math:`T` test rows. The row with ``test_day == T`` reports that sum.
+    :math:`T` test rows. The row with ``test_position == T`` reports that sum.
 
     The incremental analysis is particularly useful for:
 
@@ -188,7 +187,7 @@ def create_incremental_tbr_summaries(
         P(effect_t > threshold) = 1 - F_t((threshold - estimate_t)/se_t, df)
 
     In this expression, :math:`F_t` is the Student-t cumulative distribution
-    function, not the ``test_day`` index.
+    function, not the ``test_position`` index.
 
     For mathematical background, see the
     :doc:`mathematical methodology guide </mathematical_methodology>`,
@@ -209,9 +208,9 @@ def create_incremental_tbr_summaries(
     ...     var_alpha=100.5, var_beta=0.001, cov_alpha_beta=-0.05,
     ...     degrees_freedom=43, level=0.80, threshold=0.0
     ... )
-    >>> list(incremental["test_day"]) == [1, 2, 3]
+    >>> list(incremental["test_position"]) == [1, 2, 3]
     True
-    >>> incremental["test_day"].dtype == "int64"
+    >>> incremental["test_position"].dtype == "int64"
     True
     >>> incremental["estimate"].tolist() == [5.0, 8.0, 11.0]
     True
@@ -220,16 +219,16 @@ def create_incremental_tbr_summaries(
 
     Analyze effect progression:
 
-    >>> for position in range(len(incremental)):
-    ...     row = incremental.iloc[position]
-    ...     print(f"Position {row['test_day']}: {row['estimate']:.2f} "
+    >>> for position_index in range(len(incremental)):
+    ...     row = incremental.iloc[position_index]
+    ...     print(f"Position {row['test_position']}: {row['estimate']:.2f} "
     ...           f"(prob={row['prob']:.3f})")
 
     Find when posterior probability exceeds a threshold:
 
     >>> high_prob_rows = incremental[incremental['prob'] > 0.8]
     >>> if not high_prob_rows.empty:
-    ...     first_position = high_prob_rows.iloc[0]['test_day']
+    ...     first_position = high_prob_rows.iloc[0]['test_position']
     ...     print(f"Posterior probability exceeds 0.8 from position {first_position}")
 
     Track credible interval width over time:
@@ -243,7 +242,7 @@ def create_incremental_tbr_summaries(
     >>> target_prob = 0.9
     >>> matching_rows = incremental[incremental['prob'] >= target_prob]
     >>> if not matching_rows.empty:
-    ...     first_position = matching_rows.iloc[0]['test_day']
+    ...     first_position = matching_rows.iloc[0]['test_position']
     ...     print(f"First observed position meeting the 90% rule: {first_position}")
     """
     return functional_create_incremental_tbr_summaries(

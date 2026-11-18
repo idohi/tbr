@@ -865,8 +865,6 @@ class TBRResults:
         Number of pretest observations.
     n_test : int
         Number of test observations.
-    n_test_days : int
-        Legacy name for the test-row/time-point count in existing order.
     alpha : float
         Regression intercept.
     beta : float
@@ -1404,19 +1402,6 @@ class TBRResults:
         """
         return len(self._test_data)
 
-    @property
-    def n_test_days(self) -> int:
-        """
-        Legacy test-row/time-point count in existing order.
-
-        Returns
-        -------
-        int
-            Number of test rows, identical to ``n_test``; this is not
-            necessarily a calendar-day duration.
-        """
-        return len(self._test_data)
-
     # =========================================================================
     # Properties: Model Parameters
     # =========================================================================
@@ -1514,9 +1499,8 @@ class TBRResults:
         -----
         The returned DataFrame has these stable columns:
 
-        ``test_day`` : int64
-            Legacy name for the one-based cumulative test-row or time-point
-            position.
+        ``test_position`` : int64
+            One-based cumulative test-observation position.
         ``estimate`` : float64
             Cumulative-effect estimate.
         ``precision`` : float64
@@ -1763,7 +1747,7 @@ class TBRResults:
             f"{self._level*100:.0f}% CI: "
             f"[{self.conf_int_lower:.2f}, {self.conf_int_upper:.2f}]\n"
             f"Probability > {self._threshold}: {self.pvalue:.3f}\n"
-            f"Test Period: {self.n_test_days} observations\n"
+            f"Test Period: {self.n_test} observations\n"
             f"Model: α = {self.alpha:.3f}, β = {self.beta:.3f}, σ = {self.sigma:.3f}"
         )
 

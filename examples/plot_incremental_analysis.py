@@ -103,14 +103,14 @@ print()
 cumulative_level = incremental["level"].iloc[0]
 cumulative_fig, cumulative_ax = plt.subplots(figsize=(9, 5))
 cumulative_ax.plot(
-    incremental["test_day"],
+    incremental["test_position"],
     incremental["estimate"],
     color="tab:blue",
     linewidth=1.8,
     label="Estimated cumulative effect",
 )
 cumulative_ax.fill_between(
-    incremental["test_day"],
+    incremental["test_position"],
     incremental["lower"],
     incremental["upper"],
     color="tab:blue",
@@ -118,7 +118,7 @@ cumulative_ax.fill_between(
     label=f"{cumulative_level * 100:g}% credible interval",
 )
 cumulative_ax.plot(
-    incremental["test_day"],
+    incremental["test_position"],
     true_cumulative_effect,
     color="tab:orange",
     linestyle="--",

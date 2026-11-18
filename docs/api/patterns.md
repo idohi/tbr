@@ -200,8 +200,8 @@ observation. The `se` column is the standard error of the estimate;
 incremental = model.summarize_incremental()
 monitoring_positions = (1, 15, 30, 45)
 monitoring = incremental.loc[
-    incremental["test_day"].isin(monitoring_positions),
-    ["test_day", "estimate", "lower", "upper", "prob"],
+    incremental["test_position"].isin(monitoring_positions),
+    ["test_position", "estimate", "lower", "upper", "prob"],
 ]
 print(monitoring)
 ```

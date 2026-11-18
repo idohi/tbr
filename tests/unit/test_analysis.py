@@ -175,7 +175,7 @@ class TestSummaryCreation:
 
     def test_incremental_summaries_creation(self):
         """Test incremental TBR summaries creation."""
-        # Create mock TBR dataframe with multiple test days
+        # Create a mock TBR DataFrame with multiple test observations.
         tbr_df = pd.DataFrame(
             {
                 "period": [0, 0, 1, 1, 1, 1],
@@ -199,12 +199,12 @@ class TestSummaryCreation:
 
         # Check structure
         assert isinstance(summaries, pd.DataFrame)
-        assert len(summaries) == 4  # 4 test days
-        assert "test_day" in summaries.columns
+        assert len(summaries) == 4  # Four test observations.
+        assert "test_position" in summaries.columns
 
         # Check incremental progression
-        test_days = summaries["test_day"].tolist()
-        assert test_days == [1, 2, 3, 4]
+        test_positions = summaries["test_position"].tolist()
+        assert test_positions == [1, 2, 3, 4]
 
         # Effects should generally increase over time
         estimates = summaries["estimate"].tolist()
@@ -535,13 +535,19 @@ class TestMainAnalysisWorkflow:
         ]
         assert all(col in tbr_results.columns for col in expected_tbr_cols)
 
-        # Check daily summaries columns
-        expected_summary_cols = ["test_day", "estimate", "precision", "lower", "upper"]
+        # Check incremental-summary columns.
+        expected_summary_cols = [
+            "test_position",
+            "estimate",
+            "precision",
+            "lower",
+            "upper",
+        ]
         assert all(col in tbr_summaries.columns for col in expected_summary_cols)
 
-        # Check that we have the right number of test days
-        test_days = len(tbr_summaries)
-        assert test_days > 0
+        # Check that test observations are present.
+        n_test_observations = len(tbr_summaries)
+        assert n_test_observations > 0
 
         # Check that final estimate captures treatment effect
         final_estimate = results.estimate  # Use property directly
@@ -714,7 +720,7 @@ class TestAnalysisEdgeCases:
         assert isinstance(results, TBRResults)
         tbr_summaries = results.summary()
         assert len(tbr_summaries) == 1
-        assert tbr_summaries["test_day"].iloc[0] == 1
+        assert tbr_summaries["test_position"].iloc[0] == 1
 
     def test_analysis_with_high_threshold(self):
         """Test analysis with high threshold for probability calculation."""

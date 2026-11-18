@@ -1089,9 +1089,8 @@ class TBRAnalysis:
         -----
         The returned DataFrame has these stable columns:
 
-        ``test_day`` : int64
-            Legacy name for the one-based cumulative test-row or time-point
-            position.
+        ``test_position`` : int64
+            One-based cumulative test-observation position.
         ``estimate`` : float64
             Cumulative-effect estimate.
         ``precision`` : float64
@@ -1159,13 +1158,13 @@ class TBRAnalysis:
         >>> model = TBRAnalysis(level=0.90, threshold=0.0)
         >>> model.fit(data, "date", "control", "test", **b)
         >>> incremental = model.summarize_incremental()
-        >>> print(incremental[['test_day', 'estimate', 'lower', 'upper']])
+        >>> print(incremental[['test_position', 'estimate', 'lower', 'upper']])
 
         Plot progression over time:
 
         >>> import matplotlib.pyplot as plt  # doctest: +SKIP
-        >>> plt.plot(incremental['test_day'], incremental['estimate'])  # doctest: +SKIP
-        >>> plt.fill_between(incremental['test_day'],  # doctest: +SKIP
+        >>> plt.plot(incremental['test_position'], incremental['estimate'])  # doctest: +SKIP
+        >>> plt.fill_between(incremental['test_position'],  # doctest: +SKIP
         ...                  incremental['lower'], incremental['upper'], alpha=0.3)
 
         See Also
@@ -1568,9 +1567,8 @@ class TBRAnalysis:
         -----
         The returned DataFrame has these stable columns:
 
-        ``test_day`` : int64
-            Legacy name for the one-based cumulative test-row or time-point
-            position.
+        ``test_position`` : int64
+            One-based cumulative test-observation position.
         ``estimate`` : float64
             Cumulative-effect estimate.
         ``precision`` : float64

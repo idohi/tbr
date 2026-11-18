@@ -345,7 +345,7 @@ class TestIncrementalPosteriorMathematical:
         # All output arrays should have same length as input
         assert len(result["probabilities"]) == len(estimates)
         assert len(result["probability_change"]) == len(estimates)
-        assert len(result["day"]) == len(estimates)
+        assert len(result["position"]) == len(estimates)
 
 
 class TestPosteriorComparisonMathematical:
