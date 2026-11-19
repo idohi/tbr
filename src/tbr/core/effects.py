@@ -506,8 +506,8 @@ def create_incremental_tbr_summaries(
     pd.DataFrame
         Multi-row DataFrame with incremental TBR summary statistics.
         Each row represents cumulative statistics from the first test
-        observation through the one-based position stored in the legacy
-        ``test_day`` column.
+        observation through the one-based position stored in the
+        ``test_position`` column.
 
     Examples
     --------
@@ -576,16 +576,18 @@ def create_incremental_tbr_summaries(
             threshold=threshold,
         )
 
-        # Populate the legacy test-position identifier
-        summary["test_day"] = position_index + 1
+        # Populate the one-based test-observation position.
+        summary["test_position"] = position_index + 1
 
         incremental_summaries.append(summary)
 
     # Combine all incremental summaries
     result_df = pd.concat(incremental_summaries, ignore_index=True)
 
-    # Reorder columns to put test_day first for clarity
-    cols = ["test_day"] + [col for col in result_df.columns if col != "test_day"]
+    # Put the test-observation position first for clarity.
+    cols = ["test_position"] + [
+        col for col in result_df.columns if col != "test_position"
+    ]
     result_df = result_df[cols]
 
     return result_df

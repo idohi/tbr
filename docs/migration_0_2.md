@@ -113,3 +113,74 @@ Trusted `TBRSubintervalResult` pickle files created by 0.1.x remain loadable.
 Their old field names are migrated to canonical names during deserialization;
 newly saved objects contain only canonical fields. As with all Python pickle
 files, load them only from trusted sources.
+
+## Incremental analysis
+
+Incremental summaries still contain one row for each cumulative prefix of
+ordered test observations. The one-based position column changes from
+`test_day` to `test_position`; values, ordering, dtypes, and calculations are
+unchanged.
+
+Before:
+
+```python
+incremental = model.summarize_incremental()
+positions = incremental["test_day"]
+```
+
+After:
+
+```python
+incremental = model.summarize_incremental()
+positions = incremental["test_position"]
+```
+
+This column change applies to every supported
+`create_incremental_tbr_summaries` route and to incremental frames returned by
+`TBRAnalysis.summaries_`, `TBRAnalysis.summarize_incremental()`, and
+`TBRResults.summary()`.
+
+The supported callable routes are:
+
+- `tbr.create_incremental_tbr_summaries`;
+- `tbr.analysis.create_incremental_tbr_summaries`;
+- `tbr.analysis.incremental.create_incremental_tbr_summaries`;
+- `tbr.core.create_incremental_tbr_summaries`;
+- `tbr.core.effects.create_incremental_tbr_summaries`; and
+- `tbr.functional.tbr_functions.create_incremental_tbr_summaries`.
+
+`calculate_incremental_posterior_probabilities()` now returns the key
+`"position"` instead of `"day"`:
+
+```python
+incremental = calculate_incremental_posterior_probabilities(
+    estimates,
+    standard_errors,
+    degrees_freedom,
+)
+positions = incremental["position"]
+```
+
+The mapping order remains `position`, `estimates`, `standard_errors`,
+`probabilities`, and `probability_change`.
+This applies to `tbr.core.calculate_incremental_posterior_probabilities` and
+`tbr.core.posterior.calculate_incremental_posterior_probabilities`.
+
+## Test-observation count
+
+Use `TBRResults.n_test` for the number of test observations.
+`TBRResults.n_test_days` has been removed:
+
+```python
+results = perform_tbr_analysis(...)
+print(results.n_test)
+```
+
+No temporary aliases or duplicate columns and keys are provided. For objects
+created or recomputed with 0.2.0, accessing `test_day`, `"day"`, or
+`n_test_days` raises the normal `KeyError` or `AttributeError`.
+
+Whole-object pickles of `TBRAnalysis` and `TBRResults` created with 0.1.x
+are not automatically migrated. Their stored incremental DataFrames can
+retain the `test_day` column, so recreate or refit these objects with 0.2.0.
+The migration described above applies only to `TBRSubintervalResult`.

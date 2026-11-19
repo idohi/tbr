@@ -316,7 +316,7 @@ def calculate_incremental_posterior_probabilities(
     -------
     Dict[str, np.ndarray]
         Dictionary containing:
-        - 'day': Legacy key containing one-based positions (1, 2, 3, ...)
+        - 'position': One-based positions (1, 2, 3, ...)
         - 'estimates': Cumulative estimates
         - 'standard_errors': Cumulative standard errors
         - 'probabilities': Posterior probabilities for each period
@@ -415,11 +415,11 @@ def calculate_incremental_posterior_probabilities(
     probability_change = np.zeros_like(probabilities)
     probability_change[1:] = probabilities[1:] - probabilities[:-1]
 
-    # Create the position values stored under the legacy key
+    # Create the one-based position values.
     positions = np.arange(1, len(estimates) + 1)
 
     return {
-        "day": positions,
+        "position": positions,
         "estimates": estimates.copy(),
         "standard_errors": standard_errors.copy(),
         "probabilities": probabilities,

@@ -310,7 +310,7 @@ class TestCalculateIncrementalPosteriorProbabilities:
         # Check structure
         assert isinstance(result, dict)
         required_keys = [
-            "day",
+            "position",
             "estimates",
             "standard_errors",
             "probabilities",
@@ -319,13 +319,13 @@ class TestCalculateIncrementalPosteriorProbabilities:
         assert all(key in result for key in required_keys)
 
         # Check array lengths
-        n_days = len(estimates)
-        assert len(result["day"]) == n_days
-        assert len(result["probabilities"]) == n_days
-        assert len(result["probability_change"]) == n_days
+        n_positions = len(estimates)
+        assert len(result["position"]) == n_positions
+        assert len(result["probabilities"]) == n_positions
+        assert len(result["probability_change"]) == n_positions
 
-        # Check day numbering
-        assert np.array_equal(result["day"], np.arange(1, n_days + 1))
+        # Check one-based position numbering.
+        assert np.array_equal(result["position"], np.arange(1, n_positions + 1))
 
         # Check probabilities are bounded
         assert np.all(np.array(result["probabilities"]) >= 0.0)

@@ -91,7 +91,6 @@ DataFrame, and a cumulative summary DataFrame.
 | `pvalue` | `float` | Legacy name for posterior threshold-exceedance probability |
 | `n_pretest` | `int` | Number of pretest observations |
 | `n_test` | `int` | Number of test observations |
-| `n_test_days` | `int` | Legacy name for the test-observation count; equal to `n_test` |
 | `alpha` | `float` | Regression intercept $\beta_0$ |
 | `beta` | `float` | Regression slope $\beta_1$ |
 | `sigma` | `float` | Residual standard deviation $\sigma$ |
@@ -117,12 +116,12 @@ $P(\Delta(T)>\theta\mid\mathrm{data})$ for the configured threshold $\theta$.
 ### `summary()` DataFrame
 
 `results.summary()` returns one row per cumulative test observation. The
-legacy `test_day` column contains its one-based position and is integer; every
+`test_position` column contains its one-based position and is integer; every
 other column is `float64`, including `t_dist_df`.
 
 | Column | Type | Meaning |
 |---|---|---|
-| `test_day` | integer | Legacy name for the one-based cumulative test-observation position |
+| `test_position` | integer | One-based cumulative test-observation position |
 | `estimate` | `float64` | Cumulative-effect estimate $\hat{\Delta}(T)$ |
 | `precision` | `float64` | Credible-interval half-width |
 | `lower` | `float64` | Lower credible bound |
@@ -163,10 +162,10 @@ TBR columns. Availability differs by period (`-1` baseline, `0` pretest,
 | `estsd` | floating-point | Fitted-value SE in pretest; `NaN` in baseline and test |
 
 ```python
-daily_summary = results.summary()
+incremental_summary = results.summary()
 tbr_frame = results.tbr_dataframe()
 
-assert daily_summary.shape[0] == results.n_test_days
+assert incremental_summary.shape[0] == results.n_test
 assert tbr_frame.loc[tbr_frame["period"] == 1, "estsd"].isna().all()
 ```
 

@@ -1,13 +1,32 @@
-"""Phase 0 schema and dtype contracts for legacy time terminology."""
+"""Schema and dtype contracts for unit-neutral time terminology."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import tbr
-from tbr.core.posterior import calculate_incremental_posterior_probabilities
+import tbr.analysis as tbr_analysis
+import tbr.analysis.incremental as analysis_incremental
+import tbr.core as tbr_core
+import tbr.core.effects as core_effects
+import tbr.core.posterior as core_posterior
+import tbr.functional.tbr_functions as functional_functions
 
 pytestmark = pytest.mark.integration
+
+INCREMENTAL_SUMMARY_ROUTES = (
+    tbr.create_incremental_tbr_summaries,
+    tbr_analysis.create_incremental_tbr_summaries,
+    analysis_incremental.create_incremental_tbr_summaries,
+    tbr_core.create_incremental_tbr_summaries,
+    core_effects.create_incremental_tbr_summaries,
+    functional_functions.create_incremental_tbr_summaries,
+)
+
+INCREMENTAL_POSTERIOR_ROUTES = (
+    tbr_core.calculate_incremental_posterior_probabilities,
+    core_posterior.calculate_incremental_posterior_probabilities,
+)
 
 
 @pytest.fixture
@@ -120,12 +139,15 @@ def test_subinterval_summary_schema_values_dtypes_and_inputs(contract_frames):
     pd.testing.assert_frame_equal(tbr_summary, original_summary)
 
 
-def test_incremental_summary_schema_values_dtypes_and_inputs(contract_frames):
+@pytest.mark.parametrize("create_incremental_summary", INCREMENTAL_SUMMARY_ROUTES)
+def test_incremental_summary_schema_values_dtypes_and_inputs(
+    contract_frames, create_incremental_summary
+):
     """Freeze incremental columns, values, dtypes, order, and non-mutation."""
     tbr_df, _ = contract_frames
     original_df = tbr_df.copy(deep=True)
 
-    result = tbr.create_incremental_tbr_summaries(
+    result = create_incremental_summary(
         tbr_df,
         alpha=1.0,
         beta=2.0,
@@ -139,7 +161,7 @@ def test_incremental_summary_schema_values_dtypes_and_inputs(contract_frames):
     )
 
     assert list(result.columns) == [
-        "test_day",
+        "test_position",
         "estimate",
         "precision",
         "lower",
@@ -156,7 +178,10 @@ def test_incremental_summary_schema_values_dtypes_and_inputs(contract_frames):
         "sigma",
         "t_dist_df",
     ]
-    assert result["test_day"].tolist() == [1, 2, 3]
+    assert result["test_position"].tolist() == [1, 2, 3]
+    assert "test_day" not in result.columns
+    with pytest.raises(KeyError):
+        result["test_day"]
     assert result["estimate"].tolist() == pytest.approx([1.0, 3.0, 6.0])
     assert result["precision"].tolist() == pytest.approx(
         [2.0582754616654295, 2.7443672822205727, 3.430459102775716]
@@ -184,7 +209,7 @@ def test_incremental_summary_schema_values_dtypes_and_inputs(contract_frames):
     }.items():
         assert result[column].tolist() == pytest.approx([value, value, value])
     assert result.dtypes.astype(str).to_dict() == {
-        "test_day": "int64",
+        "test_position": "int64",
         "estimate": "float64",
         "precision": "float64",
         "lower": "float64",
@@ -204,14 +229,19 @@ def test_incremental_summary_schema_values_dtypes_and_inputs(contract_frames):
     pd.testing.assert_frame_equal(tbr_df, original_df)
 
 
-def test_incremental_posterior_mapping_order_dtypes_and_copies():
-    """Freeze the legacy mapping key and array ownership contracts."""
+@pytest.mark.parametrize(
+    "calculate_incremental_posterior", INCREMENTAL_POSTERIOR_ROUTES
+)
+def test_incremental_posterior_mapping_order_dtypes_and_copies(
+    calculate_incremental_posterior,
+):
+    """Freeze the canonical mapping key and array ownership contracts."""
     estimates = np.array([1, 2, 4], dtype=np.int16)
     standard_errors = np.array([1.0, 2.0, 3.0], dtype=np.float32)
     original_estimates = estimates.copy()
     original_standard_errors = standard_errors.copy()
 
-    result = calculate_incremental_posterior_probabilities(
+    result = calculate_incremental_posterior(
         estimates,
         standard_errors,
         degrees_freedom=10,
@@ -219,13 +249,16 @@ def test_incremental_posterior_mapping_order_dtypes_and_copies():
     )
 
     assert list(result) == [
-        "day",
+        "position",
         "estimates",
         "standard_errors",
         "probabilities",
         "probability_change",
     ]
-    assert result["day"].tolist() == [1, 2, 3]
+    assert result["position"].tolist() == [1, 2, 3]
+    assert "day" not in result
+    with pytest.raises(KeyError):
+        result["day"]
     np.testing.assert_array_equal(result["estimates"], [1, 2, 4])
     np.testing.assert_array_equal(result["standard_errors"], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(
@@ -237,7 +270,7 @@ def test_incremental_posterior_mapping_order_dtypes_and_copies():
         [0.0, 0.0, 0.0644475005934747],
     )
     assert {key: str(value.dtype) for key, value in result.items()} == {
-        "day": str(np.dtype(np.int_)),
+        "position": str(np.dtype(np.int_)),
         "estimates": "int16",
         "standard_errors": "float32",
         "probabilities": "float64",
@@ -249,8 +282,8 @@ def test_incremental_posterior_mapping_order_dtypes_and_copies():
     np.testing.assert_array_equal(standard_errors, original_standard_errors)
 
 
-def test_n_test_days_matches_n_test_for_hourly_integer_data():
-    """Freeze the legacy count property as equal to the neutral count."""
+def test_n_test_is_the_only_public_test_observation_count():
+    """Require the neutral count and reject the removed day-specific alias."""
     hours = np.arange(10, dtype=np.int64)
     control = np.array([2.0, 3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 29.0])
     data = pd.DataFrame(
@@ -275,5 +308,7 @@ def test_n_test_days_matches_n_test_for_hourly_integer_data():
     )
 
     assert result.n_test == 3
-    assert result.n_test_days == result.n_test
-    assert isinstance(result.n_test_days, int)
+    assert isinstance(result.n_test, int)
+    assert not hasattr(result, "n_test_days")
+    with pytest.raises(AttributeError):
+        _ = result.n_test_days

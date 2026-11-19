@@ -594,14 +594,14 @@ class TestValidateSubintervalParameters:
             test_start=pd.Timestamp("2023-01-31"),
             test_end=pd.Timestamp("2023-02-14"),
         )
-        n_test_days = int((model.results_["period"] == 1).sum())
+        n_test_observations = int((model.results_["period"] == 1).sum())
 
         # Should not raise any exception
         validate_subinterval_parameters(
             model.results_,
             model.summaries_,
             start_position=1,
-            end_position=n_test_days,
+            end_position=n_test_observations,
             ci_level=0.80,
         )
 
@@ -737,7 +737,7 @@ class TestValidateSubintervalParameters:
     def test_position_exceeds_available_data(self, valid_data):
         """Test validation when a position exceeds available test observations."""
         tbr_df, tbr_summary = valid_data
-        test_days = len(tbr_df[tbr_df["period"] == 1])
+        n_test_observations = len(tbr_df[tbr_df["period"] == 1])
 
         with pytest.raises(
             ValueError,
@@ -747,7 +747,7 @@ class TestValidateSubintervalParameters:
                 tbr_df,
                 tbr_summary,
                 start_position=1,
-                end_position=test_days + 1,
+                end_position=n_test_observations + 1,
                 ci_level=0.80,
             )
 

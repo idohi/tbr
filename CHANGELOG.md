@@ -27,13 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API.
 
 ### Changed
-- Subinterval APIs now use unit-neutral `start_position` and `end_position`
-  keywords. `TBRSubintervalResult` exposes `start_position`, `end_position`,
-  and `n_observations`; subinterval summaries expose `start_position`,
-  `end_position`, `n_observations`, and `average_effect_per_observation`.
-  Removed day-specific names have no runtime aliases. Trusted 0.1.x
-  `TBRSubintervalResult` pickle files are migrated to canonical fields when
-  loaded.
+- **Breaking:** Subinterval APIs now use unit-neutral `start_position` and
+  `end_position` keywords. `TBRSubintervalResult` exposes `start_position`,
+  `end_position`, and `n_observations`; subinterval summaries expose
+  `start_position`, `end_position`, `n_observations`, and
+  `average_effect_per_observation`. Removed day-specific names have no runtime
+  aliases. Trusted 0.1.x `TBRSubintervalResult` pickle files are migrated to
+  canonical fields when loaded.
+- **Breaking:** Incremental summaries now expose `test_position` instead of
+  `test_day`, and incremental posterior mappings expose `"position"` instead
+  of `"day"`.
 
 ### Fixed
 - Default Tox Python test environments now install the declared `examples`
@@ -165,6 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them.
 
 ### Removed
+- **Breaking:** Removed `TBRResults.n_test_days`; use the existing `n_test`
+  property for the number of test observations.
 - **Breaking:** `compare_posterior_probabilities` no longer returns
   `relative_strength`. It divided each scenario's posterior probability by
   their sum, which is neither a probability nor a measure of evidence, because

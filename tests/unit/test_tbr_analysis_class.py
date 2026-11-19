@@ -848,7 +848,7 @@ class TestTBRAnalysisSummarizeMethod:
 
         summaries = model.summarize_incremental()
 
-        # Should have multiple rows (one per test day)
+        # Should have multiple rows, one per test observation.
         assert len(summaries) == 28  # 28 days in test period
         assert isinstance(summaries, pd.DataFrame)
 
@@ -927,11 +927,18 @@ class TestTBRAnalysisSummarizeMethod:
         # Should return DataFrame
         assert isinstance(incremental, pd.DataFrame)
 
-        # Should have multiple rows (one per test day)
+        # Should have multiple rows, one per test observation.
         assert len(incremental) == 28  # 28 days in test period
 
         # Should have expected columns
-        expected_cols = ["test_day", "estimate", "lower", "upper", "se", "prob"]
+        expected_cols = [
+            "test_position",
+            "estimate",
+            "lower",
+            "upper",
+            "se",
+            "prob",
+        ]
         for col in expected_cols:
             assert col in incremental.columns
 

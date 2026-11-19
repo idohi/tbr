@@ -255,7 +255,7 @@ class TestAdvancedWorkflows:
 
         # Check that estimates are monotonic (cumulative effects)
         # Note: estimates can vary but cumulative sum should be increasing
-        assert all(incremental["test_day"] == range(1, len(incremental) + 1))
+        assert all(incremental["test_position"] == range(1, len(incremental) + 1))
 
 
 class TestRealWorldScenarios:

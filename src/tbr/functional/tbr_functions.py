@@ -754,9 +754,9 @@ def create_incremental_tbr_summaries(
         One row per cumulative test observation, with columns in the order
         below.
 
-        ``test_day`` : integer
-            Legacy name for the one-based cumulative test-observation
-            position, normally ``int64``.
+        ``test_position`` : integer
+            One-based cumulative test-observation position, typically
+            ``int64``.
         ``estimate`` : ``float64``
             Cumulative-effect estimate :math:`\hat{\Delta}(T)`.
         ``precision`` : ``float64``

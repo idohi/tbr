@@ -80,7 +80,11 @@ daily_frame = model.results_
 incremental_frame = model.summarize_incremental()
 
 print(prediction_frame[["pred", "predsd"]].head())
-print(incremental_frame[["test_day", "estimate", "lower", "upper", "prob"]].tail())
+print(
+    incremental_frame[
+        ["test_position", "estimate", "lower", "upper", "prob"]
+    ].tail()
+)
 ```
 
 `pred` contains test-period counterfactual predictions $\hat{y}_t^*$.

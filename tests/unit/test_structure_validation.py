@@ -562,7 +562,7 @@ class TestStructureValidationIntegration:
 
         tbr_summaries = pd.DataFrame(
             {
-                "test_day": [1, 2],
+                "test_position": [1, 2],
                 "estimate": [2.0, 4.0],
                 "precision": [3.2, 4.5],
                 "lower": [-1.2, -0.5],

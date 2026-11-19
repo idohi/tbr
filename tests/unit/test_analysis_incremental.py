@@ -69,12 +69,12 @@ class TestCreateIncrementalTbrSummaries:
         # Verify result is DataFrame
         assert isinstance(result, pd.DataFrame)
 
-        # Verify has test_day column
-        assert "test_day" in result.columns
+        # Verify the canonical position column.
+        assert "test_position" in result.columns
 
         # Verify has standard summary columns
         expected_columns = [
-            "test_day",
+            "test_position",
             "estimate",
             "precision",
             "lower",
@@ -93,8 +93,8 @@ class TestCreateIncrementalTbrSummaries:
         ]
         assert list(result.columns) == expected_columns
 
-        # Verify test_day progression
-        assert result["test_day"].tolist() == [1, 2, 3]
+        # Verify test-position progression.
+        assert result["test_position"].tolist() == [1, 2, 3]
 
         # Verify estimates are cumulative (increasing)
         estimates = result["estimate"].tolist()
@@ -185,8 +185,8 @@ class TestCreateIncrementalTbrSummaries:
         with pytest.raises(ValueError, match="no test period data|period == 1"):
             create_incremental_tbr_summaries(learning_only_df, **sample_parameters)
 
-    def test_single_test_day(self, sample_parameters):
-        """Test incremental analysis with single test day."""
+    def test_single_test_observation(self, sample_parameters):
+        """Test incremental analysis with one test observation."""
         single_day_df = pd.DataFrame(
             {"period": [0, 0, 1], "cumdif": [0.0, 0.0, 15.2], "cumsd": [0.0, 0.0, 6.1]}
         )
@@ -195,11 +195,11 @@ class TestCreateIncrementalTbrSummaries:
 
         # Should have exactly one row
         assert len(result) == 1
-        assert result["test_day"].iloc[0] == 1
+        assert result["test_position"].iloc[0] == 1
         assert result["estimate"].iloc[0] == 15.2
 
-    def test_multiple_test_days_progression(self, sample_parameters):
-        """Test incremental analysis with multiple test days."""
+    def test_multiple_test_observations_progression(self, sample_parameters):
+        """Test incremental analysis with multiple test observations."""
         multi_day_df = pd.DataFrame(
             {
                 "period": [0, 0, 0, 1, 1, 1, 1, 1],
@@ -210,12 +210,12 @@ class TestCreateIncrementalTbrSummaries:
 
         result = create_incremental_tbr_summaries(multi_day_df, **sample_parameters)
 
-        # Should have 5 rows (5 test days)
+        # Should have five rows, one per test observation.
         assert len(result) == 5
 
-        # Verify test_day progression
-        expected_days = [1, 2, 3, 4, 5]
-        assert result["test_day"].tolist() == expected_days
+        # Verify test-position progression.
+        expected_positions = [1, 2, 3, 4, 5]
+        assert result["test_position"].tolist() == expected_positions
 
         # Verify cumulative estimates are increasing
         estimates = result["estimate"].tolist()

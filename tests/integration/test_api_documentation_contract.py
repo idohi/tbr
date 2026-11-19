@@ -14,6 +14,7 @@ from typing import Iterable, Sequence, get_args, get_origin, get_type_hints
 import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+CHANGELOG = REPOSITORY_ROOT / "CHANGELOG.md"
 API_REFERENCE = REPOSITORY_ROOT / "docs" / "api" / "api_reference.rst"
 METHODOLOGY = REPOSITORY_ROOT / "docs" / "mathematical_methodology.md"
 MIGRATION_GUIDE = REPOSITORY_ROOT / "docs" / "migration_0_2.md"
@@ -122,7 +123,7 @@ SUMMARY_FIELDS = (
     "t_dist_df",
 )
 
-INCREMENTAL_SUMMARY_FIELDS = ("test_day", *SUMMARY_FIELDS)
+INCREMENTAL_SUMMARY_FIELDS = ("test_position", *SUMMARY_FIELDS)
 
 RESULT_SUMMARY_FIELDS = (
     "estimate",
@@ -713,6 +714,50 @@ def test_migration_guide_documents_exact_subinterval_callable_changes() -> None:
     assert all(f"`{route}`" in guide for route in compute_routes)
 
 
+def test_migration_guide_documents_incremental_schema_changes() -> None:
+    """Publish exact incremental names, routes, and count-property replacement."""
+    guide = MIGRATION_GUIDE.read_text(encoding="utf-8")
+    incremental_routes = (
+        "tbr.create_incremental_tbr_summaries",
+        "tbr.analysis.create_incremental_tbr_summaries",
+        "tbr.analysis.incremental.create_incremental_tbr_summaries",
+        "tbr.core.create_incremental_tbr_summaries",
+        "tbr.core.effects.create_incremental_tbr_summaries",
+        "tbr.functional.tbr_functions.create_incremental_tbr_summaries",
+    )
+    posterior_routes = (
+        "tbr.core.calculate_incremental_posterior_probabilities",
+        "tbr.core.posterior.calculate_incremental_posterior_probabilities",
+    )
+
+    assert "`test_day` to `test_position`" in guide
+    assert '`"position"` instead of `"day"`' in guide
+    assert "`TBRResults.n_test_days` has been removed" in guide
+    assert "`TBRAnalysis.summaries_`" in guide
+    assert "Whole-object pickles of `TBRAnalysis` and `TBRResults`" in guide
+    assert "are not automatically migrated" in guide
+    assert "applies only to `TBRSubintervalResult`" in guide
+    assert all(f"`{route}`" in guide for route in incremental_routes)
+    assert all(f"`{route}`" in guide for route in posterior_routes)
+
+
+def test_changelog_classifies_terminology_migration_as_breaking() -> None:
+    """Make the breaking renames and removed property visible to release readers."""
+    changelog = CHANGELOG.read_text(encoding="utf-8")
+    unreleased = changelog.split("## [Unreleased]", maxsplit=1)[1].split(
+        "## [0.", maxsplit=1
+    )[0]
+    changed = unreleased.split("### Changed", maxsplit=1)[1].split(
+        "### Fixed", maxsplit=1
+    )[0]
+    removed = unreleased.split("### Removed", maxsplit=1)[1]
+
+    assert "**Breaking:** Subinterval APIs" in changed
+    assert "**Breaking:** Incremental summaries" in changed
+    assert "`TBRResults.n_test_days`" in removed
+    assert "existing `n_test`" in removed
+
+
 @pytest.mark.skipif(
     os.environ.get("TBR_VALIDATE_BUILT_DOCS") != "1",
     reason="generated HTML contract runs after the Sphinx build",
@@ -1208,22 +1253,11 @@ AGGREGATE_SCHEMA_PATHS = {
 
 POSITIONAL_CASES = (
     (
-        "core.results.TBRResults.n_test_days",
-        "",
-        "",
-        (
-            ("legacy", "historical name"),
-            ("test row", "time point"),
-            ("count", "number", "length"),
-        ),
-    ),
-    (
         "create_incremental_tbr_summaries",
         "Notes",
-        "test_day",
+        "test_position",
         (
-            ("legacy", "historical name"),
-            ("test row", "time point"),
+            ("test observation", "test row", "time point"),
             ("one based", "starts at one"),
             ("cumulative",),
         ),
