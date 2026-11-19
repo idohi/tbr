@@ -136,7 +136,7 @@ class TestAnalysisFrameworkCoreIntegration:
         assert isinstance(summary_result, pd.DataFrame)
         assert len(summary_result) == 1
         assert isinstance(incremental_result, pd.DataFrame)
-        assert len(incremental_result) == 12  # Number of test days
+        assert len(incremental_result) == 12  # Number of test observations
         assert isinstance(subinterval_result, dict)
         assert "estimate" in subinterval_result
 
@@ -395,21 +395,24 @@ class TestAnalysisMathematicalProperties:
         # Generate incremental analysis
         incremental_result = create_incremental_tbr_summaries(tbr_df, **params)
 
-        # Generate equivalent subinterval analysis for first 3 days
+        # Generate equivalent subinterval analysis for first 3 observations
         subinterval_results = []
-        for day in range(1, 4):
+        for position in range(1, 4):
             result = compute_interval_estimate_and_ci(
-                tbr_df, tbr_summary, 1, day, params["level"]
+                tbr_df, tbr_summary, 1, position, params["level"]
             )
             subinterval_results.append(result)
 
-        # Validate consistency for first 3 days
+        # Validate consistency for first 3 observations
         for i, sub_result in enumerate(subinterval_results):
             np.testing.assert_allclose(
                 incremental_result.iloc[i]["estimate"],
                 sub_result["estimate"],
                 rtol=1e-14,
-                err_msg=f"Incremental and subinterval should be consistent for day {i+1}",
+                err_msg=(
+                    "Incremental and subinterval should be consistent for "
+                    f"position {i + 1}"
+                ),
             )
 
 
@@ -456,7 +459,7 @@ class TestAnalysisPerformanceValidation:
 
         # Results validation
         assert len(summary_result) == 1
-        assert len(incremental_result) == 50  # Number of test days
+        assert len(incremental_result) == 50  # Number of test observations
 
         # Mathematical consistency under performance conditions
         np.testing.assert_allclose(
@@ -480,7 +483,7 @@ class TestAnalysisPerformanceValidation:
         )
 
         # Create multiple subintervals for performance testing
-        intervals = [(i, i + 4) for i in range(1, 46, 5)]  # 5-day intervals
+        intervals = [(i, i + 4) for i in range(1, 46, 5)]  # Five-observation intervals
 
         start_time = time.time()
 
@@ -570,7 +573,7 @@ class TestAnalysisModuleIntegration:
         # Step 1: Overall summary analysis
         summary = create_tbr_summary(tbr_df, **params)
 
-        # Step 2: Day-by-day incremental analysis
+        # Step 2: Observation-by-observation incremental analysis
         incremental = create_incremental_tbr_summaries(tbr_df, **params)
 
         # Step 3: Custom subinterval analysis
@@ -594,7 +597,7 @@ class TestAnalysisModuleIntegration:
 
         # Workflow validation
         assert len(summary) == 1, "Summary should have one row"
-        assert len(incremental) == 10, "Incremental should have 10 days"
+        assert len(incremental) == 10, "Incremental should have 10 observations"
         assert (
             len(subinterval_summary) == 3
         ), "Subinterval summary should have 3 intervals"

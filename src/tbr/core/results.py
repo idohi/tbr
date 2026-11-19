@@ -22,7 +22,7 @@ Basic usage with functional API:
 >>>
 >>> rng = np.random.default_rng(42)
 >>> data = pd.DataFrame({
-...     'date': pd.date_range('2023-01-01', periods=90),
+...     'date': pd.date_range('2023-01-01', periods=90, freq='D'),
 ...     'control': rng.normal(1000, 50, 90),
 ...     'test': rng.normal(1020, 55, 90)
 ... })
@@ -93,6 +93,73 @@ from typing import Any, Dict, Optional, Union, cast
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+_PICKLE_VERSION_KEY = "_tbr_pickle_version"
+_PICKLE_VERSION = 1
+
+
+def _validate_pickle_state_version(
+    state: Any, object_name: str, recreate_target: str
+) -> Dict[str, Any]:
+    """Validate and remove the version marker from pickle state."""
+    if not isinstance(state, dict):
+        raise ValueError(
+            f"Cannot restore malformed {object_name} pickle state; "
+            "expected a dictionary."
+        )
+    if _PICKLE_VERSION_KEY not in state:
+        raise ValueError(
+            f"Cannot restore {object_name} from a pre-0.2 pickle; "
+            f"recreate or refit the {recreate_target} with tbr 0.2.0."
+        )
+
+    version = state[_PICKLE_VERSION_KEY]
+    if type(version) is not int:
+        raise ValueError(
+            f"Cannot restore state with invalid {object_name} pickle format "
+            f"version {version!r}; expected an integer."
+        )
+    if version != _PICKLE_VERSION:
+        raise ValueError(
+            f"Cannot restore unsupported {object_name} pickle format version "
+            f"{version}; supported version is {_PICKLE_VERSION}."
+        )
+
+    canonical_state = dict(state)
+    canonical_state.pop(_PICKLE_VERSION_KEY)
+    return canonical_state
+
+
+_TBR_RESULTS_STATE_FIELDS = frozenset(
+    {
+        "_time_col",
+        "_control_col",
+        "_test_col",
+        "_model_params",
+        "_level",
+        "_threshold",
+        "_baseline_data",
+        "_pretest_data",
+        "_test_data",
+        "_cooldown_data",
+        "_baseline_time",
+        "_pretest_time",
+        "_test_time",
+        "_all_time",
+        "_control_series",
+        "_test_series",
+        "_fittedvalues",
+        "_fitted_se",
+        "_resid",
+        "_predictions",
+        "_prediction_se",
+        "_effects",
+        "_cumulative_effect",
+        "_cumulative_se",
+        "_internal_df",
+        "_summary_df",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -623,7 +690,7 @@ class TBRSubintervalResult:
     >>> control = rng.normal(1000, 50, size=44)
     >>> data = pd.DataFrame(
     ...     {
-    ...         "date": pd.date_range("2023-01-01", periods=44),
+    ...         "date": pd.date_range("2023-01-01", periods=44, freq="D"),
     ...         "control": control,
     ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
     ...     }
@@ -659,30 +726,29 @@ class TBRSubintervalResult:
     end_position: int
     n_observations: int
 
-    def __setstate__(self, state: Dict[str, Union[float, int]]) -> None:
-        """Restore canonical state, migrating trusted pre-0.2 pickle fields."""
-        legacy_to_canonical = {
-            "start_day": "start_position",
-            "end_day": "end_position",
-            "n_days": "n_observations",
-        }
-        canonical_position_fields = set(legacy_to_canonical.values())
-        if set(state).intersection(legacy_to_canonical) and set(state).intersection(
-            canonical_position_fields
-        ):
+    def __getstate__(self) -> Dict[str, Union[float, int]]:
+        """Return explicitly versioned state for same-version pickle round trips."""
+        if type(self) is not TBRSubintervalResult:
             raise ValueError(
-                "Cannot restore TBRSubintervalResult with mixed legacy and "
-                "canonical position fields"
+                "Cannot serialize TBRSubintervalResult subclass instances; "
+                "pickle serialization supports exact TBRSubintervalResult "
+                "instances only."
             )
 
-        canonical_state = {
-            legacy_to_canonical.get(name, name): value for name, value in state.items()
-        }
+        state = self.to_dict()
+        state[_PICKLE_VERSION_KEY] = _PICKLE_VERSION
+        return state
+
+    def __setstate__(self, state: Any) -> None:
+        """Restore canonical state while rejecting unsupported legacy pickles."""
+        canonical_state = _validate_pickle_state_version(
+            state, "TBRSubintervalResult", "result"
+        )
         expected_fields = tuple(self.__dataclass_fields__)
         if set(canonical_state) != set(expected_fields):
             raise ValueError(
-                "Cannot restore TBRSubintervalResult with incomplete or "
-                "unknown fields"
+                "Cannot restore TBRSubintervalResult from malformed pickle "
+                "state with missing or unknown fields."
             )
 
         for name in expected_fields:
@@ -974,6 +1040,38 @@ class TBRResults:
 
         # Compute all results during initialization
         self._compute_results()
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Return explicitly versioned state for same-version pickle round trips."""
+        if type(self) is not TBRResults:
+            raise ValueError(
+                "Cannot serialize TBRResults subclass instances; pickle "
+                "serialization supports exact TBRResults instances only."
+            )
+
+        state_fields = set(self.__dict__)
+        if state_fields != _TBR_RESULTS_STATE_FIELDS:
+            missing_fields = sorted(_TBR_RESULTS_STATE_FIELDS - state_fields)
+            unexpected_fields = sorted(state_fields - _TBR_RESULTS_STATE_FIELDS)
+            raise ValueError(
+                "Cannot serialize TBRResults pickle state with missing or "
+                f"unexpected fields (missing={missing_fields}, "
+                f"unexpected={unexpected_fields})."
+            )
+
+        state = dict(self.__dict__)
+        state[_PICKLE_VERSION_KEY] = _PICKLE_VERSION
+        return state
+
+    def __setstate__(self, state: Any) -> None:
+        """Restore same-version state and reject unsupported legacy pickles."""
+        canonical_state = _validate_pickle_state_version(state, "TBRResults", "result")
+        if set(canonical_state) != _TBR_RESULTS_STATE_FIELDS:
+            raise ValueError(
+                "Cannot restore malformed TBRResults pickle state with "
+                "missing or unknown fields."
+            )
+        self.__dict__.update(canonical_state)
 
     def _compute_results(self) -> None:
         """

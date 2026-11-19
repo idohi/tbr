@@ -2,13 +2,47 @@
 
 Version 0.2.0 is a breaking pre-1.0 release. It replaces generic
 day-specific names with terminology that applies to daily, hourly, weekly, and
-other regularly observed data. Statistical calculations and positional
-selection behavior are unchanged.
+other regularly observed data. The terminology migration does not change
+positional selection behavior. Version 0.2.0 separately corrects subinterval
+posterior variance; see the changelog for that numerical correction.
+
+## Migration reference
+
+### Callable signature changes
+
+| Surface | 0.1.x | 0.2.0 | Compatibility |
+| --- | --- | --- | --- |
+| `tbr.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `tbr.analysis.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `tbr.analysis.subinterval.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `tbr.core.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `tbr.core.prediction.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `tbr.core.effects.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `tbr.functional.tbr_functions.compute_interval_estimate_and_ci` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `TBRAnalysis.analyze_subinterval` | `(start_day, end_day, ci_level=None)` | `(start_position, end_position, ci_level=None)` | Removed keywords are not accepted. |
+| `tbr.analysis.validate_subinterval_parameters` | `(tbr_df, tbr_summary, start_day, end_day, ci_level)` | `(tbr_df, tbr_summary, start_position, end_position, ci_level)` | Removed keywords are not accepted. |
+| `analyze_multiple_subintervals` | `(tbr_df, tbr_summary, intervals, ci_level=0.80)` | Unchanged | Each tuple remains an inclusive one-based `(start_position, end_position)` pair. |
+| `create_subinterval_summary` | `(tbr_df, tbr_summary, intervals, ci_level=0.80, significance_threshold=0.0)` | `(tbr_df, tbr_summary, intervals, ci_level=0.80, threshold=0.0)` | `significance_threshold` is removed; each tuple remains an inclusive one-based `(start_position, end_position)` pair. |
+
+### Result and schema changes
+
+| Surface | 0.1.x | 0.2.0 | Compatibility |
+| --- | --- | --- | --- |
+| `TBRSubintervalResult` public fields and serialized data keys, in order | `estimate`, `lower`, `upper`, `se`, `ci_level`, `start_day`, `end_day`, `n_days` | `estimate`, `lower`, `upper`, `se`, `precision`, `ci_level`, `start_position`, `end_position`, `n_observations` | `precision` is added. The bounds are inclusive one-based test-observation positions, and the count includes both endpoints. Removed attributes are not available. Cross-version pickle loading is unsupported; recreate or refit results with 0.2.0. |
+| `create_subinterval_summary()` columns, in order | `interval`, `start_day`, `end_day`, `days`, `estimate`, `precision`, `lower`, `upper`, `significant`, `avg_daily_effect`, `ci_level` | `interval`, `start_position`, `end_position`, `n_observations`, `estimate`, `se`, `precision`, `lower`, `upper`, `interval_excludes_threshold`, `average_effect_per_observation`, `ci_level` | `se` is added; `significant` is replaced by `interval_excludes_threshold` with the documented threshold-exclusion semantics. Positions are inclusive and one-based; `n_observations` includes both endpoints; `average_effect_per_observation` is the cumulative estimate divided by that count. No duplicate compatibility columns are returned. |
+| Incremental summary columns, in order | `test_day`, `estimate`, `precision`, `lower`, `upper`, `se`, `level`, `thres`, `prob`, `alpha`, `beta`, `alpha_beta_cov`, `var_alpha`, `var_beta`, `sigma`, `t_dist_df` | `test_position`, `estimate`, `precision`, `lower`, `upper`, `se`, `level`, `thres`, `prob`, `alpha`, `beta`, `alpha_beta_cov`, `var_alpha`, `var_beta`, `sigma`, `t_dist_df` | `test_position` is the one-based endpoint of each cumulative test-observation prefix. Applies to all documented incremental-summary routes; no duplicate compatibility column is returned. |
+| Incremental posterior keys, in order | `"day"`, `"estimates"`, `"standard_errors"`, `"probabilities"`, `"probability_change"` | `"position"`, `"estimates"`, `"standard_errors"`, `"probabilities"`, `"probability_change"` | `"position"` contains the one-based cumulative positions. Applies to both documented posterior routes; no duplicate compatibility key is returned. |
+| Test-observation count on `TBRResults` | `TBRResults.n_test_days` | `TBRResults.n_test` | `n_test_days` is removed; `n_test` was already available in 0.1.x. |
+| Whole-object 0.1.x `TBRAnalysis` and `TBRResults` pickles | May contain incremental frames with `test_day`. | Newly created objects contain `test_position`. | Cross-version loading is unsupported; recreate or refit these objects with 0.2.0. |
+
+`_tbr_pickle_version` is an internal pickle-format marker stored alongside the
+public data keys in pickle state. It is not part of the public result schema or
+the mappings returned by conversion methods.
 
 ## Subinterval analysis
 
 Subinterval bounds remain inclusive, one-based positions among test-period
-observations. Only their names change:
+observations. Their positional interpretation is unchanged:
 
 - `start_day` becomes `start_position`;
 - `end_day` becomes `end_position`;
@@ -109,10 +143,13 @@ No temporary aliases or duplicate columns are provided. Calls using removed
 keywords raise the normal Python `TypeError`, and removed result attributes
 raise `AttributeError`.
 
-Trusted `TBRSubintervalResult` pickle files created by 0.1.x remain loadable.
-Their old field names are migrated to canonical names during deserialization;
-newly saved objects contain only canonical fields. As with all Python pickle
-files, load them only from trusted sources.
+0.1.x `TBRSubintervalResult` pickle files are not supported in 0.2.0. In
+0.1.x, the field named `se` held the credible-interval half-width, and the
+pickle does not contain enough information to reconstruct the corrected
+standard error. Recreate or refit these results with 0.2.0.
+Same-version 0.2.0 pickle round trips remain supported for exact
+`TBRSubintervalResult` instances; subclass instances are rejected. As with all
+Python pickle files, load them only from trusted sources.
 
 ## Incremental analysis
 
@@ -180,7 +217,10 @@ No temporary aliases or duplicate columns and keys are provided. For objects
 created or recomputed with 0.2.0, accessing `test_day`, `"day"`, or
 `n_test_days` raises the normal `KeyError` or `AttributeError`.
 
-Whole-object pickles of `TBRAnalysis` and `TBRResults` created with 0.1.x
-are not automatically migrated. Their stored incremental DataFrames can
-retain the `test_day` column, so recreate or refit these objects with 0.2.0.
-The migration described above applies only to `TBRSubintervalResult`.
+Whole-object pickles of `TBRAnalysis` and `TBRResults` created with 0.1.x are
+also unsupported. Their stored incremental DataFrames can retain the
+`test_day` column, so recreate or refit these objects with 0.2.0. Same-version
+0.2.0 pickle round trips remain supported for canonical package-managed state
+on exact `TBRAnalysis` and `TBRResults` instances. Subclass instances and
+objects with user-added instance attributes are rejected during serialization
+rather than silently discarding additional state.

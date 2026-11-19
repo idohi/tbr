@@ -187,11 +187,13 @@ class TestCreateIncrementalTbrSummaries:
 
     def test_single_test_observation(self, sample_parameters):
         """Test incremental analysis with one test observation."""
-        single_day_df = pd.DataFrame(
+        single_observation_df = pd.DataFrame(
             {"period": [0, 0, 1], "cumdif": [0.0, 0.0, 15.2], "cumsd": [0.0, 0.0, 6.1]}
         )
 
-        result = create_incremental_tbr_summaries(single_day_df, **sample_parameters)
+        result = create_incremental_tbr_summaries(
+            single_observation_df, **sample_parameters
+        )
 
         # Should have exactly one row
         assert len(result) == 1
@@ -200,7 +202,7 @@ class TestCreateIncrementalTbrSummaries:
 
     def test_multiple_test_observations_progression(self, sample_parameters):
         """Test incremental analysis with multiple test observations."""
-        multi_day_df = pd.DataFrame(
+        multi_observation_df = pd.DataFrame(
             {
                 "period": [0, 0, 0, 1, 1, 1, 1, 1],
                 "cumdif": [0.0, 0.0, 0.0, 8.5, 18.2, 29.1, 42.3, 56.8],
@@ -208,7 +210,9 @@ class TestCreateIncrementalTbrSummaries:
             }
         )
 
-        result = create_incremental_tbr_summaries(multi_day_df, **sample_parameters)
+        result = create_incremental_tbr_summaries(
+            multi_observation_df, **sample_parameters
+        )
 
         # Should have five rows, one per test observation.
         assert len(result) == 5

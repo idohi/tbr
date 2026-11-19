@@ -45,7 +45,7 @@ def fitted_model():
     control = rng.normal(1000, 50, size=44)
     data = pd.DataFrame(
         {
-            "date": pd.date_range("2023-01-01", periods=44),
+            "date": pd.date_range("2023-01-01", periods=44, freq="D"),
             "control": control,
             "test": 1.05 * control + rng.normal(0, 10, size=44),
         }
@@ -249,7 +249,7 @@ class TestSubintervalCoverage:
         rng = np.random.default_rng(20261006)
         n_pretest, n_test, n_sims = 12, 20, 1000
         start_position, end_position = 5, 20
-        dates = pd.date_range("2024-01-01", periods=n_pretest + n_test)
+        dates = pd.date_range("2024-01-01", periods=n_pretest + n_test, freq="D")
 
         covered = np.zeros(n_sims, dtype=bool)
         covered_residual_only = np.zeros(n_sims, dtype=bool)

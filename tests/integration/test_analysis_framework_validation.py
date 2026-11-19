@@ -252,7 +252,7 @@ class TestAnalysisWorkflowValidation:
         # Step 1: Overall summary analysis
         summary = create_tbr_summary(tbr_df, **params)
 
-        # Step 2: Day-by-day incremental analysis
+        # Step 2: Observation-by-observation incremental analysis
         incremental = create_incremental_tbr_summaries(tbr_df, **params)
 
         # Step 3: Custom subinterval analysis
@@ -269,7 +269,7 @@ class TestAnalysisWorkflowValidation:
         assert len(summary) == 1, "Summary should have one row"
         assert (
             len(incremental) == 15
-        ), "Incremental should have 15 days for high variance scenario"
+        ), "Incremental should have 15 observations for high variance scenario"
         assert (
             len(subinterval_summary) == 3
         ), "Subinterval summary should have 3 intervals"
@@ -297,7 +297,7 @@ class TestAnalysisWorkflowValidation:
         assert len(summary) == 1, "Summary should have one row"
         assert (
             len(incremental) == 12
-        ), "Incremental should have 12 days for low variance scenario"
+        ), "Incremental should have 12 observations for low variance scenario"
 
         # Verify all results are finite and reasonable
         assert np.isfinite(
@@ -468,21 +468,24 @@ class TestAnalysisConsistencyValidation:
         # Generate incremental analysis
         incremental_result = create_incremental_tbr_summaries(tbr_df, **params)
 
-        # Generate equivalent subinterval analysis for first 3 days
+        # Generate equivalent subinterval analysis for first 3 observations
         subinterval_results = []
-        for day in range(1, 4):
+        for position in range(1, 4):
             result = compute_interval_estimate_and_ci(
-                tbr_df, tbr_summary, 1, day, params["level"]
+                tbr_df, tbr_summary, 1, position, params["level"]
             )
             subinterval_results.append(result)
 
-        # Validate consistency for first 3 days
+        # Validate consistency for first 3 observations
         for i, sub_result in enumerate(subinterval_results):
             np.testing.assert_allclose(
                 incremental_result.iloc[i]["estimate"],
                 sub_result["estimate"],
                 rtol=1e-14,
-                err_msg=f"Incremental and subinterval should be consistent for day {i+1}",
+                err_msg=(
+                    "Incremental and subinterval should be consistent for "
+                    f"position {i + 1}"
+                ),
             )
 
     def test_confidence_level_monotonicity(self, consistency_test_data):

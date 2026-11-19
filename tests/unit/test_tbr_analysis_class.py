@@ -5,12 +5,20 @@ This test module validates the object-oriented API for TBR analysis,
 ensuring proper initialization, state management, and property access.
 """
 
+import pickle
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from tbr.core.model import TBRAnalysis
 from tbr.core.results import TBRPredictionResult, TBRSubintervalResult, TBRSummaryResult
+
+
+class SlottedTBRAnalysis(TBRAnalysis):
+    """Test-only subclass with state outside ``__dict__``."""
+
+    __slots__ = ("custom_metadata",)
 
 
 @pytest.fixture
@@ -39,6 +47,124 @@ class TestTBRAnalysisInitialization:
         assert model.threshold == 0.0
         assert model.test_end_inclusive is False
         assert model.fitted_ is False
+
+    def test_same_version_pickle_round_trip(self):
+        """Round-trip an unfitted model through the current pickle format."""
+        model = TBRAnalysis(level=0.90, threshold=2.0)
+
+        assert model.__getstate__()["_tbr_pickle_version"] == 1
+        restored = pickle.loads(pickle.dumps(model))
+
+        assert restored.level == 0.90
+        assert restored.threshold == 2.0
+        assert restored.fitted_ is False
+
+    def test_fitted_model_pickle_round_trip(self, sample_data):
+        """Round-trip fitted DataFrames, parameters, and metadata."""
+        model = TBRAnalysis(level=0.90, threshold=2.0).fit(
+            data=sample_data,
+            time_col="date",
+            control_col="control",
+            test_col="test",
+            pretest_start=pd.Timestamp("2023-01-01"),
+            test_start=pd.Timestamp("2023-02-15"),
+            test_end=pd.Timestamp("2023-03-01"),
+        )
+
+        restored = pickle.loads(pickle.dumps(model))
+
+        assert restored.fitted_ is True
+        assert restored.get_params() == model.get_params()
+        pd.testing.assert_frame_equal(restored.results_, model.results_)
+        pd.testing.assert_frame_equal(restored.summaries_, model.summaries_)
+        assert restored.params_ == model.params_
+        assert restored._fit_info == model._fit_info
+
+    def test_rejects_custom_attributes_before_serialization(self):
+        """Fail before emitting pickle state that restoration would reject."""
+        model = TBRAnalysis()
+        model.custom_metadata = {"owner": "example"}
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot serialize TBRAnalysis.*unexpected fields",
+        ):
+            pickle.dumps(model)
+
+    def test_rejects_slotted_subclass_before_serialization(self):
+        """Reject subclass state that canonical serialization cannot preserve."""
+        model = SlottedTBRAnalysis()
+        model.custom_metadata = {"owner": "example"}
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot serialize TBRAnalysis subclass",
+        ):
+            pickle.dumps(model)
+
+    def test_rejects_unversioned_pickle_state(self):
+        """Reject pre-0.2 model state even when the model was not fitted."""
+        model = TBRAnalysis()
+        unversioned_state = dict(model.__dict__)
+        restored = TBRAnalysis.__new__(TBRAnalysis)
+
+        with pytest.raises(
+            ValueError,
+            match=r"pre-0\.2 pickle.*recreate or refit",
+        ):
+            restored.__setstate__(unversioned_state)
+
+    @pytest.mark.parametrize("invalid_version", [True, 1.0, "1"])
+    def test_rejects_non_integer_pickle_format_version(self, invalid_version):
+        """Reject format versions that are not exact integers."""
+        state = TBRAnalysis().__getstate__()
+        state["_tbr_pickle_version"] = invalid_version
+        restored = TBRAnalysis.__new__(TBRAnalysis)
+
+        with pytest.raises(
+            ValueError,
+            match="invalid TBRAnalysis pickle format version",
+        ):
+            restored.__setstate__(state)
+
+    def test_rejects_unsupported_pickle_format_version(self):
+        """Distinguish unsupported future formats from pre-0.2 state."""
+        state = TBRAnalysis().__getstate__()
+        state["_tbr_pickle_version"] = 2
+        restored = TBRAnalysis.__new__(TBRAnalysis)
+
+        with pytest.raises(
+            ValueError,
+            match=r"unsupported TBRAnalysis pickle format version 2",
+        ):
+            restored.__setstate__(state)
+
+    @pytest.mark.parametrize("invalid_state", [None, []])
+    def test_rejects_non_dictionary_pickle_state(self, invalid_state):
+        """Reject malformed state before attempting version validation."""
+        restored = TBRAnalysis.__new__(TBRAnalysis)
+
+        with pytest.raises(
+            ValueError,
+            match="malformed TBRAnalysis pickle state.*dictionary",
+        ):
+            restored.__setstate__(invalid_state)
+
+    @pytest.mark.parametrize("invalid_state_kind", ["missing", "unknown"])
+    def test_rejects_malformed_versioned_pickle_state(self, invalid_state_kind):
+        """Reject current-version state with missing or unknown fields."""
+        state = TBRAnalysis().__getstate__()
+        if invalid_state_kind == "missing":
+            state.pop("_fit_info")
+        else:
+            state["unknown"] = None
+        restored = TBRAnalysis.__new__(TBRAnalysis)
+
+        with pytest.raises(
+            ValueError,
+            match="malformed TBRAnalysis pickle state",
+        ):
+            restored.__setstate__(state)
 
     def test_custom_initialization(self):
         """Test TBRAnalysis initialization with custom parameters."""

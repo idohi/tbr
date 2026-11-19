@@ -294,7 +294,8 @@ class TestAnalysisStatisticalProperties:
         estimates = incremental_result["estimate"].values
         precisions = incremental_result["precision"].values
 
-        # Generally, precision should increase (intervals get wider) as we add more days
+        # Generally, precision should increase (intervals get wider) as we add
+        # more observations
         # This is because cumulative variance typically increases
         assert len(estimates) > 1, "Should have multiple incremental results"
         assert all(np.isfinite(estimates)), "All estimates should be finite"
@@ -465,7 +466,7 @@ class TestAnalysisFormulaValidation:
         # Verify incremental progression properties
         estimates = result["estimate"].values
 
-        # Should have one result per test day
+        # Should have one result per test observation
         expected_length = len(tbr_df[tbr_df["period"] == 1])
         assert (
             len(result) == expected_length
@@ -487,36 +488,36 @@ class TestAnalysisFormulaValidation:
             }
         )
 
-        # Test single day
-        single_day_result = compute_interval_estimate_and_ci(
+        # Test a single observation
+        single_observation_result = compute_interval_estimate_and_ci(
             tbr_df, tbr_summary, 1, 1, 0.90
         )
 
-        # Test multiple days
-        multi_day_result = compute_interval_estimate_and_ci(
+        # Test multiple observations
+        multi_observation_result = compute_interval_estimate_and_ci(
             tbr_df, tbr_summary, 1, 3, 0.90
         )
 
         # Basic validation
         assert np.isfinite(
-            single_day_result["estimate"]
-        ), "Single day estimate should be finite"
+            single_observation_result["estimate"]
+        ), "Single-observation estimate should be finite"
         assert np.isfinite(
-            multi_day_result["estimate"]
-        ), "Multi-day estimate should be finite"
+            multi_observation_result["estimate"]
+        ), "Multi-observation estimate should be finite"
         assert (
-            single_day_result["precision"] > 0
-        ), "Single day precision should be positive"
+            single_observation_result["precision"] > 0
+        ), "Single-observation precision should be positive"
         assert (
-            multi_day_result["precision"] > 0
-        ), "Multi-day precision should be positive"
+            multi_observation_result["precision"] > 0
+        ), "Multi-observation precision should be positive"
 
 
 class TestAnalysisEdgeCaseMathematics:
     """Edge case mathematical behavior tests."""
 
-    def test_single_day_mathematical_behavior(self):
-        """Test mathematical behavior with single day analysis."""
+    def test_single_observation_mathematical_behavior(self):
+        """Test mathematical behavior with single-observation analysis."""
         tbr_df = create_proper_tbr_dataframe(n_pretest=2, n_test=1, seed=555)
 
         params = {
@@ -531,19 +532,19 @@ class TestAnalysisEdgeCaseMathematics:
             "threshold": 0.0,
         }
 
-        # All analysis methods should work with single day
+        # All analysis methods should work with a single observation
         summary_result = create_tbr_summary(tbr_df, **params)
         incremental_result = create_incremental_tbr_summaries(tbr_df, **params)
 
         # Should have consistent results
         assert (
             len(incremental_result) == 1
-        ), "Should have one incremental result for single day"
+        ), "Should have one incremental result for a single observation"
         np.testing.assert_allclose(
             summary_result.iloc[0]["estimate"],
             incremental_result.iloc[0]["estimate"],
             rtol=1e-12,
-            err_msg="Single day results should be consistent",
+            err_msg="Single-observation results should be consistent",
         )
 
     def test_boundary_confidence_levels_mathematics(self):

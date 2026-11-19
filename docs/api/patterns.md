@@ -16,7 +16,7 @@ import pandas as pd
 from tbr import TBRAnalysis
 
 rng = np.random.default_rng(114)
-dates = pd.date_range("2024-01-01", periods=90)
+dates = pd.date_range("2024-01-01", periods=90, freq="D")
 control = rng.normal(1000.0, 50.0, len(dates))
 test = control + rng.normal(0.0, 25.0, len(dates))
 test_start = pd.Timestamp("2024-02-15")

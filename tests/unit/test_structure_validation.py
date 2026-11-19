@@ -582,7 +582,7 @@ class TestStructureValidationIntegration:
             "threshold": 0.0,
             "test_end_inclusive": False,
             "validate_continuity": True,
-            "min_pretest_days": 14,
+            "min_pretest_observations": 14,
         }
 
         validate_nested_dict_structure(
@@ -593,6 +593,6 @@ class TestStructureValidationIntegration:
                 "threshold": float,
                 "test_end_inclusive": bool,
                 "validate_continuity": bool,
-                "min_pretest_days": int,
+                "min_pretest_observations": int,
             },
         )

@@ -606,7 +606,8 @@ class TestIntervalEstimationMathematical:
         )
 
         # Mathematical property: subinterval effect should be sum of (y - pred) for the interval
-        # For days 2-3 (indices 1-2): (1050-1025) + (1065-1025) = 25 + 40 = 65
+        # For positions 2-3 (indices 1-2):
+        # (1050 - 1025) + (1065 - 1025) = 25 + 40 = 65
         expected_estimate = (1050.0 - 1025.0) + (1065.0 - 1025.0)
 
         assert (

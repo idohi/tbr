@@ -32,8 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `end_position`, and `n_observations`; subinterval summaries expose
   `start_position`, `end_position`, `n_observations`, and
   `average_effect_per_observation`. Removed day-specific names have no runtime
-  aliases. Trusted 0.1.x `TBRSubintervalResult` pickle files are migrated to
-  canonical fields when loaded.
+  aliases. Cross-version 0.1.x pickle files are not supported; recreate or
+  refit `TBRSubintervalResult`, `TBRAnalysis`, and `TBRResults` objects with
+  0.2.0. Same-version round trips support canonical package-managed state
+  only. Serialization supports exact `TBRSubintervalResult`, `TBRAnalysis`,
+  and `TBRResults` instances and rejects subclass instances. `TBRAnalysis` and
+  `TBRResults` also reject user-added instance attributes rather than silently
+  discarding them.
 - **Breaking:** Incremental summaries now expose `test_position` instead of
   `test_day`, and incremental posterior mappings expose `"position"` instead
   of `"day"`.
@@ -141,8 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `validate_subinterval_parameters` now requires the `x` column and the
   `var_alpha`, `var_beta`, and `alpha_beta_cov` summary fields, and no longer
   requires `estsd`. Outputs from `TBRAnalysis` and `perform_tbr_analysis`
-  already include these columns. It also accepts NumPy integer days and NumPy
-  float `ci_level` values.
+  already include these columns. It also accepts NumPy integer positions and
+  NumPy float `ci_level` values.
 - **Breaking:** `TBRSubintervalResult.se`, returned by
   `TBRAnalysis.analyze_subinterval`, is now the standard error of the
   subinterval estimate. It previously held the credible-interval half-width.

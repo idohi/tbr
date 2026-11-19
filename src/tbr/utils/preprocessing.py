@@ -75,7 +75,7 @@ def split_time_series_by_periods(
     >>> import pandas as pd
     >>> import numpy as np
     >>> data = pd.DataFrame({
-    ...     'date': pd.date_range('2023-01-01', periods=90),
+    ...     'date': pd.date_range('2023-01-01', periods=90, freq='D'),
     ...     'control': np.random.normal(1000, 50, 90),
     ...     'test': np.random.normal(1020, 55, 90)
     ... })

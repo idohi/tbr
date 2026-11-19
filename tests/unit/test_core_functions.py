@@ -297,7 +297,7 @@ class TestIntervalEstimation:
 
     def test_interval_estimation_edge_cases(self):
         """Test interval estimation with edge cases."""
-        # Single day interval
+        # Single-observation interval
         tbr_df = pd.DataFrame(
             {"period": [1], "y": [100], "x": [90], "pred": [95], "estsd": [2]}
         )
@@ -320,7 +320,7 @@ class TestIntervalEstimation:
             ci_level=0.95,
         )
 
-        # Check that single day works
+        # Check that a single observation works
         assert result["estimate"] == 5.0  # 100 - 95
         assert result["precision"] > 0
 

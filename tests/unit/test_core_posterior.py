@@ -53,7 +53,7 @@ class TestCalculatePosteriorVariance:
         assert abs(posterior_var - 28506.6) < 1e-8
 
     def test_single_observation(self):
-        """Test that a single day gives the prediction variance."""
+        """Test that a single observation gives the prediction variance."""
         x0, sigma = 120.0, 2.0
         var_alpha, var_beta, cov_alpha_beta = 4.0, 0.01, -0.15
 
@@ -108,9 +108,9 @@ class TestCalculatePosteriorVariance:
             + (x[:, None] + x[None, :]) * cov_alpha_beta
             + np.outer(x, x) * var_beta
         )
-        per_day_model_var = np.diag(pairwise_cov)
-        cross_covariance = np.sum(pairwise_cov) - np.sum(per_day_model_var)
-        independent_var = np.sum(per_day_model_var) + len(x) * sigma**2
+        per_observation_model_var = np.diag(pairwise_cov)
+        cross_covariance = np.sum(pairwise_cov) - np.sum(per_observation_model_var)
+        independent_var = np.sum(per_observation_model_var) + len(x) * sigma**2
 
         assert cross_covariance != 0
         assert abs(posterior_var - (independent_var + cross_covariance)) < 1e-10
@@ -331,7 +331,7 @@ class TestCalculateIncrementalPosteriorProbabilities:
         assert np.all(np.array(result["probabilities"]) >= 0.0)
         assert np.all(np.array(result["probabilities"]) <= 1.0)
 
-        # First day should have zero probability change
+        # First position should have zero probability change
         assert result["probability_change"][0] == 0.0
 
     def test_increasing_estimates_pattern(self):
@@ -365,7 +365,7 @@ class TestCalculateIncrementalPosteriorProbabilities:
             estimates, std_errors, df, threshold
         )
 
-        # Cross-validate each day
+        # Cross-validate each position
         for i in range(len(estimates)):
             basic_prob = calculate_posterior_probability(
                 estimates[i], std_errors[i], df, threshold
@@ -748,7 +748,7 @@ class TestIntegrationWithTBRWorkflow:
             }
         )
 
-        # Calculate posterior variance for test days 2-4
+        # Calculate posterior variance for test positions 2-4
         posterior_var = calculate_posterior_variance(
             np.array([100.0, 98.0, 102.0]), 1.5, 4.0, 0.0004, -0.03
         )

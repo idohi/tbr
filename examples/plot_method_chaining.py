@@ -20,7 +20,7 @@ n_pretest_days = 45
 n_test_days = 45
 n_days = n_pretest_days + n_test_days
 
-dates = pd.date_range("2024-01-01", periods=n_days)
+dates = pd.date_range("2024-01-01", periods=n_days, freq="D")
 control = rng.normal(1000, 50, n_days)
 test = control + rng.normal(0, 25, n_days)
 test[n_pretest_days:] = test[n_pretest_days:] * 1.01  # 1% lift in the test period

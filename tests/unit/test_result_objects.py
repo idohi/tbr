@@ -11,11 +11,19 @@ TBRSubintervalResult) with validation of:
 - Edge cases and error handling
 """
 
+import pickle
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from tbr.core.results import TBRPredictionResult, TBRSubintervalResult, TBRSummaryResult
+
+
+class SlottedTBRSubintervalResult(TBRSubintervalResult):
+    """Test-only subclass with state outside the canonical dataclass fields."""
+
+    __slots__ = ("custom_metadata",)
 
 
 class TestTBRPredictionResult:
@@ -383,16 +391,12 @@ class TestTBRSubintervalResult:
         assert "CI=" in repr_str
         assert "se=11.800" in repr_str
 
-    @pytest.mark.parametrize("state_format", ["canonical", "legacy"])
-    def test_subinterval_result_restores_pickle_state(
-        self, subinterval_result, state_format
+    def test_subinterval_result_restores_canonical_pickle_state(
+        self, subinterval_result
     ):
-        """Restore canonical and trusted pre-0.2 serialized field names."""
-        state = subinterval_result.to_dict()
-        if state_format == "legacy":
-            state["start_day"] = state.pop("start_position")
-            state["end_day"] = state.pop("end_position")
-            state["n_days"] = state.pop("n_observations")
+        """Restore canonical same-version serialized state."""
+        state = subinterval_result.__getstate__()
+        assert state["_tbr_pickle_version"] == 1
 
         restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
         restored.__setstate__(state)
@@ -400,19 +404,92 @@ class TestTBRSubintervalResult:
         assert restored == subinterval_result
         assert tuple(vars(restored)) == tuple(subinterval_result.to_dict())
 
+    def test_subinterval_result_rejects_slotted_subclass_before_serialization(
+        self, subinterval_result
+    ):
+        """Reject subclass state that canonical serialization cannot preserve."""
+        subclassed = SlottedTBRSubintervalResult(**subinterval_result.to_dict())
+        object.__setattr__(subclassed, "custom_metadata", {"owner": "example"})
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot serialize TBRSubintervalResult subclass",
+        ):
+            pickle.dumps(subclassed)
+
+    def test_subinterval_result_rejects_pre_0_2_pickle_state(self, subinterval_result):
+        """Reject legacy state that cannot provide the corrected standard error."""
+        state = subinterval_result.to_dict()
+        state["se"] = state.pop("precision")
+        state["start_day"] = state.pop("start_position")
+        state["end_day"] = state.pop("end_position")
+        state["n_days"] = state.pop("n_observations")
+
+        restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
+        with pytest.raises(
+            ValueError,
+            match=r"pre-0\.2 pickle.*recreate or refit",
+        ):
+            restored.__setstate__(state)
+
+    @pytest.mark.parametrize("invalid_version", [True, 1.0, "1"])
+    def test_subinterval_result_rejects_non_integer_pickle_format_version(
+        self, subinterval_result, invalid_version
+    ):
+        """Reject format versions that are not exact integers."""
+        state = subinterval_result.__getstate__()
+        state["_tbr_pickle_version"] = invalid_version
+        restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
+
+        with pytest.raises(
+            ValueError,
+            match="invalid TBRSubintervalResult pickle format version",
+        ):
+            restored.__setstate__(state)
+
+    def test_subinterval_result_rejects_unsupported_pickle_format_version(
+        self, subinterval_result
+    ):
+        """Distinguish unsupported future formats from pre-0.2 state."""
+        state = subinterval_result.__getstate__()
+        state["_tbr_pickle_version"] = 2
+        restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
+
+        with pytest.raises(
+            ValueError,
+            match=r"unsupported TBRSubintervalResult pickle format version 2",
+        ):
+            restored.__setstate__(state)
+
+    @pytest.mark.parametrize("invalid_state", [None, []])
+    def test_subinterval_result_rejects_non_dictionary_pickle_state(
+        self, invalid_state
+    ):
+        """Reject malformed state before attempting version validation."""
+        restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
+
+        with pytest.raises(
+            ValueError,
+            match="malformed TBRSubintervalResult pickle state.*dictionary",
+        ):
+            restored.__setstate__(invalid_state)
+
     @pytest.mark.parametrize("invalid_state_kind", ["mixed", "incomplete"])
     def test_subinterval_result_rejects_invalid_pickle_state(
         self, subinterval_result, invalid_state_kind
     ):
         """Reject ambiguous or structurally incomplete serialized state."""
-        state = subinterval_result.to_dict()
+        state = subinterval_result.__getstate__()
         if invalid_state_kind == "mixed":
             state["start_day"] = state["start_position"]
         else:
             state.pop("end_position")
 
         restored = TBRSubintervalResult.__new__(TBRSubintervalResult)
-        with pytest.raises(ValueError, match="Cannot restore TBRSubintervalResult"):
+        with pytest.raises(
+            ValueError,
+            match=r"Cannot restore TBRSubintervalResult.*malformed pickle state",
+        ):
             restored.__setstate__(state)
 
     def test_subinterval_result_single_observation(self):

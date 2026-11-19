@@ -600,7 +600,7 @@ class TestEffectsModuleIntegration:
         # Verify reasonable results
         assert 15 < final_estimate_summary < 25  # Should be around 18.5
         assert summary["precision"].iloc[0] > 0
-        assert len(incremental) == 5  # Five test period days
+        assert len(incremental) == 5  # Five test-period observations
 
     def test_effects_module_imports(self):
         """Test that effects functions can be imported from core module."""
