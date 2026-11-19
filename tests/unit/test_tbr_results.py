@@ -5,11 +5,20 @@ This module tests all properties, methods, and functionality of the TBRResults
 result object returned by perform_tbr_analysis.
 """
 
+import pickle
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from tbr.core.results import TBRResults
 from tbr.functional import perform_tbr_analysis
+
+
+class SlottedTBRResults(TBRResults):
+    """Test-only subclass with state outside ``__dict__``."""
+
+    __slots__ = ("custom_metadata",)
 
 
 @pytest.fixture
@@ -46,6 +55,108 @@ def tbr_results(sample_analysis_data):
         threshold=0.0,
     )
     return results
+
+
+class TestTBRResultsPickleCompatibility:
+    """Test explicit same-version and cross-version pickle behavior."""
+
+    def test_same_version_pickle_round_trip(self, tbr_results):
+        """Round-trip results through the current pickle format."""
+        assert tbr_results.__getstate__()["_tbr_pickle_version"] == 1
+
+        restored = pickle.loads(pickle.dumps(tbr_results))
+
+        pd.testing.assert_frame_equal(restored.summary(), tbr_results.summary())
+        assert restored.estimate == tbr_results.estimate
+
+    def test_rejects_custom_attributes_before_serialization(self, tbr_results):
+        """Fail before emitting pickle state that restoration would reject."""
+        tbr_results.custom_metadata = {"owner": "example"}
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot serialize TBRResults.*unexpected fields",
+        ):
+            pickle.dumps(tbr_results)
+
+    def test_rejects_slotted_subclass_before_serialization(self, tbr_results):
+        """Reject subclass state that canonical serialization cannot preserve."""
+        subclassed = SlottedTBRResults.__new__(SlottedTBRResults)
+        subclassed.__dict__.update(tbr_results.__dict__)
+        subclassed.custom_metadata = {"owner": "example"}
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot serialize TBRResults subclass",
+        ):
+            pickle.dumps(subclassed)
+
+    def test_rejects_unversioned_pickle_state(self, tbr_results):
+        """Reject pre-0.2 result state before restoring legacy schemas."""
+        unversioned_state = dict(tbr_results.__dict__)
+        restored = type(tbr_results).__new__(type(tbr_results))
+
+        with pytest.raises(
+            ValueError,
+            match=r"pre-0\.2 pickle.*recreate or refit",
+        ):
+            restored.__setstate__(unversioned_state)
+
+    @pytest.mark.parametrize("invalid_version", [True, 1.0, "1"])
+    def test_rejects_non_integer_pickle_format_version(
+        self, tbr_results, invalid_version
+    ):
+        """Reject format versions that are not exact integers."""
+        state = tbr_results.__getstate__()
+        state["_tbr_pickle_version"] = invalid_version
+        restored = type(tbr_results).__new__(type(tbr_results))
+
+        with pytest.raises(
+            ValueError,
+            match="invalid TBRResults pickle format version",
+        ):
+            restored.__setstate__(state)
+
+    def test_rejects_unsupported_pickle_format_version(self, tbr_results):
+        """Distinguish unsupported future formats from pre-0.2 state."""
+        state = tbr_results.__getstate__()
+        state["_tbr_pickle_version"] = 2
+        restored = type(tbr_results).__new__(type(tbr_results))
+
+        with pytest.raises(
+            ValueError,
+            match=r"unsupported TBRResults pickle format version 2",
+        ):
+            restored.__setstate__(state)
+
+    @pytest.mark.parametrize("invalid_state", [None, []])
+    def test_rejects_non_dictionary_pickle_state(self, tbr_results, invalid_state):
+        """Reject malformed state before attempting version validation."""
+        restored = type(tbr_results).__new__(type(tbr_results))
+
+        with pytest.raises(
+            ValueError,
+            match="malformed TBRResults pickle state.*dictionary",
+        ):
+            restored.__setstate__(invalid_state)
+
+    @pytest.mark.parametrize("invalid_state_kind", ["missing", "unknown"])
+    def test_rejects_malformed_versioned_pickle_state(
+        self, tbr_results, invalid_state_kind
+    ):
+        """Reject current-version state with missing or unknown fields."""
+        state = tbr_results.__getstate__()
+        if invalid_state_kind == "missing":
+            state.pop("_summary_df")
+        else:
+            state["unknown"] = None
+        restored = type(tbr_results).__new__(type(tbr_results))
+
+        with pytest.raises(
+            ValueError,
+            match="malformed TBRResults pickle state",
+        ):
+            restored.__setstate__(state)
 
 
 class TestTBRResultsTimeSeriesProperties:

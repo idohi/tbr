@@ -117,8 +117,10 @@ class TestComputeIntervalEstimateAndCI:
         for key in ["estimate", "se", "precision", "lower", "upper"]:
             assert analysis_result[key] == pytest.approx(core_result[key], rel=1e-15)
 
-    def test_single_day_analysis(self, sample_tbr_dataframe, sample_tbr_summary):
-        """Test subinterval analysis for single day."""
+    def test_single_observation_analysis(
+        self, sample_tbr_dataframe, sample_tbr_summary
+    ):
+        """Test subinterval analysis for a single observation."""
         result = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
@@ -127,7 +129,7 @@ class TestComputeIntervalEstimateAndCI:
             ci_level=0.95,
         )
 
-        # Single day estimate should be y - pred for that day
+        # A single-observation estimate should equal y - pred for that row
         test_data = sample_tbr_dataframe[sample_tbr_dataframe["period"] == 1]
         expected_estimate = test_data.iloc[2]["y"] - test_data.iloc[2]["pred"]
 
@@ -137,13 +139,13 @@ class TestComputeIntervalEstimateAndCI:
     def test_full_period_analysis(self, sample_tbr_dataframe, sample_tbr_summary):
         """Test subinterval analysis for full test period."""
         test_data = sample_tbr_dataframe[sample_tbr_dataframe["period"] == 1]
-        max_day = len(test_data)
+        max_position = len(test_data)
 
         result = compute_interval_estimate_and_ci(
             sample_tbr_dataframe,
             sample_tbr_summary,
             start_position=1,
-            end_position=max_day,
+            end_position=max_position,
             ci_level=0.80,
         )
 
@@ -151,10 +153,10 @@ class TestComputeIntervalEstimateAndCI:
         expected_estimate = (test_data["y"] - test_data["pred"]).sum()
         assert result["estimate"] == pytest.approx(expected_estimate, rel=1e-10)
 
-    def test_input_validation_invalid_days(
+    def test_input_validation_invalid_positions(
         self, sample_tbr_dataframe, sample_tbr_summary
     ):
-        """Test input validation for invalid day parameters."""
+        """Test input validation for invalid position parameters."""
         # Note: The core functional implementation doesn't validate parameters,
         # so we test the validation function directly
 
@@ -352,7 +354,8 @@ class TestAnalyzeMultipleSubintervals:
     def test_different_interval_lengths(self, sample_data):
         """Test analysis with intervals of different lengths."""
         tbr_df, tbr_summary = sample_data
-        intervals = [(1, 1), (2, 4), (5, 8)]  # 1-day, 3-day, 4-day intervals
+        # One-, three-, and four-observation intervals
+        intervals = [(1, 1), (2, 4), (5, 8)]
 
         results = analyze_multiple_subintervals(
             tbr_df, tbr_summary, intervals, ci_level=0.80
@@ -697,8 +700,8 @@ class TestValidateSubintervalParameters:
                 ci_level=0.80,
             )
 
-    def test_invalid_day_parameters(self, valid_data):
-        """Test validation with invalid day parameters."""
+    def test_invalid_position_parameters(self, valid_data):
+        """Test validation with invalid position parameters."""
         tbr_df, tbr_summary = valid_data
 
         # Non-integer positions
@@ -776,7 +779,7 @@ class TestValidateSubintervalParameters:
             )
 
     def test_accepts_numpy_scalars(self, valid_data):
-        """Test validation accepts NumPy integer days and NumPy float levels."""
+        """Test validation accepts NumPy integer positions and NumPy float levels."""
         tbr_df, tbr_summary = valid_data
 
         # Should not raise any exception
@@ -794,7 +797,7 @@ class TestSubintervalInputValidation:
 
     @pytest.fixture
     def valid_data(self):
-        """Create valid data with three test days."""
+        """Create valid data with three test observations."""
         tbr_df = pd.DataFrame(
             {
                 "period": [0, 1, 1, 1],
@@ -865,8 +868,8 @@ class TestSubintervalInputValidation:
         with pytest.raises(ValueError, match="tbr_summary cannot be empty"):
             call(tbr_df, tbr_summary.iloc[0:0], 3)
 
-    def test_numpy_integer_days_match_python_integers(self, valid_data):
-        """Test that NumPy integer days give the same result as Python integers."""
+    def test_numpy_integer_positions_match_python_integers(self, valid_data):
+        """Test that NumPy integer positions match Python integers."""
         tbr_df, tbr_summary = valid_data
 
         expected = compute_interval_estimate_and_ci(tbr_df, tbr_summary, 1, 3, 0.80)

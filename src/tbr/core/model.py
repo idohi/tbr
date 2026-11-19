@@ -48,7 +48,27 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import pandas as pd
 
-from tbr.core.results import TBRPredictionResult, TBRSubintervalResult, TBRSummaryResult
+from tbr.core.results import (
+    TBRPredictionResult,
+    TBRSubintervalResult,
+    TBRSummaryResult,
+    _validate_pickle_state_version,
+)
+
+_PICKLE_VERSION_KEY = "_tbr_pickle_version"
+_PICKLE_VERSION = 1
+_TBR_ANALYSIS_STATE_FIELDS = frozenset(
+    {
+        "level",
+        "threshold",
+        "test_end_inclusive",
+        "_fitted",
+        "_results",
+        "_summaries",
+        "_params",
+        "_fit_info",
+    }
+)
 
 
 class TBRAnalysis:
@@ -204,6 +224,38 @@ class TBRAnalysis:
         self._summaries: Optional[pd.DataFrame] = None
         self._params: Optional[Dict[str, Any]] = None
         self._fit_info: Optional[Dict[str, Any]] = None
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Return explicitly versioned state for same-version pickle round trips."""
+        if type(self) is not TBRAnalysis:
+            raise ValueError(
+                "Cannot serialize TBRAnalysis subclass instances; pickle "
+                "serialization supports exact TBRAnalysis instances only."
+            )
+
+        state_fields = set(self.__dict__)
+        if state_fields != _TBR_ANALYSIS_STATE_FIELDS:
+            missing_fields = sorted(_TBR_ANALYSIS_STATE_FIELDS - state_fields)
+            unexpected_fields = sorted(state_fields - _TBR_ANALYSIS_STATE_FIELDS)
+            raise ValueError(
+                "Cannot serialize TBRAnalysis pickle state with missing or "
+                f"unexpected fields (missing={missing_fields}, "
+                f"unexpected={unexpected_fields})."
+            )
+
+        state = dict(self.__dict__)
+        state[_PICKLE_VERSION_KEY] = _PICKLE_VERSION
+        return state
+
+    def __setstate__(self, state: Any) -> None:
+        """Restore same-version state and reject unsupported legacy pickles."""
+        canonical_state = _validate_pickle_state_version(state, "TBRAnalysis", "model")
+        if set(canonical_state) != _TBR_ANALYSIS_STATE_FIELDS:
+            raise ValueError(
+                "Cannot restore malformed TBRAnalysis pickle state with "
+                "missing or unknown fields."
+            )
+        self.__dict__.update(canonical_state)
 
     def fit(
         self,
@@ -1239,7 +1291,7 @@ class TBRAnalysis:
         >>> control = rng.normal(1000, 50, size=44)
         >>> data = pd.DataFrame(
         ...     {
-        ...         "date": pd.date_range("2023-01-01", periods=44),
+        ...         "date": pd.date_range("2023-01-01", periods=44, freq="D"),
         ...         "control": control,
         ...         "test": 1.05 * control + rng.normal(0, 10, size=44),
         ...     }

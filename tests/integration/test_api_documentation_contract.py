@@ -734,9 +734,17 @@ def test_migration_guide_documents_incremental_schema_changes() -> None:
     assert '`"position"` instead of `"day"`' in guide
     assert "`TBRResults.n_test_days` has been removed" in guide
     assert "`TBRAnalysis.summaries_`" in guide
-    assert "Whole-object pickles of `TBRAnalysis` and `TBRResults`" in guide
-    assert "are not automatically migrated" in guide
-    assert "applies only to `TBRSubintervalResult`" in guide
+    assert "public fields and serialized data keys" in guide
+    assert "`_tbr_pickle_version` is an internal pickle-format marker" in guide
+    assert "not part of the public result schema" in guide
+    assert "0.1.x `TBRSubintervalResult` pickle files are not supported" in guide
+    assert "does not contain enough information" in guide
+    assert "recreate or refit" in guide
+    assert "Same-version 0.2.0 pickle round trips remain supported" in guide
+    assert "canonical package-managed state" in guide
+    assert "subclass instances" in guide
+    assert "pickle round trips remain supported for exact" in guide
+    assert "`TBRSubintervalResult` instances; subclass instances" in guide
     assert all(f"`{route}`" in guide for route in incremental_routes)
     assert all(f"`{route}`" in guide for route in posterior_routes)
 
@@ -754,6 +762,10 @@ def test_changelog_classifies_terminology_migration_as_breaking() -> None:
 
     assert "**Breaking:** Subinterval APIs" in changed
     assert "**Breaking:** Incremental summaries" in changed
+    assert "0.1.x pickle files are not supported" in changed
+    assert "canonical package-managed state" in changed
+    assert "user-added" in changed
+    assert "subclass instances" in changed
     assert "`TBRResults.n_test_days`" in removed
     assert "existing `n_test`" in removed
 

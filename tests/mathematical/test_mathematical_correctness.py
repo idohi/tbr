@@ -525,7 +525,7 @@ class TestStatisticalInferenceValidation:
         ), "Estimate should be within confidence interval"
 
         # Estimate should match sum of differences for the interval
-        test_data = tbr_df[tbr_df["period"] == 1].iloc[0:3]  # Days 1-3
+        test_data = tbr_df[tbr_df["period"] == 1].iloc[0:3]  # Positions 1-3
         expected_estimate = (test_data["y"] - test_data["pred"]).sum()
         np.testing.assert_allclose(
             estimate,

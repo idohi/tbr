@@ -28,14 +28,13 @@ CANONICAL_FIELDS = (
     "n_observations",
 )
 
-# Trusted repository fixture created from the pre-migration result class with
+# Repository fixture created with the published v0.1.6 result fields and
 # portable pickle protocol 4, supported across Python 3.8-3.12.
-PRE_MIGRATION_SUBINTERVAL_PICKLE = base64.b64decode(
-    b"gASVxwAAAAAAAACMEHRici5jb3JlLnJlc3VsdHOUjBRUQlJTdWJpbnRlcnZhbFJlc3Vs"
+V016_SUBINTERVAL_PICKLE = base64.b64decode(
+    b"gASVsgAAAAAAAACMEHRici5jb3JlLnJlc3VsdHOUjBRUQlJTdWJpbnRlcnZhbFJlc3Vs"
     b"dJSTlCmBlH2UKIwIZXN0aW1hdGWUR0BGmZmZmZmajAVsb3dlcpRHQD4ZmZmZmZqMBXVw"
-    b"cGVylEdATiZmZmZmZowCc2WUR0AnmZmZmZmajAlwcmVjaXNpb26UR0AuMzMzMzMzjAhj"
-    b"aV9sZXZlbJRHP+mZmZmZmZqMCXN0YXJ0X2RheZRLAowHZW5kX2RheZRLB4wGbl9kYXlz"
-    b"lEsGdWIu",
+    b"cGVylEdATiZmZmZmZowCc2WUR0AnmZmZmZmajAhjaV9sZXZlbJRHP+mZmZmZmZqMCXN0"
+    b"YXJ0X2RheZRLAowHZW5kX2RheZRLB4wGbl9kYXlzlEsGdWIu",
     validate=True,
 )
 
@@ -117,6 +116,7 @@ def test_subinterval_result_equality_hash_pickle_and_repr(subinterval_result):
     assert hash(same) == hash(subinterval_result)
     assert different != subinterval_result
 
+    assert subinterval_result.__getstate__()["_tbr_pickle_version"] == 1
     restored = pickle.loads(pickle.dumps(subinterval_result))
     assert type(restored) is result_objects.TBRSubintervalResult
     assert restored == subinterval_result
@@ -132,17 +132,13 @@ def test_subinterval_result_equality_hash_pickle_and_repr(subinterval_result):
     )
 
 
-def test_subinterval_result_loads_pre_migration_pickle(subinterval_result):
-    """Migrate an artifact written before the field migration on load."""
-    restored = pickle.loads(PRE_MIGRATION_SUBINTERVAL_PICKLE)
-
-    assert type(restored) is result_objects.TBRSubintervalResult
-    assert restored == subinterval_result
-    assert dataclasses.asdict(restored) == subinterval_result.to_dict()
-    assert tuple(vars(restored)) == CANONICAL_FIELDS
-    assert not hasattr(restored, "start_day")
-    assert not hasattr(restored, "end_day")
-    assert not hasattr(restored, "n_days")
+def test_subinterval_result_rejects_v016_pickle() -> None:
+    """Reject cross-version state that cannot supply the corrected standard error."""
+    with pytest.raises(
+        ValueError,
+        match=r"pre-0\.2 pickle.*recreate or refit",
+    ):
+        pickle.loads(V016_SUBINTERVAL_PICKLE)
 
 
 @pytest.mark.parametrize("invalid_state_kind", ["mixed", "incomplete", "unknown"])
@@ -150,7 +146,7 @@ def test_subinterval_result_rejects_malformed_pickle_state(
     subinterval_result, invalid_state_kind
 ):
     """Reject ambiguous or structurally invalid serialized instance state."""
-    invalid_state = subinterval_result.to_dict()
+    invalid_state = subinterval_result.__getstate__()
     if invalid_state_kind == "mixed":
         invalid_state["start_day"] = 2
     elif invalid_state_kind == "incomplete":

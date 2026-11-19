@@ -20,7 +20,7 @@ n_test_days = 60
 window_length = 15  # Length of each subinterval window, in test days
 
 # Generate sample data with ramping effect
-dates = pd.date_range("2024-01-01", periods=n_pretest_days + n_test_days)
+dates = pd.date_range("2024-01-01", periods=n_pretest_days + n_test_days, freq="D")
 control = rng.normal(1000, 50, len(dates))
 
 # Test group: tracks control with noise, plus a ramping effect in the test period
